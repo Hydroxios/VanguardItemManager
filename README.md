@@ -1,4 +1,4 @@
-# Custom Destiny Inventory Manager
+# Vanguard Item Manager
 
 This application is a custom inventory manager for the game Destiny. It allows players to efficiently manage their in-game items, equipment, and characters. The app provides a user-friendly interface to search, filter, and organize items across different characters and the vault.
 
