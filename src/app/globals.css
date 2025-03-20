@@ -5,17 +5,131 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --gradient-start: #ff8c00; /* Orange */
+  --gradient-end: #000000; /* Black */
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
+    --gradient-start: #ff6a00; /* Slightly darker orange for dark mode */
+    --gradient-end: #000000; /* Black */
   }
 }
 
 body {
   color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  background-image: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url("/background.jpg");
+  background-size: cover;
+  min-height: 100vh;
+  overflow-x: hidden;
+  backdrop-filter: blur(4px);
+}
+
+.currencies {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  padding: 8px 12px;
+  background-color: rgba(10, 10, 20, 0.8);
+  border: 1px solid rgb(138, 138, 138);
+  border-radius: 4px;
+  box-shadow: 0 0 10px rgba(255, 106, 0, 0.3),
+              0 0 20px rgba(30, 144, 255, 0.2),
+              inset 0 0 8px rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(4px);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+progress {
+  appearance: none;
+  height: 20px;
+  overflow: hidden;
+  background-color: rgba(116, 116, 116, 0.315);
+}
+
+progress::-webkit-progress-bar {
+  background-color: rgba(49, 49, 49, 0.247);
+}
+
+progress::-webkit-progress-value {
+  background-color: rgba(201, 201, 201, 0.8);
+}
+
+progress::-moz-progress-bar {
+  background-color: rgba(30, 144, 255, 0.8);
+}
+
+.stats {
+  position: fixed;
+  top: 50%;
+  right: 10%;
+  transform: translate(0, -50%);
+}
+
+footer {
+  background: radial-gradient(circle, rgb(17, 17, 17), black, rgb(17, 17, 17));
+}
+
+.progress-bar {
+  width: 80%;
+  height: 10px;
+  background: #000000;
+  border-radius: 2px;
+  margin: 50px auto;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 0 10px rgba(255, 106, 0, 0.3),
+              0 0 20px rgba(30, 144, 255, 0.2),
+              inset 0 0 8px rgba(255, 255, 255, 0.15);
+}
+
+.progress-dot {
+  width: 20px;
+  height: 20px;
+  background: #ffffff;
+  border-radius: 2px;
+  position: absolute;
+  top: -5px; /* centre verticalement le point */
+  left: 0;
+  animation: move-dot 2s ease-in-out infinite;
+}
+
+@keyframes move-dot {
+  0%   { left: 0; }
+  50%  { left: calc(100% - 20px); }
+  100% { left: 0; }
+}
+
+footer button {
+  padding: 4px;
+  text-align: center;
+  justify-items: center;
+}
+
+footer button:hover {
+  background-color: var(--background);
+  height: 100%;
+  animation: box-shadow-breathing 1.5s infinite;
+}
+
+.box-breathing:hover {
+  animation: box-shadow-breathing 1.5s infinite;
+}
+
+@keyframes box-shadow-breathing {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.3),
+                0 0 20px rgba(255, 255, 255, 0.2),
+                inset 0 0 8px rgba(255, 255, 255, 0.15);
+  }
+  50% {
+    box-shadow: 0 0 15px rgba(255, 255, 255, 0.5),
+                0 0 30px rgba(255, 255, 255, 0.4),
+                inset 0 0 12px rgba(255, 255, 255, 0.25);
+  }
 }
