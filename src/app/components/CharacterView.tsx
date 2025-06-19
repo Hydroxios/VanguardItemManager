@@ -616,7 +616,7 @@ const CharacterView: React.FC<CharacterViewProps> = ({
             onClick={() => setIsVimMenuOpen(!isVimMenuOpen)}
           >
             <img src={"intellect.svg"} height={24} width={24} alt="Intellect icon" />
-            <p className="text-gray-500">VIM v0.1</p>
+            <p className="text-gray-500">VIM v1.0</p>
           </button>
           
           {isVimMenuOpen && (
