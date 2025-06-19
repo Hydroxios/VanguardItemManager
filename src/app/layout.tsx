@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Roboto } from "next/font/google";
 import "./globals.css";
 import { NotificationsProvider } from "./components/NotificationsProvider";
+import { ItemTooltipProvider } from "@/lib/hooks/useItemTooltip";
+import GlobalItemTooltip from "./components/GlobalItemTooltip";
 
 const roboto = Roboto({weight: "700", subsets: ["latin"]});
 
@@ -23,7 +25,10 @@ export default function RootLayout({
         className={`${roboto.className} antialiased`}
       >
         <NotificationsProvider>
-          {children}
+          <ItemTooltipProvider>
+            {children}
+            <GlobalItemTooltip />
+          </ItemTooltipProvider>
         </NotificationsProvider>
       </body>
     </html>

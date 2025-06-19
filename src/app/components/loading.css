@@ -1,0 +1,101 @@
+* {
+  box-sizing: border-box;
+}
+
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 0;
+  flex-direction: column;
+  /* background-color: #1a1a1a; */ /* Dark background, typical of Destiny UI - REMOVED */
+}
+
+.spinner-text {
+  font-size: 1.5rem;
+  animation: pulse 2s ease-in-out infinite; /* Slower pulse */
+  margin-bottom: 40px; /* Increased margin */
+  color: #e0e0e0; /* Light gray text */
+  font-family: 'Roboto', sans-serif; /* A common font that fits the style */
+  letter-spacing: 1px;
+}
+
+.destiny-loader {
+  width: 80px;
+  height: 80px;
+  position: relative;
+  /* Central element - could be an SVG icon later */
+}
+
+.destiny-loader::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  background-color: #fff;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 10px #fff, 0 0 20px #fff; /* Glow effect */
+}
+
+.destiny-loader .particle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 6px;
+  height: 6px;
+  background-color: #fff;
+  border-radius: 50%;
+  transform-origin: 0 0; /* Set transform origin for rotation */
+  animation: orbit 2s linear infinite;
+}
+
+/* Create multiple particles with different animation delays and orbits */
+.destiny-loader .particle:nth-child(1) {
+  transform: translate(-50%, -50%) rotate(0deg) translateX(30px) rotate(0deg);
+  animation-delay: 0s;
+}
+
+.destiny-loader .particle:nth-child(2) {
+  transform: translate(-50%, -50%) rotate(120deg) translateX(30px) rotate(-120deg);
+  animation-delay: -0.66s;
+}
+
+.destiny-loader .particle:nth-child(3) {
+  transform: translate(-50%, -50%) rotate(240deg) translateX(30px) rotate(-240deg);
+  animation-delay: -1.33s;
+}
+
+@keyframes orbit {
+  0% {
+    opacity: 1;
+    transform: rotate(0deg) translateX(30px) scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: rotate(180deg) translateX(30px) scale(0.5);
+  }
+  100% {
+    opacity: 1;
+    transform: rotate(360deg) translateX(30px) scale(1);
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(0.98);
+  }
+}
+
+/* Remove old spinner styles if they exist, or ensure they don't conflict */
+.spinner, .spinner-sector, .spinner-sector-red, .spinner-sector-blue, .spinner-sector-green {
+    display: none; /* Hide the old spinner elements */
+} 

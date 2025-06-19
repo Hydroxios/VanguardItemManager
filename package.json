@@ -10,6 +10,8 @@
     "deploy": "next build && firebase deploy"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.74.7",
+    "@tanstack/react-query-devtools": "^5.74.7",
     "autoprefixer": "^10.4.20",
     "next": "15.1.7",
     "react": "^19.0.0",

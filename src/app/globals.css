@@ -133,3 +133,22 @@ footer button:hover {
                 inset 0 0 12px rgba(255, 255, 255, 0.25);
   }
 }
+
+.perks > *:first-child {
+  background-color: rgba(128, 128, 128, 0.5);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px) translateX(-5px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) translateX(0) scale(1);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.15s ease-out forwards;
+}

@@ -12,6 +12,8 @@ import CharacterSelector from "./CharacterSelector";
 import CharacterView from "./CharacterView";
 import SearchButton from "./SearchButton";
 import RefreshButton from "./RefreshButton";
+import "./loading.css";
+import Loader from "./Loader";
 
 interface AppViewProps {
   token: string;
@@ -74,12 +76,13 @@ const AppView = ({ token }: AppViewProps) => {
                   <RefreshButton onClick={async () => await refreshProfile()} />
                 </div>
                 {currentCharacter ? (
-                  <div>
+                  <div className="relative pt-4">
                     <CharacterView
                       db={db.DestinyInventoryItemDefinition}
                       statsDefinition={db.DestinyStatDefinition}
                       perksDefinition={db.DestinySandboxPerkDefinition}
                       classDefinition={db.DestinyClassDefinition}
+                      recordDefinition={db.DestinyRecordDefinition}
                       token={token}
                       characterId={currentCharacter}
                       membershipType={user?.membershipType as number}
@@ -103,6 +106,7 @@ const AppView = ({ token }: AppViewProps) => {
                       characters={profile.characters.data}
                       refresh={async () => await refreshProfile()}
                       charactersInventory={profile.characterInventories.data}
+                      profileInventory={profile.profileInventory.data.items}
                     />
                   </div>
                 ) : (
@@ -115,6 +119,9 @@ const AppView = ({ token }: AppViewProps) => {
                     <div className="p-10">
                       {profile && (
                         <CharacterSelector
+                          token={token}
+                          membershipType={user?.membershipType as number}
+                          membershipId={user?.membershipId as string}
                           itemDefinitions={db.DestinyInventoryItemDefinition}
                           characters={Object.values(profile.characters.data)}
                           classDefinition={db.DestinyClassDefinition}
@@ -122,6 +129,7 @@ const AppView = ({ token }: AppViewProps) => {
                           onSelectCharacter={(charId) => {
                             setCurrentCharacter(charId);
                           }}
+                          refresh={async () => await refreshProfile()}
                         />
                       )}
                     </div>
@@ -129,21 +137,11 @@ const AppView = ({ token }: AppViewProps) => {
                 )}
               </>
             ) : (
-              <div>
-                <p>Loading your Profile...</p>
-                <div className="progress-bar">
-                  <div className="progress-dot"></div>
-                </div>
-              </div>
+              <Loader title="Loading Profile..."/>
             )}
           </>
         ) : (
-          <div>
-            <p>Loading Destiny Databases...</p>
-            <div className="progress-bar">
-              <div className="progress-dot"></div>
-            </div>
-          </div>
+          <Loader title="Loading Destiny Databases..."/>
         )}
       </div>
       {alerts.length > 0 && (

@@ -1,3 +1,23 @@
+// This file is kept for backwards compatibility but delegates to the new API client
+// export * from './api/bungieApiClient';
+import { 
+  clearLoadout as apiClearLoadout,
+  refreshToken as apiRefreshToken,
+  getCurrentUser as apiGetCurrentUser,
+  getProfile as apiGetProfile,
+  getDefinitions as apiGetDefinitions,
+  getGlobalAlerts as apiGetGlobalAlerts,
+  getCharacter as apiGetCharacter,
+  getCharacterInventory as apiGetCharacterInventory,
+  getItem as apiGetItem,
+  equipLoadout as apiEquipLoadout,
+  transferItem as apiTransferItem,
+  safeTransferItem as apiSafeTransferItem,
+  equipItem as apiEquipItem,
+  equipItems as apiEquipItems,
+  pullFromPostmaster as apiPullFromPostmaster
+} from './api/bungieApiClient';
+
 const rootPath = "https://www.bungie.net/Platform"
 const apiKey = process.env.NODE_ENV === 'production' ? "401004d697cc44a8a8f76fdc47105211" : "56071839a5234888ae60e56b80d63141";
 
@@ -66,7 +86,7 @@ export const getCurrentUser = async (token :string) => {
 
 export const getProfile = async (token :string, membershipId: string, membershipType: number) => {
     const validToken = await checkToken(token);
-    const res = await fetch(rootPath + `/Destiny2/${membershipType}/Profile/${membershipId}/?components=100,102,103,200,201,202,205,206,300,302,304`, {
+    const res = await fetch(rootPath + `/Destiny2/${membershipType}/Profile/${membershipId}/?components=100,102,103,104,200,201,202,205,206,300,302,304`, {
         headers: {
             Authorization: "Bearer " + validToken,
             "X-Api-Key": apiKey
@@ -76,6 +96,7 @@ export const getProfile = async (token :string, membershipId: string, membership
         window.location.reload()
     }
     const data = await res.json()
+    console.log(data)
     return data.Response
 }
 
@@ -156,10 +177,11 @@ export const equipLoadout = async (token: string, membershipType: number, charac
 }
 
 export const transferItem = async (token: string, membershipType: number, itemHash: string, itemInstanceId: string, characterId: string, toVault: boolean, quantity?: number) => {
-    await fetch(rootPath + `/Destiny2/Actions/Items/TransferItem/`, {
+    const validToken = await checkToken(token);
+    const response = await fetch(rootPath + `/Destiny2/Actions/Items/TransferItem/`, {
         method: 'POST',
         headers: {
-            Authorization: "Bearer " + token,
+            Authorization: "Bearer " + validToken,
             "X-Api-Key": apiKey,
             'Content-Type': 'application/json'
         },
@@ -172,6 +194,96 @@ export const transferItem = async (token: string, membershipType: number, itemHa
             membershipType: membershipType
         })
     });
+
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.Message);
+    }
+}
+
+/**
+ * Check if an item is equipped and transfer it safely
+ * transferStatus === 1 means the item is equipped and needs to be unequipped first
+ */
+export const safeTransferItem = async (token: string, membershipType: number, itemHash: string, itemInstanceId: string, 
+                                       sourceCharacterId: string, targetCharacterId: string, membershipId: string) => {
+    // First check if the item is equipped
+    const itemData = await getItem(token, membershipType, membershipId, itemInstanceId, "307,302,304,305");
+    
+    if (itemData && itemData.item && itemData.item.data) {
+        const transferStatus = itemData.item.data.transferStatus;
+        const equipmentSlotHash = itemData.item.data.bucketHash; // The slot this item is equipped in
+        
+        // If transferStatus is 1, the item is equipped and we need to unequip it
+        if (transferStatus === 1) {
+            console.log(`Item ${itemHash} is equipped. Finding replacement...`);
+            
+            // Get character inventory to find replacement items
+            const characterInventory = await getCharacterInventory(token, membershipId, membershipType, sourceCharacterId);
+            
+            // Try to find another item of the same type in the inventory to equip
+            let replacementItem = null;
+            if (characterInventory && characterInventory.items) {
+                for (const item of characterInventory.items) {
+                    // Avoid using the same item as replacement
+                    if (item.itemInstanceId !== itemInstanceId && item.bucketHash === equipmentSlotHash) {
+                        replacementItem = item;
+                        break;
+                    }
+                }
+            }
+            
+            if (replacementItem) {
+                // Equip the replacement item first
+                console.log(`Equipping replacement item ${replacementItem.itemInstanceId}`);
+                try {
+                    await equipItem(token, membershipType, sourceCharacterId, replacementItem.itemInstanceId);
+                    
+                    // Now that another item is equipped, transfer the original item
+                    console.log(`Transferring original item ${itemInstanceId} to ${targetCharacterId === "vault" ? "vault" : "character"}`);
+                    await transferItem(token, membershipType, itemHash, itemInstanceId, sourceCharacterId, true);
+                    
+                    // If not going to vault, transfer to target character
+                    if (targetCharacterId !== "vault") {
+                        await transferItem(token, membershipType, itemHash, itemInstanceId, targetCharacterId, false);
+                    }
+                } catch (error) {
+                    console.error("Error during replacement equip:", error);
+                    // If equipping replacement fails, try direct transfer as fallback
+                    await transferItem(token, membershipType, itemHash, itemInstanceId, sourceCharacterId, true);
+                    if (targetCharacterId !== "vault") {
+                        await transferItem(token, membershipType, itemHash, itemInstanceId, targetCharacterId, false);
+                    }
+                }
+            } else {
+                console.log("No replacement found, trying direct transfer");
+                // No replacement found, try direct transfer (may fail if equipping constraints prevent it)
+                await transferItem(token, membershipType, itemHash, itemInstanceId, sourceCharacterId, true);
+                if (targetCharacterId !== "vault") {
+                    await transferItem(token, membershipType, itemHash, itemInstanceId, targetCharacterId, false);
+                }
+            }
+        } else {
+            // Item is not equipped, can transfer directly
+            if (targetCharacterId === "vault") {
+                await transferItem(token, membershipType, itemHash, itemInstanceId, sourceCharacterId, true);
+            } else {
+                // If moving between characters
+                if (sourceCharacterId !== targetCharacterId) {
+                    await transferItem(token, membershipType, itemHash, itemInstanceId, sourceCharacterId, true);
+                    await transferItem(token, membershipType, itemHash, itemInstanceId, targetCharacterId, false);
+                }
+            }
+        }
+    } else {
+        // Fallback if we couldn't get item data
+        if (targetCharacterId === "vault") {
+            await transferItem(token, membershipType, itemHash, itemInstanceId, sourceCharacterId, true);
+        } else if (sourceCharacterId !== targetCharacterId) {
+            await transferItem(token, membershipType, itemHash, itemInstanceId, sourceCharacterId, true);
+            await transferItem(token, membershipType, itemHash, itemInstanceId, targetCharacterId, false);
+        }
+    }
 }
 
 export const equipItems = async (token: string, membershipType: number, characterId: number, itemIds: number[]) => {
@@ -211,6 +323,114 @@ export const equipItem = async (token: string, membershipType: number, character
     }
 }
 
+export const pullFromPostmaster = async (token: string, membershipType: number, characterId: string, itemReferenceHash: string, itemInstanceId: string, stackSize: number = 1) => {
+    const validToken = await checkToken(token);
+    const response = await fetch(rootPath + `/Destiny2/Actions/Items/PullFromPostmaster/`, {
+        method: 'POST',
+        headers: {
+            Authorization: "Bearer " + validToken,
+            "X-Api-Key": apiKey,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            membershipType: membershipType,
+            characterId: characterId,
+            itemReferenceHash: itemReferenceHash,
+            itemId: itemInstanceId,
+            stackSize: stackSize
+        })
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.Message);
+    }
+}
+
+export const updateLoadout = async (
+    token: string, 
+    membershipType: number, 
+    characterId: string, 
+    loadoutIndex: number, 
+    name: string, 
+    iconHash: number, 
+    colorHash: number,
+    items: { itemInstanceId: string, plugItemHashes: number[] }[]
+) => {
+    const response = await fetch(rootPath + `/Destiny2/Actions/Loadouts/UpdateLoadout/`, {
+        method: 'POST',
+        headers: {
+            Authorization: "Bearer " + token,
+            "X-Api-Key": apiKey,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            colorHash,
+            iconHash,
+            membershipType,
+            characterId,
+            loadoutIndex,
+            name,
+            items
+        })
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.Message);
+    }
+    
+    return response.json();
+}
+
+export const createLoadout = async (
+    token: string, 
+    membershipType: number, 
+    characterId: string, 
+    name: string, 
+    iconHash: number, 
+    colorHash: number,
+    items: { itemInstanceId: string, plugItemHashes: number[] }[]
+) => {
+    const response = await fetch(rootPath + `/Destiny2/Actions/Loadouts/CreateLoadout/`, {
+        method: 'POST',
+        headers: {
+            Authorization: "Bearer " + token,
+            "X-Api-Key": apiKey,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            colorHash,
+            iconHash,
+            membershipType,
+            characterId,
+            name,
+            items
+        })
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.Message);
+    }
+    
+    return response.json();
+}
+
+export const clearLoadout = async (
+    token: string,
+    membershipType: number,
+    characterId: string,
+    loadoutIndex: number
+) => {
+    try {
+        // Use the API client implementation
+        return await apiClearLoadout(token, membershipType, characterId, loadoutIndex);
+    } catch (error: any) {
+        throw new Error(error.message || "Failed to clear loadout");
+    }
+}
+
 const checkToken = async (token :string) => {
     const now = Date.now()
     if(!lastUpdate) lastUpdate = localStorage.getItem("lastUpdate");
@@ -218,7 +438,9 @@ const checkToken = async (token :string) => {
         lastUpdate = now;
         console.log("Token Refreshed !")
         localStorage.setItem("lastUpdate", now.toString())
-        return await refreshToken(localStorage.getItem("rtoken") as string)
+        const nToken = await refreshToken(localStorage.getItem("rtoken") as string)
+        localStorage.setItem("token", nToken)
+        return nToken;
     }
     return token;
 }
