@@ -3,6 +3,8 @@
 import { useEffect, useState, useLayoutEffect } from "react"
 import WeaponStat from "./WeaponStat"
 import { useItemTooltip } from "@/lib/hooks/useItemTooltip"
+import { useDebug } from "./DebugProvider"
+import DebugInfos from "./DebugInfos"
 
 const GlobalItemTooltip = () => {
     const { tooltipState } = useItemTooltip();
@@ -49,6 +51,8 @@ const GlobalItemTooltip = () => {
 
     const [damageIcon, setDamageIcon] = useState("./kinetic.svg")
     const [color, setColor] = useState("#ffffff")
+
+    const {debugMode} = useDebug()
 
     // Check if an item is a material
     const isMaterial = (item: any) => {
@@ -262,9 +266,23 @@ const GlobalItemTooltip = () => {
                                 )}
                             </div>
                         )}
+                        
                     </>
                 )}
             </div>
+            {armor && (
+                    <div className="flex flex-row gap-2 ml-4 border-t border-gray-700">
+                        {itemPerks.perks
+                            .filter((p: any) => p.isActive && p.visible && (p.iconPath as string).length > 0)
+                            .slice(0, 4)
+                            .map((p: any) => (
+                                    <>
+                                        <img src={`https://www.bungie.net${p.iconPath}`} height={"48"} width={"48"} key={p.iconPath}/>
+                                    </>
+                            ))}
+                        </div>
+                    )
+            }
             <div className="flex flex-col justify-between gap-2 perks border-t border-gray-700" style={{width: "100%"}}>
                 {!materialItem && !armor && itemPerks && itemPerks.perks && perksDefinition && itemPerks.perks.filter((p :any) => p.visible && p.isActive).map((perk :any, index :number) => (
                     <div key={index} className="flex flex-row items-center gap-4 p-1">
@@ -296,6 +314,8 @@ const GlobalItemTooltip = () => {
                     </button>
                 </div>
             </div>
+            {debugMode && <DebugInfos data={{itemInstance, itemPerks, itemStats, item}}/>}
+            
         </div>
     )
 } 

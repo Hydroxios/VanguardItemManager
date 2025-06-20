@@ -45,6 +45,7 @@ export const refreshToken = async (refreshToken: string) => {
         method: "POST",
         headers: {
             "Content-Type": "application/x-www-form-urlencoded",
+            "User-Agent": "HximApp/1.0 AppId/45124 (+https://hxitemmanager.web.app;hydroxios@gmail.com)"
         },
         body: new URLSearchParams({
             client_id: process.env.NODE_ENV === "production" ? "46066" : "45124", // Replace with your actual client_id
@@ -71,7 +72,8 @@ export const getCurrentUser = async (token :string) => {
    const res = await fetch(rootPath + "/User/GetMembershipsForCurrentUser/", {
     headers: {
         Authorization: "Bearer " + token,
-        "X-Api-Key": apiKey
+        "X-Api-Key": apiKey,
+        "User-Agent": "HximApp/1.0 AppId/45124 (+https://hxitemmanager.web.app;hydroxios@gmail.com)"
     }
    }) 
    const data = await res.json()
@@ -86,10 +88,11 @@ export const getCurrentUser = async (token :string) => {
 
 export const getProfile = async (token :string, membershipId: string, membershipType: number) => {
     const validToken = await checkToken(token);
-    const res = await fetch(rootPath + `/Destiny2/${membershipType}/Profile/${membershipId}/?components=100,102,103,104,200,201,202,205,206,300,302,304`, {
+    const res = await fetch(rootPath + `/Destiny2/${membershipType}/Profile/${membershipId}/?components=100,102,103,104,200,201,202,205,206,300,302,304,1300`, {
         headers: {
             Authorization: "Bearer " + validToken,
-            "X-Api-Key": apiKey
+            "X-Api-Key": apiKey,
+            "User-Agent": "HximApp/1.0 AppId/45124 (+https://hxitemmanager.web.app;hydroxios@gmail.com)"
         }
     })
     if(res.status === 401){
@@ -103,7 +106,8 @@ export const getProfile = async (token :string, membershipId: string, membership
 export const getDefinitions = async (locale? :string) => {
     const res = await fetch(rootPath + "/Destiny2/Manifest/", {
         headers: {
-            "X-Api-Key": apiKey
+            "X-Api-Key": apiKey,
+            "User-Agent": "HximApp/1.0 AppId/45124 (+https://hxitemmanager.web.app;hydroxios@gmail.com)"
         }
     });
     const data = await res.json();
@@ -116,7 +120,8 @@ export const getDefinitions = async (locale? :string) => {
 export const getGlobalAlerts = async () => {
     const res = await fetch(rootPath + "/GlobalAlerts/", {
         headers: {
-            "X-Api-Key": apiKey
+            "X-Api-Key": apiKey,
+            "User-Agent": "HximApp/1.0 AppId/45124 (+https://hxitemmanager.web.app;hydroxios@gmail.com)"
         }
     })
     const data = await res.json()
@@ -127,7 +132,8 @@ export const getCharacter = async (token: string, membershipId: string, membersh
     const res = await fetch(rootPath + `/Destiny2/${membershipType}/Profile/${membershipId}/Character/${characterId}/?components=103,201,205`, {
         headers: {
             Authorization: "Bearer " + token,
-            "X-Api-Key": apiKey
+            "X-Api-Key": apiKey,
+            "User-Agent": "HximApp/1.0 AppId/45124 (+https://hxitemmanager.web.app;hydroxios@gmail.com)"
         }
     });
     const data = await res.json();
@@ -138,7 +144,8 @@ export const getCharacterInventory = async (token: string, membershipId: string,
     const res = await fetch(rootPath + `/Destiny2/${membershipType}/Profile/${membershipId}/Character/${characterId}/?components=201`, {
         headers: {
             Authorization: "Bearer " + token,
-            "X-Api-Key": apiKey
+            "X-Api-Key": apiKey,
+            "User-Agent": "HximApp/1.0 AppId/45124 (+https://hxitemmanager.web.app;hydroxios@gmail.com)"
         }
     });
     const data = await res.json();
@@ -150,7 +157,8 @@ export const getItem = async (token: string, membershipType: number, membershipI
         const res = await fetch(rootPath + `/Destiny2/${membershipType}/Profile/${membershipId}/Item/${itemInstanceId}/?components=${components}`, {
             headers: {
                 Authorization: "Bearer " + token,
-                "X-API-Key": apiKey
+                "X-API-Key": apiKey,
+                "User-Agent": "HximApp/1.0 AppId/45124 (+https://hxitemmanager.web.app;hydroxios@gmail.com)"
             }
         });
         const data = await res.json();
@@ -166,7 +174,8 @@ export const equipLoadout = async (token: string, membershipType: number, charac
         headers: {
             Authorization: "Bearer " + token,
             "X-Api-Key": apiKey,
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            "User-Agent": "HximApp/1.0 AppId/45124 (+https://hxitemmanager.web.app;hydroxios@gmail.com)"
         },
         body: JSON.stringify({
             membershipType: membershipType,
@@ -183,7 +192,8 @@ export const transferItem = async (token: string, membershipType: number, itemHa
         headers: {
             Authorization: "Bearer " + validToken,
             "X-Api-Key": apiKey,
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            "User-Agent": "HximApp/1.0 AppId/45124 (+https://hxitemmanager.web.app;hydroxios@gmail.com)"
         },
         body: JSON.stringify({
             itemReferenceHash: itemHash,
@@ -292,7 +302,8 @@ export const equipItems = async (token: string, membershipType: number, characte
         headers: {
             Authorization: "Bearer " + token,
             "X-Api-Key": apiKey,
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            "User-Agent": "HximApp/1.0 AppId/45124 (+https://hxitemmanager.web.app;hydroxios@gmail.com)"
         },
         body: JSON.stringify({
             membershipType: membershipType,
@@ -308,7 +319,8 @@ export const equipItem = async (token: string, membershipType: number, character
         headers: {
             Authorization: "Bearer " + token,
             "X-Api-Key": apiKey,
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            "User-Agent": "HximApp/1.0 AppId/45124 (+https://hxitemmanager.web.app;hydroxios@gmail.com)"
         },
         body: JSON.stringify({
             membershipType: membershipType,
@@ -330,7 +342,8 @@ export const pullFromPostmaster = async (token: string, membershipType: number, 
         headers: {
             Authorization: "Bearer " + validToken,
             "X-Api-Key": apiKey,
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            "User-Agent": "HximApp/1.0 AppId/45124 (+https://hxitemmanager.web.app;hydroxios@gmail.com)"
         },
         body: JSON.stringify({
             membershipType: membershipType,
@@ -362,7 +375,8 @@ export const updateLoadout = async (
         headers: {
             Authorization: "Bearer " + token,
             "X-Api-Key": apiKey,
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            "User-Agent": "HximApp/1.0 AppId/45124 (+https://hxitemmanager.web.app;hydroxios@gmail.com)"
         },
         body: JSON.stringify({
             colorHash,
@@ -397,7 +411,8 @@ export const createLoadout = async (
         headers: {
             Authorization: "Bearer " + token,
             "X-Api-Key": apiKey,
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            "User-Agent": "HximApp/1.0 AppId/45124 (+https://hxitemmanager.web.app;hydroxios@gmail.com)"
         },
         body: JSON.stringify({
             colorHash,

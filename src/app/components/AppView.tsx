@@ -14,6 +14,8 @@ import SearchButton from "./SearchButton";
 import RefreshButton from "./RefreshButton";
 import "./loading.css";
 import Loader from "./Loader";
+import Switch from "./Switch";
+import { useDebug } from "./DebugProvider";
 
 interface AppViewProps {
   token: string;
@@ -29,6 +31,8 @@ const AppView = ({ token }: AppViewProps) => {
   const [alerts, setAlerts] = useState<any[]>([]);
 
   const [db, setDB] = useState<any | undefined>();
+
+  const {debugMode, setDebugMode} = useDebug()
 
   const init = async () => {
     const alerts: any[] = await getGlobalAlerts();
@@ -153,6 +157,7 @@ const AppView = ({ token }: AppViewProps) => {
           </ul>
         </footer>
       )}
+      {process.env.NODE_ENV === "development" && <Switch label="Debug Mode" checked={debugMode} onChange={() => {setDebugMode(!debugMode)}}/>}
     </div>
   );
 };

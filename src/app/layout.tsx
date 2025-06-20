@@ -4,6 +4,7 @@ import "./globals.css";
 import { NotificationsProvider } from "./components/NotificationsProvider";
 import { ItemTooltipProvider } from "@/lib/hooks/useItemTooltip";
 import GlobalItemTooltip from "./components/GlobalItemTooltip";
+import { DebugProvider } from "./components/DebugProvider";
 
 const roboto = Roboto({weight: "700", subsets: ["latin"]});
 
@@ -25,10 +26,12 @@ export default function RootLayout({
         className={`${roboto.className} antialiased`}
       >
         <NotificationsProvider>
-          <ItemTooltipProvider>
-            {children}
-            <GlobalItemTooltip />
-          </ItemTooltipProvider>
+          <DebugProvider>
+            <ItemTooltipProvider>
+              {children}
+              <GlobalItemTooltip />
+            </ItemTooltipProvider>
+          </DebugProvider>
         </NotificationsProvider>
       </body>
     </html>
