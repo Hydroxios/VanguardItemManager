@@ -5,36 +5,28 @@ import React, { useCallback, useState } from "react";
 import { useNotifications } from "./NotificationsProvider";
 
 import { safeTransferItem, transferItem } from "@/lib/bungie";
+import { useDefinitions } from "@/lib/hooks/useDefinitions";
+import { useProfile } from "@/lib/hooks/useProfile";
+import useAuth from "@/lib/hooks/useAuth";
 
 interface CharacterSelectorProps {
-  token :string;
-  membershipType :number;
-  membershipId :string;
-  itemDefinitions: any;
-  characters: any[];
-  classDefinition :any
-  raceDefinition :any
   onSelectCharacter: (characterId: string) => void;
-  refresh: () => Promise<void>;
 }
 
 const CharacterSelector = ({
-  token,
-  membershipType,
-  membershipId,
-  itemDefinitions,
-  characters,
-  classDefinition,
-  raceDefinition,
   onSelectCharacter,
-  refresh
 }: CharacterSelectorProps) => {
 
-  const { addNotification } = useNotifications()
-
+  
   const [selectedCharacter, setSelectedCharacter] = useState<string | null>(
     null
   );
+
+  const { addNotification } = useNotifications()
+  const { itemDefinitions, classDefinitions, raceDefinitions } = useDefinitions()
+
+  const {token} = useAuth()
+  const { user, refresh, characters } = useProfile()
 
   const handleCharacterSelect = (characterId: string) => {
     setSelectedCharacter(characterId);
@@ -54,17 +46,17 @@ const CharacterSelector = ({
           // Item is being transferred from another character
           // args[0] = itemHash, args[1] = itemInstanceId, args[2] = sourceCharacterId
           await safeTransferItem(
-            token, 
-            membershipType, 
+            token ?? "", 
+            user.membershipType, 
             args[0], 
             args[1], 
             args[2], 
             characterId, 
-            membershipId
+            user.membershipId
           );
         } else {
           // Item is being transferred from vault to character
-          await transferItem(token, membershipType, args[0], args[1], characterId, false);
+          await transferItem(token ?? "", user.membershipType, args[0], args[1], characterId, false);
         }
         await refresh();
         addNotification(
@@ -93,7 +85,7 @@ const CharacterSelector = ({
 
   return (
     <div className="flex flex-col gap-5">
-      {characters.map((character: Character) => (
+      {Object.values(characters).map((character) => (
         <div
           key={character.characterId}
           className="flex flex-row items-center w-[350px] h-[60px] bg-gray-800 border border-gray-600 rounded-lg cursor-pointer relative box-breathing"
@@ -108,8 +100,8 @@ const CharacterSelector = ({
         >
           {/* Remove the img tag as the emblem is now a background */}
           <div className="text-left p-1" style={{ marginLeft: '60px' }}>
-            <p>{classDefinition[character.classHash].displayProperties.name}</p>
-            <p>{raceDefinition[character.raceHash].displayProperties.name}</p>
+            <p>{classDefinitions[character.classHash].displayProperties.name}</p>
+            <p>{raceDefinitions[character.raceHash].displayProperties.name}</p>
           </div>
           <p className="text-yellow-400 absolute top-0 right-0 m-2">✧ {character.light}</p>
         </div>

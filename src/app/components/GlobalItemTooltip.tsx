@@ -5,22 +5,17 @@ import WeaponStat from "./WeaponStat"
 import { useItemTooltip } from "@/lib/hooks/useItemTooltip"
 import { useDebug } from "./DebugProvider"
 import DebugInfos from "./DebugInfos"
+import { useDefinitions } from "@/lib/hooks/useDefinitions"
+import { useProfile } from "@/lib/hooks/useProfile"
 
 const GlobalItemTooltip = () => {
     const { tooltipState } = useItemTooltip();
     const { 
-        item, 
-        itemInstance, 
-        itemInstances, 
-        itemPerks, 
-        itemStats, 
-        positions, 
-        statsDefinition, 
-        perksDefinition, 
-        classDefinition, 
+        item,
+        itemInstanceId,
+        positions,
         open, 
-        characterId, 
-        characters, 
+        characterId,
         armor 
     } = tooltipState;
 
@@ -43,6 +38,14 @@ const GlobalItemTooltip = () => {
     const [inventorySize, setInventorySize] = useState<any>()
     const [airborneEffectiveness, setAirborneEffectiveness] = useState<any>()
 
+    //Armor stats
+    const [mobility, setMobility] = useState<any>()
+    const [resilience, setResilience] = useState<any>()
+    const [recovery, setRecovery] = useState<any>()
+    const [discipline, setDiscipline] = useState<any>()
+    const [intellect, setIntellect] = useState<any>()
+    const [strength, setStrength] = useState<any>()
+
     // UI state
     const [showAdvancedStats, setShowAdvancedStats] = useState(false);
     const [adjustedPosition, setAdjustedPosition] = useState({ x: 0, y: 0 });
@@ -53,6 +56,9 @@ const GlobalItemTooltip = () => {
     const [color, setColor] = useState("#ffffff")
 
     const {debugMode} = useDebug()
+    const { itemDefinitions, statsDefinitions, perksDefinitions, classDefinitions } = useDefinitions()
+    const { itemComponents, characters } = useProfile()
+
 
     // Check if an item is a material
     const isMaterial = (item: any) => {
@@ -112,26 +118,35 @@ const GlobalItemTooltip = () => {
     }, [open, item, positions, tooltipHeight]);
 
     useEffect(() => {
-        if(!armor && itemStats && itemStats.stats) {
+        if(!itemInstanceId) return;
+        if(!armor) {
             // Common weapon stats
-            setImpact(() => itemStats.stats[4043523819])
-            setRange(() => itemStats.stats[1240592695])
-            setStability(() => itemStats.stats[155624089])
-            setHandling(() => itemStats.stats[943549884])
-            setReloadSpeed(() => itemStats.stats[4188031367])
+            setImpact(() => itemComponents.stats[itemInstanceId].stats[4043523819])
+            setRange(() => itemComponents.stats[itemInstanceId].stats[1240592695])
+            setStability(() => itemComponents.stats[itemInstanceId].stats[155624089])
+            setHandling(() => itemComponents.stats[itemInstanceId].stats[943549884])
+            setReloadSpeed(() => itemComponents.stats[itemInstanceId].stats[4188031367])
             
             // Additional weapon stats - using known Destiny 2 stat hash IDs
-            setAimAssistance(() => itemStats.stats[1345609583])
-            setZoom(() => itemStats.stats[3555269338])
-            setRecoilDirection(() => itemStats.stats[2715839340])
-            setRpm(() => itemStats.stats[4284893193])
-            setMagazine(() => itemStats.stats[3871231066])
-            setBlastRadius(() => itemStats.stats[3614673599])
-            setVelocity(() => itemStats.stats[2523465841])
-            setChargeTime(() => itemStats.stats[2961396640])
-            setDrawTime(() => itemStats.stats[447667954])
-            setInventorySize(() => itemStats.stats[1931675084])
-            setAirborneEffectiveness(() => itemStats.stats[2714457168])
+            setAimAssistance(() => itemComponents.stats[itemInstanceId].stats[1345609583])
+            setZoom(() => itemComponents.stats[itemInstanceId].stats[3555269338])
+            setRecoilDirection(() => itemComponents.stats[itemInstanceId].stats[2715839340])
+            setRpm(() => itemComponents.stats[itemInstanceId].stats[4284893193])
+            setMagazine(() => itemComponents.stats[itemInstanceId].stats[3871231066])
+            setBlastRadius(() => itemComponents.stats[itemInstanceId].stats[3614673599])
+            setVelocity(() => itemComponents.stats[itemInstanceId].stats[2523465841])
+            setChargeTime(() => itemComponents.stats[itemInstanceId].stats[2961396640])
+            setDrawTime(() => itemComponents.stats[itemInstanceId].stats[447667954])
+            setInventorySize(() => itemComponents.stats[itemInstanceId].stats[1931675084])
+            setAirborneEffectiveness(() => itemComponents.stats[itemInstanceId].stats[2714457168])
+        }
+        if(armor){
+            setMobility(() => itemComponents.stats[itemInstanceId].stats[2996146975])
+            setResilience(() => itemComponents.stats[itemInstanceId].stats[392767087])
+            setRecovery(() => itemComponents.stats[itemInstanceId].stats[1943323491])
+            setDiscipline(() => itemComponents.stats[itemInstanceId].stats[1735777505])
+            setIntellect(() => itemComponents.stats[itemInstanceId].stats[144602215])
+            setStrength(() => itemComponents.stats[itemInstanceId].stats[4244567218])
         }
         if (item) {
             switch(item.defaultDamageType){
@@ -143,7 +158,7 @@ const GlobalItemTooltip = () => {
                 case 1: setDamageIcon("./kinetic.svg"); setColor("#FFFFFF"); break;
             }
         }
-    }, [itemInstance, armor, itemStats, item])
+    }, [armor, item])
 
     const getBackgroundColor = () => {
         if (!item) return "";
@@ -172,11 +187,6 @@ const GlobalItemTooltip = () => {
             <div className="p-1" style={{backgroundColor: getBackgroundColor(), width: "100%", textAlign: "left"}}>
                 <div className="flex justify-between items-center">
                     <div className="text-lg font-bold">{item.displayProperties.name.toUpperCase()}</div>
-                    {itemInstance && itemInstance.quantity && itemInstance.quantity > 1 && (
-                        <div className="bg-black bg-opacity-50 text-white text-sm px-2 py-0.5 rounded">
-                            {itemInstance.quantity}
-                        </div>
-                    )}
                 </div>
                 <div className="text-gray-300">{item.itemTypeDisplayName}</div>
             </div>
@@ -189,8 +199,8 @@ const GlobalItemTooltip = () => {
                     <>
                         <div className="flex flex-row items-center gap-2 p-2">
                             {!armor && <img src={damageIcon} height={48} width={48} alt="Damage type" />}
-                            <div className="text-4xl" style={{color: color}}>
-                                {((itemInstance && itemInstance.itemInstanceId && itemInstances[itemInstance.itemInstanceId]?.primaryStat?.value) ?? "Unknown")}
+                            <div className="text-4xl" style={{color:  (!armor ? color : "white")}}>
+                                {itemInstanceId && (itemComponents.instances[itemInstanceId].primaryStat.value ?? "Unknown")}
                             </div>
                         </div>
                         {!armor && (
@@ -198,18 +208,18 @@ const GlobalItemTooltip = () => {
                                 {/* Primary weapon stats section */}
                                 <div className="mb-3">
                                     <div className="text-xs uppercase font-bold text-gray-400 border-b border-gray-700 mb-1 pb-1">Primary Stats</div>
-                                    {impact && statsDefinition && <WeaponStat name={statsDefinition[impact.statHash].displayProperties.name} value={impact.value} bar={true}/>}
-                                    {range && statsDefinition && <WeaponStat name={statsDefinition[range.statHash].displayProperties.name} value={range.value} bar={true}/>}
-                                    {stability && statsDefinition && <WeaponStat name={statsDefinition[stability.statHash].displayProperties.name} value={stability.value} bar={true}/>}
-                                    {handling && statsDefinition && <WeaponStat name={statsDefinition[handling.statHash].displayProperties.name} value={handling.value} bar={true}/>}
-                                    {reloadSpeed && statsDefinition && <WeaponStat name={statsDefinition[reloadSpeed.statHash].displayProperties.name} value={reloadSpeed.value} bar={true}/>}
+                                    {impact && <WeaponStat name={statsDefinitions[impact.statHash].displayProperties.name} value={impact.value} bar={true}/>}
+                                    {range  && <WeaponStat name={statsDefinitions[range.statHash].displayProperties.name} value={range.value} bar={true}/>}
+                                    {stability && <WeaponStat name={statsDefinitions[stability.statHash].displayProperties.name} value={stability.value} bar={true}/>}
+                                    {handling && <WeaponStat name={statsDefinitions[handling.statHash].displayProperties.name} value={handling.value} bar={true}/>}
+                                    {reloadSpeed && <WeaponStat name={statsDefinitions[reloadSpeed.statHash].displayProperties.name} value={reloadSpeed.value} bar={true}/>}
                                 </div>
                                 
                                 {/* Performance stats section */}
                                 <div className="mb-3">
                                     <div className="text-xs uppercase font-bold text-gray-400 border-b border-gray-700 mb-1 pb-1">Performance</div>
-                                    {rpm && statsDefinition && <WeaponStat name={"RPM"} value={rpm.value} bar={false}/>}
-                                    {magazine && statsDefinition && <WeaponStat name={statsDefinition[magazine.statHash].displayProperties.name} value={magazine.value} bar={false}/>}
+                                    {rpm && <WeaponStat name={"RPM"} value={rpm.value} bar={false}/>}
+                                    {magazine && <WeaponStat name={statsDefinitions[magazine.statHash].displayProperties.name} value={magazine.value} bar={false}/>}
                                 </div>
                                 
                                 {/* Weapon-specific stats section - Only show if at least one is available */}
@@ -220,16 +230,16 @@ const GlobalItemTooltip = () => {
                                         {/* Group time-based stats together */}
                                         {(chargeTime || drawTime) && (
                                             <div className="mb-1">
-                                                {chargeTime && statsDefinition && (
+                                                {chargeTime && (
                                                     <WeaponStat 
-                                                        name={statsDefinition[chargeTime.statHash].displayProperties.name} 
+                                                        name={statsDefinitions[chargeTime.statHash].displayProperties.name} 
                                                         value={chargeTime.value} 
                                                         bar={true}
                                                     />
                                                 )}
-                                                {drawTime && statsDefinition && (
+                                                {drawTime && (
                                                     <WeaponStat 
-                                                        name={statsDefinition[drawTime.statHash].displayProperties.name} 
+                                                        name={statsDefinitions[drawTime.statHash].displayProperties.name} 
                                                         value={drawTime.value} 
                                                         bar={true}
                                                     />
@@ -238,8 +248,8 @@ const GlobalItemTooltip = () => {
                                         )}
                                         
                                         {/* Projectile-based stats */}
-                                        {blastRadius && statsDefinition && <WeaponStat name={statsDefinition[blastRadius.statHash].displayProperties.name} value={blastRadius.value} bar={true}/>}
-                                        {velocity && statsDefinition && <WeaponStat name={statsDefinition[velocity.statHash].displayProperties.name} value={velocity.value} bar={true}/>}
+                                        {blastRadius && <WeaponStat name={statsDefinitions[blastRadius.statHash].displayProperties.name} value={blastRadius.value} bar={true}/>}
+                                        {velocity&& <WeaponStat name={statsDefinitions[velocity.statHash].displayProperties.name} value={velocity.value} bar={true}/>}
                                     </div>
                                 )}
                                 
@@ -255,13 +265,34 @@ const GlobalItemTooltip = () => {
                                         </button>
                                         {showAdvancedStats && (
                                             <div className="pt-1 animate-fadeIn">
-                                                {aimAssistance && statsDefinition && <WeaponStat name={statsDefinition[aimAssistance.statHash].displayProperties.name} value={aimAssistance.value} bar={true}/>}
-                                                {recoilDirection && statsDefinition && <WeaponStat name={statsDefinition[recoilDirection.statHash].displayProperties.name} value={recoilDirection.value} bar={true}/>}
-                                                {zoom && statsDefinition && <WeaponStat name={statsDefinition[zoom.statHash].displayProperties.name} value={zoom.value} bar={false}/>}
-                                                {inventorySize && statsDefinition && <WeaponStat name={statsDefinition[inventorySize.statHash].displayProperties.name} value={inventorySize.value} bar={true}/>}
-                                                {airborneEffectiveness && statsDefinition && <WeaponStat name={statsDefinition[airborneEffectiveness.statHash].displayProperties.name} value={airborneEffectiveness.value} bar={true}/>}
+                                                {aimAssistance && <WeaponStat name={statsDefinitions[aimAssistance.statHash].displayProperties.name} value={aimAssistance.value} bar={true}/>}
+                                                {recoilDirection && <WeaponStat name={statsDefinitions[recoilDirection.statHash].displayProperties.name} value={recoilDirection.value} bar={true}/>}
+                                                {zoom && <WeaponStat name={statsDefinitions[zoom.statHash].displayProperties.name} value={zoom.value} bar={false}/>}
+                                                {inventorySize && <WeaponStat name={statsDefinitions[inventorySize.statHash].displayProperties.name} value={inventorySize.value} bar={true}/>}
+                                                {airborneEffectiveness && <WeaponStat name={statsDefinitions[airborneEffectiveness.statHash].displayProperties.name} value={airborneEffectiveness.value} bar={true}/>}
                                             </div>
                                         )}
+                                    </div>
+                                )}
+                                {/* Weapon Perks section */}
+                                {itemComponents.perks[itemInstanceId] && (
+                                    <div className="mt-3">
+                                        <div className="text-xs uppercase font-bold text-gray-400 border-b border-gray-700 mb-1 pb-1">Weapon Perks</div>
+                                        {itemComponents.perks[itemInstanceId].perks
+                                            .filter((p) => p.isActive && p.visible && (p.iconPath as string).length > 0)
+                                            .slice(0, 4)
+                                            .map((p: any, idx: number) => {
+                                                const perkDef = perksDefinitions[p.perkHash];
+                                                return (
+                                                    <div key={idx} className="flex flex-row items-center gap-2 mb-2">
+                                                        <img src={`https://www.bungie.net${p.iconPath}`} height={32} width={32} alt={perkDef?.displayProperties?.name || "Perk"} />
+                                                        <div className="flex flex-col items-start text-left">
+                                                            <span className="text-sm font-semibold text-gray-200">{perkDef?.displayProperties?.name || "Perk"}</span>
+                                                            <span className="text-xs text-gray-400">{perkDef?.displayProperties?.description || ""}</span>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
                                     </div>
                                 )}
                             </div>
@@ -271,31 +302,45 @@ const GlobalItemTooltip = () => {
                 )}
             </div>
             {armor && (
-                    <div className="flex flex-row gap-2 ml-4 border-t border-gray-700">
-                        {itemPerks.perks
-                            .filter((p: any) => p.isActive && p.visible && (p.iconPath as string).length > 0)
-                            .slice(0, 4)
-                            .map((p: any) => (
-                                    <>
-                                        <img src={`https://www.bungie.net${p.iconPath}`} height={"48"} width={"48"} key={p.iconPath}/>
-                                    </>
-                            ))}
-                        </div>
-                    )
-            }
-            <div className="flex flex-col justify-between gap-2 perks border-t border-gray-700" style={{width: "100%"}}>
-                {!materialItem && !armor && itemPerks && itemPerks.perks && perksDefinition && itemPerks.perks.filter((p :any) => p.visible && p.isActive).map((perk :any, index :number) => (
-                    <div key={index} className="flex flex-row items-center gap-4 p-1">
-                        <img src={"https://www.bungie.net" + perk.iconPath} height={32} width={32} alt={perksDefinition[perk.perkHash]?.displayProperties?.name || "Perk"} />
-                        <div>{perksDefinition[perk.perkHash].displayProperties.name}</div>
+                <div className="p-2 border-t border-gray-700 w-full">
+                    <div className="mb-3">
+                        <div className="text-xs uppercase font-bold text-gray-400 border-b border-gray-700 mb-1 pb-1">Armor Stats</div>
+                        {mobility && <WeaponStat name={statsDefinitions[mobility.statHash]?.displayProperties?.name || "Mobility"} value={mobility.value} bar={true} max={40}/>} 
+                        {resilience && <WeaponStat name={statsDefinitions[resilience.statHash]?.displayProperties?.name || "Resilience"} value={resilience.value} bar={true} max={40}/>} 
+                        {recovery && <WeaponStat name={statsDefinitions[recovery.statHash]?.displayProperties?.name || "Recovery"} value={recovery.value} bar={true} max={40}/>} 
+                        {discipline && <WeaponStat name={statsDefinitions[discipline.statHash]?.displayProperties?.name || "Discipline"} value={discipline.value} bar={true} max={40}/>} 
+                        {intellect && <WeaponStat name={statsDefinitions[intellect.statHash]?.displayProperties?.name || "Intellect"} value={intellect.value} bar={true} max={40}/>} 
+                        {strength && <WeaponStat name={statsDefinitions[strength.statHash]?.displayProperties?.name || "Strength"} value={strength.value} bar={true} max={40}/>} 
                     </div>
-                ))}
-            </div>
+                </div>
+            )}
+            {armor && (
+                <div className="p-2 border-t border-gray-700 w-full">
+                    <div className="mb-3">
+                        <div className="text-xs uppercase font-bold text-gray-400 border-b border-gray-700 mb-1 pb-1">Armor Mods</div>
+                        {itemInstanceId && itemComponents.perks[itemInstanceId].perks
+                            .filter((p) => p.isActive && p.visible && (p.iconPath as string).length > 0)
+                            .slice(0, 4)
+                            .map((p, idx: number) => {
+                                const perkDef = perksDefinitions[p.perkHash];
+                                return (
+                                    <div key={idx} className="flex flex-row items-center gap-2 mb-2">
+                                        <img src={`https://www.bungie.net${p.iconPath}`} height={32} width={32} alt={perkDef?.displayProperties?.name || "Perk"} />
+                                        <div className="flex flex-col items-start text-left">
+                                            <span className="text-sm font-semibold text-gray-200">{perkDef?.displayProperties?.name || "Perk"}</span>
+                                            <span className="text-xs text-gray-400">{perkDef?.displayProperties?.description || ""}</span>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                    </div>
+                </div>
+            )}
             <div className="flex flex-row p-2 items-center justify-between border-t border-gray-700" style={{width: "100%"}}>
                 <div className="flex flex-row gap-2">
-                    {characters && Object.values(characters).filter((c :any) => c.characterId !== characterId).map((c :any) => (
+                    {Object.values(characters).filter((c) => c.characterId !== characterId).map((c) => (
                         <button key={c.characterId} className="hover:opacity-80 transition-opacity">
-                            <img src={classDefinition[c.classHash].displayProperties.name.toLowerCase() + ".svg"} height={32} width={32} alt={classDefinition[c.classHash].displayProperties.name} />
+                            <img src={classDefinitions[c.classHash].displayProperties.name.toLowerCase() + ".svg"} height={32} width={32} alt={classDefinitions[c.classHash].displayProperties.name} />
                         </button>
                     ))}
                 </div>
@@ -306,15 +351,22 @@ const GlobalItemTooltip = () => {
                     >
                         <img src="vault2.svg" height={32} width={32} alt="Vault" />
                     </button>
-                    <button
-                        className="hover:opacity-80 transition-opacity"
-                        onClick={() => item && window.open("https://www.light.gg/db/items/" + item.hash)}
-                    >
-                        <img src="./lightgg.png" height={32} width={32} alt="Light.gg" />
-                    </button>
+                    {!armor && (
+                        <button
+                            className="hover:opacity-80 transition-opacity"
+                            onClick={() => item && window.open("https://d2foundry.gg/w/" + item.hash)}
+                        >
+                            <img src="https://d2foundry.gg/_next/image?url=%2Fassets%2Ffoundry_logo_pride.png&w=32&q=75" className="rounded-lg" height={32} width={32} alt="Light.gg" />
+                        </button>
+                    )}
                 </div>
             </div>
-            {debugMode && <DebugInfos data={{itemInstance, itemPerks, itemStats, item}}/>}
+            {debugMode && <DebugInfos data={{
+                "itemInstance": itemComponents.instances[itemInstanceId],
+                ...itemComponents.perks[itemInstanceId], 
+                ...itemComponents.stats[itemInstanceId], 
+                item}}
+            />}
             
         </div>
     )

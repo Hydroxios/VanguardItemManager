@@ -3,50 +3,38 @@
 import Item from "./Item"
 import { equipItem, safeTransferItem } from "@/lib/bungie"
 import { useNotifications } from "./NotificationsProvider"
+import { useDefinitions } from "@/lib/hooks/useDefinitions"
+import useAuth from "@/lib/hooks/useAuth"
+import { useProfile } from "@/lib/hooks/useProfile"
 
 interface InventoryItemsProps {
-    token: string
     items: any[],
-    itemInstances: any
     open: boolean,
-    membershipType: number;
     characterId: string;
-    membershipId?: string;
-    perksDefinition: any;
-    statsDefinition: any;
-    characters: any;
-    classDefinition: any;
-    refresh: () => Promise<void>
     right: boolean
     armors: boolean
-    onEquip?: (item: any, itemInstanceId: string, state: number, ornamentItem?: any) => Promise<void>
+    onEquip?: (item: any, itemInstanceId: string, state: number, hash: number, ornamentItem?: any) => Promise<void>
 }
 
 const InventoryItems = ({ 
-    token, 
     items, 
-    itemInstances, 
     open, 
-    membershipType, 
     characterId, 
-    membershipId,
-    refresh, 
     right, 
-    onEquip, 
-    classDefinition, 
-    statsDefinition, 
-    perksDefinition, 
-    characters, 
+    onEquip,
     armors 
 }: InventoryItemsProps) => {
 
     const { addNotification } = useNotifications()
 
-    const equip = async (item: any, itemInstance: any, state: number, ornamentItem?: any) => {
+    const { token } = useAuth()
+    const { user } = useProfile()
+
+    const equip = async (item: any, itemInstance: any, state: number, hash: number, ornamentItem?: any,) => {
         try {
-            await equipItem(token, membershipType, characterId, itemInstance.itemInstanceId)
+            await equipItem(token as string, user.membershipType, characterId, itemInstance.itemInstanceId)
             if(onEquip){
-                await onEquip(item, itemInstance.itemInstanceId, state, ornamentItem);
+                await onEquip(item, itemInstance.itemInstanceId, state, hash, ornamentItem);
                 addNotification("Successfully Equipped " + item.displayProperties.name + " !", "", "success", "https://www.bungie.net" + (ornamentItem ? ornamentItem.displayProperties.icon : item.displayProperties.icon), 5000)
             }
         } catch (err: any) {
@@ -60,24 +48,17 @@ const InventoryItems = ({
                 <div className="relative">
                     {items.map((item, index) => (
                         <div key={index} className="absolute" style={{ top: `${Math.floor(index / 3) * 65}px`, right: `${(!right ? (((index % 3) * 65) + (right ? -65 * 4 : 0) - (right ? 5 : 0)) : -128-6 - (index % 3 * 65))}px`, height: "64px", width: "64px", padding: "0px", zIndex: 10}}>
-                            <Item 
-                                item={item.item} 
-                                itemInstance={item.itemInstance} 
+                            <Item
+                                itemHash={item.hash}
+                                itemInstanceId={item.itemInstanceId} 
                                 ornamentItem={item.ornamentItem} 
-                                onDoubleClick={() => equip(item.item, item.itemInstance, item.state, item.ornamentItem)} 
+                                onDoubleClick={() => equip(item.item, item.itemInstance, item.state, item.hash, item.ornamentItem)} 
                                 state={item.state}
                                 characterId={characterId}
-                                characters={characters}
                                 perks={item.perks}
                                 stats={item.stats}
-                                classDefinition={classDefinition}
-                                perksDefinition={perksDefinition}
-                                statsDefinition={statsDefinition}
                                 armor={armors}
-                                itemInstances={itemInstances}
-                                membershipId={membershipId}
-                                membershipType={membershipType}
-                                token={token}
+                                quantity={item.quantity || 1}
                             />
                         </div>
                     ))}

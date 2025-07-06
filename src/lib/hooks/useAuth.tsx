@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useContext, createContext, ReactNode } from 'react';
 import { refreshToken } from '../bungie';
 
 interface UseAuthResult {
@@ -10,7 +10,9 @@ interface UseAuthResult {
   refreshUserToken: () => Promise<void>;
 }
 
-export const useAuth = (): UseAuthResult => {
+const AuthContext = createContext<UseAuthResult | undefined>(undefined);
+
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [token, setToken] = useState<string | null>(null);
   const [isTokenLoading, setIsTokenLoading] = useState<boolean>(true);
   const [isTokenRefreshing, setIsTokenRefreshing] = useState<boolean>(false);
@@ -38,7 +40,6 @@ export const useAuth = (): UseAuthResult => {
   useEffect(() => {
     // Get token from local storage on mount
     const storedToken = localStorage.getItem("token");
-    
     // Check if token needs refreshing
     if (localStorage.getItem("lastUpdate")) {
       const now = Date.now();
@@ -61,12 +62,26 @@ export const useAuth = (): UseAuthResult => {
     setIsTokenLoading(false);
   }, [refreshUserToken]);
 
-  return {
+  const value: UseAuthResult = {
     token,
     isTokenLoading,
     isTokenRefreshing,
     refreshUserToken
   };
+
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+export const useAuth = (): UseAuthResult => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
 };
 
 export default useAuth; 

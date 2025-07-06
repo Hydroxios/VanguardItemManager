@@ -3,9 +3,13 @@
 import Image from "next/image";
 import AppView from "./components/AppView";
 import useAuth from "@/lib/hooks/useAuth";
+import { DefinitionsProvider } from "@/lib/hooks/useDefinitions";
+import { ItemTooltipProvider } from "@/lib/hooks/useItemTooltip";
+import GlobalItemTooltip from "./components/GlobalItemTooltip";
+import { ProfileProvider } from "@/lib/hooks/useProfile";
 
 export default function Home() {
-  const { token, isTokenLoading, refreshUserToken } = useAuth();
+  const { token } = useAuth();
 
   return (
     <div className="flex items-center justify-center text-center min-h-screen p-8 ">
@@ -36,7 +40,14 @@ export default function Home() {
           </div>
         </div>
       ) : (
-        <AppView token={token} />
+        <DefinitionsProvider>
+          <ProfileProvider>
+            <ItemTooltipProvider>
+              <AppView />
+              <GlobalItemTooltip/>
+            </ItemTooltipProvider>
+          </ProfileProvider>
+        </DefinitionsProvider>
       )}
     </div>
   );

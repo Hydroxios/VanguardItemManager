@@ -1,51 +1,41 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useItemTooltip } from "@/lib/hooks/useItemTooltip";
+import { useDefinitions } from "@/lib/hooks/useDefinitions";
+import { useProfile } from "@/lib/hooks/useProfile";
+import LoadingItem from "./LoadingItem";
 
 interface ItemProps {
-  item: any;
-  itemInstance: any;
-  itemInstances :any
+  itemHash: number;
+  itemInstanceId: string;
   ornamentItem?: any | undefined;
   state: number;
   perks :any;
   stats :any;
-  perksDefinition :any;
-  statsDefinition :any;
   characterId :any;
-  characters :any;
-  classDefinition :any;
   armor :boolean
-  membershipId?: string;
-  membershipType?: number;
-  token?: string;
   onDoubleClick?: () => void;
+  quantity?: number;
 }
 
 const Item = ({
-  item,
-  itemInstance,
-  itemInstances,
+  itemHash,
+  itemInstanceId,
   ornamentItem,
   state,
-  perks,
-  stats,
-  perksDefinition,
-  statsDefinition,
   characterId,
-  characters,
-  classDefinition,
   armor,
-  membershipId,
-  membershipType,
-  token,
   onDoubleClick,
+  quantity = 1,
 }: ItemProps) => {
   
   const { showTooltip, hideTooltip, tooltipState } = useItemTooltip();
   const [tooltipVisible, setTooltipVisible] = useState(false);
   const itemRef = useRef<HTMLDivElement>(null);
+  const [imageLoaded, setImageLoaded] = useState(false);
+
+  const { itemDefinitions } = useDefinitions()
 
   // Handle mouse movement globally to detect if we should keep tooltip open
   useEffect(() => {
@@ -86,11 +76,11 @@ const Item = ({
   const handleDragStart = (event: React.DragEvent<HTMLDivElement>) => {
     event.dataTransfer.setData(
       "text/plain",
-      item.hash +
+        itemHash +
         ":" +
-        itemInstance.itemInstanceId +
+        itemInstanceId +
         ":" +
-        item.equippingBlock.equipmentSlotTypeHash
+        itemDefinitions[itemHash].equippingBlock.equipmentSlotTypeHash
     );
     event.dataTransfer.effectAllowed = "move";
   };
@@ -121,16 +111,9 @@ const Item = ({
 
     // Show tooltip at calculated position
     showTooltip({
-      item,
-      itemInstance,
-      itemInstances,
-      itemPerks: perks,
-      itemStats: stats,
-      statsDefinition,
-      perksDefinition,
+      item: itemDefinitions[itemHash],
+      itemInstanceId: itemInstanceId,
       characterId,
-      characters,
-      classDefinition,
       armor,
       x: tooltipX,
       y: tooltipY
@@ -138,12 +121,10 @@ const Item = ({
     setTooltipVisible(true);
   };
 
-  if (!item) return <></>;
-
   return (
     <div
       ref={itemRef}
-      key={item.hash}
+      key={itemHash}
       style={{
         boxShadow: "0 4px 8px rgba(0, 0, 0, 0.3)",
         height: 64,
@@ -167,6 +148,7 @@ const Item = ({
           zIndex: 0
         }}
       >
+        {!imageLoaded && <LoadingItem />}
         {ornamentItem ? (
           <img
             src={"https://bungie.net" + ornamentItem.displayProperties.icon}
@@ -176,25 +158,31 @@ const Item = ({
               border:
                 "2px solid " +
                 (state & 4 ? "#FFBB00" : state & 8 ? "red" : "white"),
+              display: imageLoaded ? undefined : "none"
             }}
             alt={ornamentItem.displayProperties.name || "Item"}
+            onLoad={() => setImageLoaded(true)}
+            onError={() => setImageLoaded(true)}
           />
         ) : (
           <img
-            src={"https://bungie.net" + item.displayProperties.icon}
+            src={"https://bungie.net" + itemDefinitions[itemHash].displayProperties.icon}
             height={64}
             width={64}
             style={{
               border:
                 "2px solid " +
                 (state & 4 ? "#FFBB00" : state & 8 ? "red" : "white"),
+              display: imageLoaded ? undefined : "none"
             }}
-            alt={item.displayProperties.name || "Item"}
+            alt={itemDefinitions[itemHash].displayProperties.name || "Item"}
+            onLoad={() => setImageLoaded(true)}
+            onError={() => setImageLoaded(true)}
           />
         )}
-        {item.iconWatermark && (
+        {itemDefinitions[itemHash].iconWatermark && imageLoaded && (
           <img
-            src={"https://bungie.net" + item.iconWatermark}
+            src={"https://bungie.net" + itemDefinitions[itemHash].iconWatermark}
             height={64}
             width={64}
             style={{ position: "absolute", top: 2, left: 2 }}
@@ -203,21 +191,19 @@ const Item = ({
           />
         )}
         {/* Display quantity for stackable items */}
-        {itemInstance && itemInstance.quantity && itemInstance.quantity > 1 && (
-          <div
-            style={{
-              position: "absolute",
-              bottom: 1,
-              right: 3,
-              backgroundColor: "rgba(0,0,0,0.7)",
-              color: "white",
-              fontSize: "12px",
-              padding: "0 3px",
-              borderRadius: "3px",
-              fontWeight: "bold"
-            }}
-          >
-            {itemInstance.quantity}
+        {quantity > 1 && imageLoaded && (
+          <div style={{
+            position: 'absolute',
+            bottom: 0,
+            right: 0,
+            background: 'rgba(0,0,0,0.75)',
+            color: 'white',
+            fontSize: '0.75rem',
+            padding: '0 4px',
+            borderRadius: '4px',
+            pointerEvents: 'none',
+          }}>
+            {quantity}
           </div>
         )}
       </div>
@@ -225,4 +211,4 @@ const Item = ({
   );
 };
 
-export default Item;
+export default React.memo(Item);

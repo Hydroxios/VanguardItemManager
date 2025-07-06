@@ -99,7 +99,6 @@ export const getProfile = async (token :string, membershipId: string, membership
         window.location.reload()
     }
     const data = await res.json()
-    console.log(data)
     return data.Response
 }
 

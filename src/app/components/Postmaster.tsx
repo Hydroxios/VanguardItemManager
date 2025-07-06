@@ -1,64 +1,51 @@
 import React, { useState } from "react";
 import { pullFromPostmaster, transferItem } from "@/lib/bungie";
 import { useNotifications } from "./NotificationsProvider";
+import { useDefinitions } from "@/lib/hooks/useDefinitions";
+import { useProfile } from "@/lib/hooks/useProfile";
+import useAuth from "@/lib/hooks/useAuth";
 
 interface PostmasterProps {
-  items: any[];
-  db: any;
-  token: string;
-  membershipType: number;
   characterId: string;
   refresh: () => Promise<void>;
 }
 
 const Postmaster: React.FC<PostmasterProps> = ({
-  items,
-  db,
-  token,
-  membershipType,
   characterId,
   refresh,
 }) => {
   const { addNotification } = useNotifications();
   const [isCollapsed, setIsCollapsed] = useState(true);
-  const [seenItems, setSeenItems] = useState<Set<string>>(new Set());
+  const [isCollectingAll, setIsCollectingAll] = useState(false);
 
-  // Filter for postmaster items - location 4 and/or bucketHash 215593132
-  const postmasterItems = items.filter((item) => {
-    return item.location === 4 || item.bucketHash === 215593132;
-  });
+  const { token } = useAuth()
+  const { itemDefinitions } = useDefinitions()
+  const { user, profileInventory, characterInventories } = useProfile()
 
-  // No postmaster items
-  if (postmasterItems.length === 0) {
-    return null;
-  }
+  // Filter for postmaster items from the current character's inventory
+  const postmasterItems = characterInventories[characterId]?.items.filter(
+    (item) => item.bucketHash === 215593132
+  ) || [];
+
 
   // Mark all items as seen when expanding
   const toggleCollapse = () => {
-    if (isCollapsed) {
-      // Mark all current items as seen when expanding
-      const newSeen = new Set(seenItems);
-      postmasterItems.forEach(item => {
-        newSeen.add(item.itemInstanceId || `${item.itemHash}-${item.quantity}`);
-      });
-      setSeenItems(newSeen);
-    }
     setIsCollapsed(!isCollapsed);
   };
 
   // Collect from postmaster to character inventory
-  const collectItem = async (item: any) => {
+  const collectItem = async (item: any, needRefresh?: boolean) => {
     try {
 
       await pullFromPostmaster(
-        token,
-        membershipType,
+        token as string,
+        user.membershipType,
         characterId,
         item.itemHash,
         item.itemInstanceId,
         1        
       )
-      const itemDef = db[item.itemHash];
+      const itemDef = itemDefinitions[item.itemHash];
       const itemName = itemDef?.displayProperties?.name || "Item";
       const itemIcon = itemDef?.displayProperties?.icon || "";
       
@@ -70,9 +57,11 @@ const Postmaster: React.FC<PostmasterProps> = ({
         5000
       );
       
-      await refresh();
+      if(needRefresh){
+        await refresh();
+      }
     } catch (err: any) {
-      const itemDef = db[item.itemHash];
+      const itemDef = itemDefinitions[item.itemHash];
       const itemName = itemDef?.displayProperties?.name || "Item";
       const itemIcon = itemDef?.displayProperties?.icon || "";
       
@@ -86,9 +75,19 @@ const Postmaster: React.FC<PostmasterProps> = ({
     }
   };
 
+  // Collect all postmaster items
+  const collectAllItems = async () => {
+    setIsCollectingAll(true);
+    for (let i = 0; i < postmasterItems.length; i++) {
+      const isLast = i === postmasterItems.length - 1;
+      await collectItem(postmasterItems[i], isLast);
+    }
+    setIsCollectingAll(false);
+  };
+
   // Render a postmaster item
   const renderPostmasterItem = (item: any) => {
-    const itemDefinition = db[item.itemHash];
+    const itemDefinition = itemDefinitions[item.itemHash];
     if (!itemDefinition) return null;
 
     // Determine item rarity color
@@ -187,6 +186,15 @@ const Postmaster: React.FC<PostmasterProps> = ({
           Postmaster
         </h3>
         <div className="flex items-center">
+          {!isCollapsed && postmasterItems.length > 1 && (
+            <button
+              className="mr-2 px-2 py-0.5 bg-yellow-400 text-black text-xs rounded hover:bg-yellow-500 focus:bg-yellow-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              onClick={e => { e.stopPropagation(); collectAllItems(); }}
+              disabled={isCollectingAll}
+            >
+              {isCollectingAll ? 'Collecting...' : 'Collect All'}
+            </button>
+          )}
           <span className="text-gray-400 text-xs mr-2">
             {postmasterItems.length}/21
           </span>

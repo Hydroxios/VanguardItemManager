@@ -1,61 +1,37 @@
-import React, { useEffect } from "react";
+import { useDefinitions } from "@/lib/hooks/useDefinitions";
+import { Item } from "@/lib/hooks/useProfile";
+import React, { useEffect, useState } from "react";
 
 interface EngramsProps {
-  items: any[];
-  db: any;
+  items: any;
 }
 
 const Engrams: React.FC<EngramsProps> = ({
   items,
-  db,
 }) => {
+
+  const [engrams, setEngrams] = useState<Item[]>([])
+
+  const {itemDefinitions} = useDefinitions()
+
   // Log all items to check their structure
   useEffect(() => {
-    if (items && items.length > 0) {
-      // Find engrams to check their structure
-      const allEngrams = items.filter((item) => {
-        const itemDef = db[item.itemHash];
-        return (
-          itemDef &&
-          itemDef.itemCategoryHashes &&
-          itemDef.itemCategoryHashes.includes(34)
-        );
-      });
+    setEngrams(items.items.filter((item: any) => {
+      const itemDefinition = itemDefinitions[item.itemHash];
+      // Check if item is an engram (typically they have a specific category hash)
+      // Filter out engrams in the postmaster (location 4)
+      // Postmaster bucket hash is 215593132
+      return (
+        itemDefinition &&
+        itemDefinition.itemCategoryHashes &&
+        itemDefinition.itemCategoryHashes.includes(34) &&
+        item.location !== 4 && // Check location property
+        item.bucketHash !== 215593132 // Also check bucketHash to ensure it's not in postmaster
+      );
+    }));
 
-      if (allEngrams.length > 0) {
-        console.log("Found engrams:", allEngrams);
-        console.log(
-          "Engram location values:",
-          allEngrams.map((item) => ({
-            name: db[item.itemHash]?.displayProperties?.name,
-            location: item.location,
-            bucketHash: item.bucketHash,
-            itemData: item,
-          }))
-        );
-      }
-    }
-  }, [items, db]);
-
-  // Filter engrams from character inventory
-  const engrams = items.filter((item) => {
-    const itemDefinition = db[item.itemHash];
-    // Check if item is an engram (typically they have a specific category hash)
-    // Filter out engrams in the postmaster (location 4)
-    // Postmaster bucket hash is 215593132
-    return (
-      itemDefinition &&
-      itemDefinition.itemCategoryHashes &&
-      itemDefinition.itemCategoryHashes.includes(34) &&
-      item.location !== 4 && // Check location property
-      item.bucketHash !== 215593132 // Also check bucketHash to ensure it's not in postmaster
-    );
-  });
-
-  if (engrams.length === 0) {
-    return null;
-  }
-
+  }, []);
+  
   // Render an empty engram slot
   const renderEmptySlot = (index: number) => {
     return (
@@ -95,7 +71,7 @@ const Engrams: React.FC<EngramsProps> = ({
 
   // Custom rendering function for engram items
   const renderEngramItem = (engram: any) => {
-    const itemDefinition = db[engram.itemHash];
+    const itemDefinition = itemDefinitions[engram.itemHash];
 
     return (
       <div

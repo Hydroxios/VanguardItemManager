@@ -9,69 +9,59 @@ import {
 } from "@/lib/bungie";
 import { useEffect, useState } from "react";
 import { useNotifications } from "./NotificationsProvider";
-import LoadoutEditor from "./LoadoutEditor";
+import { useDefinitions } from "@/lib/hooks/useDefinitions";
+import useAuth from "@/lib/hooks/useAuth";
+import { useProfile } from "@/lib/hooks/useProfile";
 
 interface LoadoutsProps {
-  loadouts: any[];
-  itemDefinition: any;
-  loadoutsColorDefinition: any;
-  loadoutIconDefinition: any;
-  token: string;
-  membershipType: number;
-  membershipeId: string;
   characterId: string;
-  itemInstances: any;
-  character: any;
-  charactersInventory :any
   refreshChar: () => Promise<void>;
 }
 
 const Loadouts = ({
-  loadouts,
-  loadoutsColorDefinition,
-  loadoutIconDefinition,
-  token,
-  membershipType,
-  membershipeId,
   characterId,
   refreshChar,
-  itemDefinition,
-  itemInstances,
-  character,
-  charactersInventory
 }: LoadoutsProps) => {
   const [elements, setElements] = useState<any>();
   const [onCooldown, setOnCooldown] = useState(false);
-  const [isEditorOpen, setIsEditorOpen] = useState(false);
-  const [editingLoadout, setEditingLoadout] = useState<any>(null);
   const [isContextMenuOpen, setIsContextMenuOpen] = useState<number | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [loadoutToDelete, setLoadoutToDelete] = useState<number | null>(null);
 
   const { addNotification } = useNotifications()
+  const { itemDefinitions, loadoutColorDefinitions, loadoutIconDefinitions } = useDefinitions()
+
+  const { token } = useAuth()
+  const {
+
+    user,
+    characterLoadouts,
+    characterInventories
+    
+  } = useProfile()
 
   useEffect(() => {
     const ls: any[] = [];
-    for (let index = 0; index < loadouts.length; index++) {
-      const l = loadouts[index];
-      const color = loadoutsColorDefinition[l.colorHash];
-      const icon = loadoutIconDefinition[l.iconHash];
+    for (let index = 0; index < characterLoadouts[characterId].loadouts.length; index++) {
+      const l = characterLoadouts[characterId].loadouts[index];
+      const color = loadoutColorDefinitions[l.colorHash];
+      const icon = loadoutIconDefinitions[l.iconHash];
       ls.push({ color: color?.colorImagePath, icon: icon?.iconImagePath });
     }
     setElements(() => ls);
-  }, [loadouts]);
+  }, []);
 
   const handleEquip = async (index: number) => {
     setOnCooldown(() => true);
-    const l = loadouts[index];
+    const l = characterLoadouts[characterId].loadouts[index];
     console.log("equipping");
     const itemToDesequip :any[] = []
     for (let i = 0; i < l.items.length; i++) {
       const loadoutItem = l.items[i];
       const itemInstance = await getItem(
-        token,
-        membershipType,
-        membershipeId,
+        token as string,
+        user.membershipType,
+        user.membershipId,
         loadoutItem.itemInstanceId,
         "307"
       );
@@ -80,14 +70,14 @@ const Loadouts = ({
           if(itemInstance.characterId !== characterId){
             const transfertStatus = itemInstance.item.data.transferStatus
             if(transfertStatus === 0){
-              await transferItem(token, membershipType, itemInstance.item.data.itemHash, loadoutItem.itemInstanceId, itemInstance.characterId, true)
-              await transferItem(token, membershipType, itemInstance.item.data.itemHash, loadoutItem.itemInstanceId, characterId, false)
+              await transferItem(token as string, user.membershipType, itemInstance.item.data.itemHash, loadoutItem.itemInstanceId, itemInstance.characterId, true)
+              await transferItem(token as string, user.membershipType, itemInstance.item.data.itemHash, loadoutItem.itemInstanceId, characterId, false)
             } else if(transfertStatus === 1){
-              itemToDesequip.push({characterId: itemInstance.characterId, itemInstance: itemInstance, item: itemDefinition[itemInstance.item.data.itemHash]})
+              itemToDesequip.push({characterId: itemInstance.characterId, itemInstance: itemInstance, item: itemDefinitions[itemInstance.item.data.itemHash]})
             }
           }
         } else {
-          await transferItem(token, membershipType, itemInstance.item.data.itemHash, loadoutItem.itemInstanceId, characterId, false)
+          await transferItem(token as string, user.membershipType, itemInstance.item.data.itemHash, loadoutItem.itemInstanceId, characterId, false)
         }
       }
     }
@@ -96,14 +86,14 @@ const Loadouts = ({
     for (let index = 0; index < itemToDesequip.length; index++) {
       const item = itemToDesequip[index];
       if(!characters[item.characterId]){
-        characters[item.characterId] = charactersInventory[item.characterId].items
+        characters[item.characterId] = characterInventories[item.characterId]
       }
 
       let validItem :any;
       characters[item.characterId].forEach((i :any)=> {
           if(validItem) return;
           if(i.itemHash !== item.item.hash){
-            const itemObject = itemDefinition[i.itemHash]
+            const itemObject = itemDefinitions[i.itemHash]
             if(itemObject.equippingBlock){
               if(itemObject.equippingBlock.equipmentSlotTypeHash === item.item.equippingBlock.equipmentSlotTypeHash){
                 if(itemObject.inventory.tierType < 6){
@@ -115,35 +105,19 @@ const Loadouts = ({
           }
       });
 
-      await equipItem(token, membershipType, item.characterId, validItem.itemInstanceId)
-      await transferItem(token, membershipType, item.item.hash, item.itemInstance.item.data.itemInstanceId, item.characterId, true)
-      await transferItem(token, membershipType, item.item.hash, item.itemInstance.item.data.itemInstanceId, characterId, false)
+      await equipItem(token as string, user.membershipType, item.characterId, validItem.itemInstanceId)
+      await transferItem(token as string, user.membershipType, item.item.hash, item.itemInstance.item.data.itemInstanceId, item.characterId, true)
+      await transferItem(token as string, user.membershipType, item.item.hash, item.itemInstance.item.data.itemInstanceId, characterId, false)
     }
 
 
-    await equipLoadout(token, membershipType, characterId, index);
-    const icon = loadoutIconDefinition[l.iconHash];
+    await equipLoadout(token as string, user.membershipType, characterId, index);
+    const icon = loadoutIconDefinitions[l.iconHash];
     addNotification("Succesfully equiped your loadout!", "", "success", "https://www.bungie.net" + icon, 5000)
     setTimeout(async () => {
       await refreshChar();
       setOnCooldown(() => false);
     }, 2000);
-  };
-
-  // Open editor for creating a new loadout
-  const handleCreateLoadout = () => {
-    setEditingLoadout(null);
-    setIsEditorOpen(true);
-  };
-
-  // Open editor for editing an existing loadout
-  const handleEditLoadout = (index: number) => {
-    setEditingLoadout({
-      ...loadouts[index],
-      loadoutIndex: index
-    });
-    setIsEditorOpen(true);
-    setIsContextMenuOpen(null);
   };
 
   // Toggle context menu for a loadout
@@ -153,18 +127,6 @@ const Loadouts = ({
     setIsContextMenuOpen(isContextMenuOpen === index ? null : index);
   };
   
-  // Function to duplicate a loadout
-  const handleDuplicateLoadout = (index: number) => {
-    if (loadouts && loadouts[index]) {
-      setEditingLoadout({
-        ...loadouts[index],
-        name: `${loadouts[index].name} (Copy)`,
-      });
-      setIsEditorOpen(true);
-      setIsContextMenuOpen(null);
-    }
-  };
-
   // Function to show clear confirmation
   const handleClearConfirm = (index: number) => {
     setLoadoutToDelete(index);
@@ -178,15 +140,15 @@ const Loadouts = ({
     
     try {
       await clearLoadout(
-        token,
-        membershipType,
+        token as string,
+        user.membershipType,
         characterId,
         loadoutToDelete
       );
       
       // Show success notification
-      const icon = loadouts[loadoutToDelete].iconHash && loadoutIconDefinition[loadouts[loadoutToDelete].iconHash] ? 
-        `https://www.bungie.net${loadoutIconDefinition[loadouts[loadoutToDelete].iconHash].iconImagePath}` : "";
+      const icon = characterLoadouts[characterId].loadouts[loadoutToDelete].iconHash && loadoutIconDefinitions[characterLoadouts[characterId].loadouts[loadoutToDelete].iconHash] ? 
+        `https://www.bungie.net${loadoutIconDefinitions[characterLoadouts[characterId].loadouts[loadoutToDelete].iconHash].iconImagePath}` : "";
       
       addNotification("Loadout cleared", "", "success", icon, 5000);
       
@@ -279,28 +241,9 @@ const Loadouts = ({
                             }}
                           >
                             <div className="bg-[#2a2a40] py-2 px-3 border-b border-[#7e57c2] font-medium text-sm">
-                              {loadouts && loadouts[index] && loadouts[index].name ? 
-                                loadouts[index].name : 'Loadout Options'}
+                              Loadout Options
                             </div>
                             <div className="py-1">
-                              <button 
-                                className="flex items-center w-full text-left px-3 py-2 text-sm text-white hover:bg-[#3a3a50] transition-colors"
-                                onClick={() => handleEditLoadout(index)}
-                              >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                                </svg>
-                                Edit Loadout
-                              </button>
-                              <button 
-                                className="flex items-center w-full text-left px-3 py-2 text-sm text-white hover:bg-[#3a3a50] transition-colors"
-                                onClick={() => handleDuplicateLoadout(index)}
-                              >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                                </svg>
-                                Duplicate
-                              </button>
                               <button 
                                 className="flex items-center w-full text-left px-3 py-2 text-sm text-white hover:bg-[#3a3a50] transition-colors"
                                 onClick={() => handleEquip(index)}
@@ -329,7 +272,6 @@ const Loadouts = ({
                         className="relative cursor-pointer" 
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleCreateLoadout();
                         }}
                       >
                         <img
@@ -349,28 +291,8 @@ const Loadouts = ({
           ))}
       </div>
 
-      {isEditorOpen && (
-        <LoadoutEditor
-          isOpen={isEditorOpen}
-          onClose={() => {
-            setIsEditorOpen(false);
-            setEditingLoadout(null);
-          }}
-          loadout={editingLoadout}
-          loadoutIconDefinition={loadoutIconDefinition}
-          loadoutsColorDefinition={loadoutsColorDefinition}
-          token={token}
-          membershipType={membershipType}
-          characterId={characterId}
-          itemInstances={itemInstances}
-          equipment={character.equipment}
-          inventory={character.inventory}
-          refreshChar={refreshChar}
-        />
-      )}
-
       {/* Delete Confirmation Modal */}
-      {showDeleteConfirm && loadoutToDelete !== null && loadouts && loadouts[loadoutToDelete] && (
+      {showDeleteConfirm && loadoutToDelete !== null && characterLoadouts[characterId].loadouts[loadoutToDelete] && (
         <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-80">
           <div className="bg-[#1a1a2e] border border-[#7e57c2] shadow-xl p-5 rounded w-[400px] animate-fade-in">
             <div className="flex justify-between items-center mb-4 border-b border-gray-700 pb-2">
@@ -389,21 +311,21 @@ const Loadouts = ({
             
             <div className="mb-6">
               <p className="text-gray-300 mb-4">
-                Are you sure you want to clear the loadout "{loadouts[loadoutToDelete].name}"? This will remove all items from this loadout.
+                Are you sure you want to clear this loadout? This will remove all items from this loadout.
               </p>
               
               <div className="flex items-center justify-center mb-4">
-                {loadouts[loadoutToDelete].colorHash && loadoutsColorDefinition[loadouts[loadoutToDelete].colorHash] && (
+                {characterLoadouts[characterId].loadouts[loadoutToDelete].colorHash && (
                   <div className="relative size-[64px]">
                     <img
-                      src={`https://bungie.net${loadoutsColorDefinition[loadouts[loadoutToDelete].colorHash].colorImagePath}`}
+                      src={`https://bungie.net${loadoutColorDefinitions[characterLoadouts[characterId].loadouts[loadoutToDelete].colorHash].colorImagePath}`}
                       height={64}
                       width={64}
                       alt="Loadout background"
                     />
-                    {loadouts[loadoutToDelete].iconHash && loadoutIconDefinition[loadouts[loadoutToDelete].iconHash] && (
+                    {characterLoadouts[characterId].loadouts[loadoutToDelete].iconHash && (
                       <img
-                        src={`https://bungie.net${loadoutIconDefinition[loadouts[loadoutToDelete].iconHash].iconImagePath}`}
+                        src={`https://bungie.net${loadoutIconDefinitions[characterLoadouts[characterId].loadouts[loadoutToDelete].iconHash].iconImagePath}`}
                         height={64}
                         width={64}
                         style={{ position: "absolute", top: 0, left: 0 }}

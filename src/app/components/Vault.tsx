@@ -4,22 +4,14 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { transferItem } from "@/lib/bungie";
 import Item from "./Item";
 import { useNotifications } from "./NotificationsProvider";
+import { ItemDefinition, useDefinitions } from "@/lib/hooks/useDefinitions";
+import useAuth from "@/lib/hooks/useAuth";
+import { ItemPerks, ItemStats, Perk, useProfile } from "@/lib/hooks/useProfile";
 
 interface VaultProps {
   isOpen: boolean;
   setIsOpen: (isOpen: boolean) => void;
-  profileInventory: any[];
-  db: any;
-  token: string;
-  membershipType: number;
   characterId: string;
-  membershipId: string;
-  itemInstances: any;
-  itemPerks: any;
-  itemStats: any;
-  classDefinition: any;
-  perksDefinition: any;
-  statsDefinition: any;
   refresh: () => Promise<void>;
 }
 
@@ -60,27 +52,25 @@ const ELEMENT_ICONS = {
   strand: "strand.png"
 };
 
+interface ProcessedItem {
+  item: ItemDefinition,
+  itemInstance: any,
+  ornamentItem: ItemDefinition | undefined,
+  perks: ItemPerks,
+  stats: ItemStats
+  state: number,
+}
+
 const Vault: React.FC<VaultProps> = ({
   isOpen,
   setIsOpen,
-  profileInventory,
-  db,
-  token,
-  membershipType,
   characterId,
-  membershipId,
-  itemInstances,
-  itemPerks,
-  itemStats,
-  classDefinition,
-  perksDefinition,
-  statsDefinition,
   refresh
 }) => {
   const [processedItems, setProcessedItems] = useState<{
-    weapons: any[],
-    armor: any[],
-    misc: any[]
+    weapons: ProcessedItem[],
+    armor: ProcessedItem[],
+    misc: ProcessedItem[]
   }>({ weapons: [], armor: [], misc: [] });
   
   const [activeTab, setActiveTab] = useState<'weapons' | 'armor' | 'misc'>('weapons');
@@ -94,30 +84,36 @@ const Vault: React.FC<VaultProps> = ({
   const [vaultHeight, setVaultHeight] = useState<number>(50); // Default height in vh
   const [isResizing, setIsResizing] = useState<boolean>(false);
   const resizeRef = useRef<HTMLDivElement>(null);
+
   const { addNotification } = useNotifications();
-  
+  const { itemDefinitions, perksDefinitions } = useDefinitions()
+
+  const { token } = useAuth()
+  const { user, profileInventory, itemComponents } = useProfile()
+
+
   // Process inventory items into categories
   useEffect(() => {
     if (!profileInventory || profileInventory.length === 0) return;
     
-    const weapons: any[] = [];
-    const armor: any[] = [];
-    const misc: any[] = [];
+    const weapons: ProcessedItem[] = [];
+    const armor: ProcessedItem[] = [];
+    const misc: ProcessedItem[] = [];
     const types: {[key: string]: string} = { all: 'All Weapons' };
     
-    profileInventory.forEach((item: any) => {
+    profileInventory.forEach((item) => {
       // Only process items in the vault (location 2)
       if (item.location !== 2) return;
       
-      const itemDef = db[item.itemHash];
+      const itemDef = itemDefinitions[item.itemHash];
       if (!itemDef) return;
       
       const processedItem = {
         item: itemDef,
         itemInstance: item,
-        ornamentItem: item.overrideStyleItemHash ? db[item.overrideStyleItemHash] : undefined,
-        perks: itemPerks?.[item.itemInstanceId],
-        stats: itemStats?.[item.itemInstanceId],
+        ornamentItem: item.overrideStyleItemHash ? itemDefinitions[item.overrideStyleItemHash] : undefined,
+        perks: itemComponents.perks[item.itemInstanceId],
+        stats: itemComponents.stats[item.itemInstanceId],
         state: item.state,
       };
       
@@ -151,7 +147,7 @@ const Vault: React.FC<VaultProps> = ({
     });
     
     setWeaponTypes(types);
-  }, [profileInventory, db, itemPerks, itemStats]);
+  }, []);
   
   // Handle item transfer from vault to character
   const handleTransfer = useCallback(async (item: any) => {
@@ -159,10 +155,10 @@ const Vault: React.FC<VaultProps> = ({
       // For materials and other stackable items
       if (item.item.inventory && item.item.inventory.stackUniqueLabel) {
         const quantity = item.itemInstance.quantity || 1;
-        await transferItem(token, membershipType, item.item.hash, item.itemInstance.itemInstanceId || '0', characterId, false, quantity);
+        await transferItem(token as string, user.membershipType, item.item.hash, item.itemInstance.itemInstanceId || '0', characterId, false, quantity);
       } else {
         // For weapons, armor and other non-stackable items
-        await transferItem(token, membershipType, item.item.hash, item.itemInstance.itemInstanceId, characterId, false);
+        await transferItem(token as string, user.membershipType, item.item.hash, item.itemInstance.itemInstanceId, characterId, false);
       }
       
       addNotification(
@@ -182,7 +178,7 @@ const Vault: React.FC<VaultProps> = ({
         5000
       );
     }
-  }, [token, membershipType, characterId, addNotification, refresh]);
+  }, [characterId, addNotification, refresh]);
   
   // Handle drag start for items
   const handleDragStart = useCallback((event: React.DragEvent, item: any) => {
@@ -196,7 +192,7 @@ const Vault: React.FC<VaultProps> = ({
   // Render items using flex instead of grid
   const renderItems = useCallback((items: any[]) => {
     // Apply weapon type filter if we're on the weapons tab
-    let filteredItems = items;
+    let filteredItems: ProcessedItem[] = items;
     if (activeTab === 'weapons') {
       // Apply weapon type filter
       if (weaponTypeFilter !== 'all') {
@@ -204,7 +200,6 @@ const Vault: React.FC<VaultProps> = ({
           item.item.itemTypeDisplayName === weaponTypeFilter
         );
       }
-      
       // Apply element filter
       if (elementFilter !== 'all') {
         const elementTypeValue = ELEMENT_TYPES[elementFilter as keyof typeof ELEMENT_TYPES];
@@ -213,60 +208,33 @@ const Vault: React.FC<VaultProps> = ({
         );
       }
     }
-    
     // Apply search filter if search query exists
     if (searchQuery.trim() !== "") {
       const query = searchQuery.toLowerCase().trim();
-      
       // Check if we're searching for a perk
       if (query.startsWith("perk:")) {
         const perkQuery = query.substring(5).trim().toLowerCase(); // Remove "perk:" prefix
-        console.log("Searching for perk:", perkQuery);
-        
         if (perkQuery) {
           filteredItems = filteredItems.filter(item => {
             // First check if there's perk data in itemPerks
             const instanceId = item.itemInstance.itemInstanceId;
-            const itemPerkData = instanceId ? itemPerks?.[instanceId] : null;
-            
+            const itemPerkData = instanceId ? itemComponents.perks[instanceId] : null;
             // If we have perk data from itemPerks, check there
-            if (itemPerkData && itemPerkData.perks) {
+            if (itemPerkData) {
               // Only check for active perks
               const matchingActivePerks = itemPerkData.perks.filter((perk: any) => 
                 perk.visible && 
                 perk.isActive && 
-                perksDefinition?.[perk.perkHash]?.displayProperties?.name?.toLowerCase().includes(perkQuery)
+                perksDefinitions[perk.perkHash]?.displayProperties?.name?.toLowerCase().includes(perkQuery)
               );
-              
               if (matchingActivePerks.length > 0) {
-                console.log("Found matching active perk:", matchingActivePerks[0].perkHash, "on item:", item.item.displayProperties.name);
                 return true;
               }
             }
-            
-            // Check socket entries for active plugged items (another way active perks might be stored)
-            if (itemPerkData && itemPerkData.sockets) {
-              const matchingPlugs = itemPerkData.sockets.filter((socket: any) => {
-                if (!socket.plugHash || !socket.isEnabled) return false;
-                
-                const perkDef = perksDefinition?.[socket.plugHash];
-                if (!perkDef || !perkDef.displayProperties) return false;
-                
-                const perkName = perkDef.displayProperties.name.toLowerCase();
-                const matches = perkName.includes(perkQuery);
-                if (matches) console.log("Found matching active socket plug:", perkName, "on item:", item.item.displayProperties.name);
-                return matches;
-              });
-              
-              if (matchingPlugs.length > 0) return true;
-            }
-            
             // Check item name as a fallback for convenience
             if (item.item && item.item.displayProperties.name.toLowerCase().includes(perkQuery)) {
-              console.log("Item name matches perk query:", item.item.displayProperties.name);
               return true;
             }
-            
             return false;
           });
         }
@@ -277,7 +245,6 @@ const Vault: React.FC<VaultProps> = ({
         );
       }
     }
-    
     return (
       <div 
         className="flex flex-wrap content-start"
@@ -311,22 +278,15 @@ const Vault: React.FC<VaultProps> = ({
                 </div>
               )}
               <Item 
-                item={item.item}
-                itemInstance={item.itemInstance}
+                itemHash={item.item.hash}
+                itemInstanceId={item.itemInstance.itemInstanceId}
                 ornamentItem={item.ornamentItem}
                 state={item.state}
                 perks={item.perks || {}}
                 stats={item.stats || {}}
                 characterId={characterId}
-                characters={{}}
-                classDefinition={classDefinition}
-                perksDefinition={perksDefinition}
-                statsDefinition={statsDefinition}
-                itemInstances={itemInstances}
-                membershipId={membershipId}
-                membershipType={membershipType}
-                token={token}
                 armor={item.item.equippingBlock ? ITEM_TYPES.ARMOR.includes(item.item.equippingBlock?.equipmentSlotTypeHash) : false}
+                quantity={item.itemInstance.quantity || 1}
               />
             </div>
           ))
@@ -337,44 +297,7 @@ const Vault: React.FC<VaultProps> = ({
         )}
       </div>
     );
-  }, [handleTransfer, handleDragStart, characterId, classDefinition, perksDefinition, statsDefinition, itemInstances, membershipId, membershipType, token, activeTab, weaponTypeFilter, elementFilter, searchQuery]);
-  
-  useEffect(() => {
-    // Function to adjust item width based on container width
-    const adjustItemWidth = () => {
-      const container = document.querySelector('.vault-items');
-      if (!container) return;
-      
-      const items = document.querySelectorAll('.vault-item');
-      if (!items.length) return;
-      
-      const containerWidth = container.clientWidth;
-      
-      // Determine how many items should fit per row
-      let itemsPerRow = 8; // Default for small screens
-      
-      if (containerWidth > 1400) itemsPerRow = 16;
-      else if (containerWidth > 1200) itemsPerRow = 14;
-      else if (containerWidth > 1000) itemsPerRow = 12;
-      else if (containerWidth > 800) itemsPerRow = 10;
-      
-      // Apply width to all items
-      items.forEach((item: Element) => {
-        const htmlItem = item as HTMLElement;
-        htmlItem.style.width = `${Math.floor(containerWidth / itemsPerRow)}px`;
-      });
-    };
-    
-    // Run initially and add resize listener
-    if (isOpen) {
-      setTimeout(adjustItemWidth, 100); // Give time for the vault to open
-      window.addEventListener('resize', adjustItemWidth);
-      
-      return () => {
-        window.removeEventListener('resize', adjustItemWidth);
-      };
-    }
-  }, [isOpen, activeTab, processedItems]);
+  }, [handleTransfer, handleDragStart, characterId, activeTab, weaponTypeFilter, elementFilter, searchQuery]);
   
   // Reset filters when changing tabs
   useEffect(() => {
@@ -481,7 +404,6 @@ const Vault: React.FC<VaultProps> = ({
   
   if (!isOpen) return null;
   
-  // Get currently active items to display
   const activeItems = activeTab === 'weapons' 
     ? processedItems.weapons 
     : activeTab === 'armor' 

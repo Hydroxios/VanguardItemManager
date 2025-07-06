@@ -1,39 +1,29 @@
 "use client";
 
+import { ItemDefinitions, useDefinitions } from "@/lib/hooks/useDefinitions";
+import { useProfile } from "@/lib/hooks/useProfile";
 import { useEffect, useState } from "react";
 
-interface SearchButtonProps {
-  itemDefinition :any;
-  classDefinition :any
-  itemInstances :any
-  characterEquipements :any;
-  characterInventories :any;
-  profileInventory :any;
-  characters :any;
-}
 
-const SearchButton = ({
-  itemDefinition,
-  classDefinition,
-  characterEquipements,
-  characterInventories,
-  profileInventory,
-  characters,
-}: SearchButtonProps) => {
+const SearchButton = () => {
   const [open, setOpen] = useState(false);
 
   const [results, setResults] = useState<any[]>([]);
   const [search, setSearch] = useState("");
+
+  const { itemDefinitions, classDefinitions } = useDefinitions()
+
+  const { characters, characterEquipment, characterInventories, profileInventory } = useProfile()
 
   useEffect(() => handleSearch(search), [characters]);
   const handleSearch = (search: string) => {
     setSearch(search);
     const res: any[] = [];
     if (search.length > 0) {
-      Object.keys(characterEquipements).map((char: any) => {
-        characterEquipements[char].items.map((item: any) => {
+      Object.keys(characterEquipment).map((char: any) => {
+        characterEquipment[char].items.map((item: any) => {
           if (item.itemInstanceId) {
-            const i = itemDefinition[item.itemHash];
+            const i = itemDefinitions[item.itemHash];
             if (
               i.displayProperties.name
                 .toLowerCase()
@@ -42,7 +32,7 @@ const SearchButton = ({
             ) {
               res.push({
                 item: i,
-                location: classDefinition[characters[char].classHash].displayProperties.name,
+                location: classDefinitions[characters[char].classHash].displayProperties.name,
                 itemInstanceId: item.itemInstanceId,
                 characterId: char,
                 state: item.state
@@ -54,7 +44,7 @@ const SearchButton = ({
       Object.keys(characterInventories).map((char: any) => {
         characterInventories[char].items.map((item: any) => {
           if (item.itemInstanceId) {
-            const i = itemDefinition[item.itemHash];
+            const i = itemDefinitions[item.itemHash];
             if (
               i.displayProperties.name
                 .toLowerCase()
@@ -62,7 +52,7 @@ const SearchButton = ({
             ) {
               res.push({
                 item: i,
-                location: classDefinition[characters[char].classHash].displayProperties.name,
+                location: classDefinitions[characters[char].classHash].displayProperties.name,
                 itemInstanceId: item.itemInstanceId,
                 characterId: char,
                 state: item.state
@@ -73,7 +63,7 @@ const SearchButton = ({
       });
       profileInventory.map((item: any) => {
         if (item.itemInstanceId) {
-          const i = itemDefinition[item.itemHash];
+          const i = itemDefinitions[item.itemHash];
           if (
             i.displayProperties.name
               .toLowerCase()

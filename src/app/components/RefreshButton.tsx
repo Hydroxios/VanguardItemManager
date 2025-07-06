@@ -1,18 +1,17 @@
 "use client";
 
+import { useProfile } from "@/lib/hooks/useProfile";
 import { useState } from "react";
 
 
-interface RefreshButtonProps{
-    onClick: () => Promise<void>;
-}
-
-const RefreshButton = ({onClick}:RefreshButtonProps) => {
+const RefreshButton = () => {
   const [isRotating, setIsRotating] = useState(false);
+
+  const { refresh } = useProfile()
 
   const handleRefresh = async () => {
     setIsRotating(true);
-    await onClick();
+    await refresh()
     console.log("refreshed")
     setIsRotating(false);
   };

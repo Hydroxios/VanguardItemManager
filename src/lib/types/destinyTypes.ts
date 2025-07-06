@@ -15,25 +15,6 @@ export interface EquipmentSection {
   isOpen: boolean;
 }
 
-export interface Character {
-  characterId: string;
-  emblemHash: number;
-  emblemPath: string;
-  light: number;
-  classType: number;
-  raceType: number;
-  classHash: number;
-  raceHash: number;
-  genderHash?: number;
-  titleRecordHash?: number;
-  stats: Record<string, number>;
-}
-
-export interface Currency {
-  item: any;
-  quantity: number;
-}
-
 export interface CharacterEquipment {
   equipment: any[];
   loadouts: any[];
@@ -54,7 +35,6 @@ export interface CharacterViewProps {
   itemInstances: any;
   itemPerks: any;
   itemStats: any;
-  characters: Record<string, Character>;
   charactersInventory: any;
   profileInventory: any[];
   statsDefinition: any;

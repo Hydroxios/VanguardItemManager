@@ -1,20 +1,14 @@
 "use client";
 
 import { useState, createContext, useContext, ReactNode } from 'react';
+import { ClassDefinitions, PerksDefinitions, StatsDefinitions } from './useDefinitions';
 
 interface TooltipState {
   item: any;
-  itemInstance: any;
-  itemInstances: any;
-  itemPerks: any;
-  itemStats: any;
+  itemInstanceId: any;
   positions: { x: number, y: number };
-  statsDefinition: any;
-  perksDefinition: any;
   open: boolean;
   characterId: any;
-  characters: any;
-  classDefinition: any;
   armor: boolean;
 }
 
@@ -26,17 +20,10 @@ interface TooltipContextType {
 
 const initialState: TooltipState = {
   item: null,
-  itemInstance: null,
-  itemInstances: null,
-  itemPerks: null,
-  itemStats: null,
+  itemInstanceId: null,
   positions: { x: 0, y: 0 },
-  statsDefinition: null,
-  perksDefinition: null,
   open: false,
   characterId: null,
-  characters: null,
-  classDefinition: null,
   armor: false
 };
 
