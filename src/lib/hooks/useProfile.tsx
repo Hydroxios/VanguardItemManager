@@ -81,6 +81,7 @@ export interface ItemComponents {
 export interface Profile {
     loadingProfile: boolean
     user: BungieUser
+    refreshing: boolean;
     refresh: () => Promise<void>
     characterEquipment: Record<string, {items: Item[]}>
     characterInventories: Record<string, {items: Item[]}>
@@ -90,6 +91,8 @@ export interface Profile {
     profile: ProfileData
     profileCurrencies: Currency[]
     profileInventory: Item[]
+    setCharacterEquipment: (characterId: string, items: Item[]) => void;
+    setCharacterInventory: (characterId: string, items: Item[]) => void;
 }
 
 const ProfileContext = createContext<Profile | undefined>(undefined)
@@ -101,6 +104,7 @@ interface ProfileProviderProps {
 export const ProfileProvider = ({children}: ProfileProviderProps) => {
 
     const [loading, setLoading] = useState(true)
+    const [refreshing, setRefreshing] = useState(false)
     const [user, setUser] = useState<BungieUser>()
 
     const [characterEquipment, setCharacterEquipement] = useState<Record<string, {items: Item[]}>>({})
@@ -114,12 +118,16 @@ export const ProfileProvider = ({children}: ProfileProviderProps) => {
     const [profileCurrencies, setProfileCurrencies] = useState<Currency[]>([])
     const [profileInventory, setProfileInventory] = useState<Item[]>([])
 
-    const {token} = useAuth()
+    const {token, lastUpdate, refreshUserToken} = useAuth()
 
     const fetchProfile = async () => {
-        const u = await getCurrentUser(token as string);
+        let t = token;
+        if(Date.now() - lastUpdate >= 3600 * 1000){
+            t = await refreshUserToken()
+        }
+        const u = await getCurrentUser(t as string);
         setUser(u)
-        const profile = await getProfile(token as string, u.membershipId, u.membershipType)
+        const profile = await getProfile(t as string, u.membershipId, u.membershipType)
         console.log(profile)
         setCharacterEquipement(profile.characterEquipment.data)
 
@@ -147,10 +155,31 @@ export const ProfileProvider = ({children}: ProfileProviderProps) => {
         fetchProfile()
     }, [])
 
+    const setCharacterEquipment = (characterId: string, items: Item[]) => {
+        setCharacterEquipement(prev => ({
+            ...prev,
+            [characterId]: { items }
+        }));
+    };
+    const setCharacterInventory = (characterId: string, items: Item[]) => {
+        setCharacterInventories(prev => ({
+            ...prev,
+            [characterId]: { items }
+        }));
+    };
+
     const contextValue = useMemo(() => ({
         loadingProfile: loading,
         user: user as BungieUser,
-        refresh: () => fetchProfile(),
+        refreshing,
+        refresh: async () => {
+            setRefreshing(true);
+            try {
+                await fetchProfile();
+            } finally {
+                setRefreshing(false);
+            }
+        },
         characterEquipment,
         characterInventories,
         characterLoadouts,
@@ -158,8 +187,10 @@ export const ProfileProvider = ({children}: ProfileProviderProps) => {
         itemComponents,
         profile: profileData,
         profileCurrencies,
-        profileInventory
-    }), [loading, user, characterEquipment, characterInventories, characterLoadouts, characters, itemComponents, profileData, profileCurrencies, profileInventory]);
+        profileInventory,
+        setCharacterEquipment,
+        setCharacterInventory
+    }), [loading, user, refreshing, characterEquipment, characterInventories, characterLoadouts, characters, itemComponents, profileData, profileCurrencies, profileInventory]);
 
     return (
         <ProfileContext.Provider value={contextValue}>

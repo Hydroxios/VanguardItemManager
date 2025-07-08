@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { transferItem } from "@/lib/bungie";
 import Item from "./Item";
-import { useNotifications } from "./NotificationsProvider";
+import { useNotifications } from "@/app/components/NotificationsProvider";
 import { ItemDefinition, useDefinitions } from "@/lib/hooks/useDefinitions";
 import useAuth from "@/lib/hooks/useAuth";
 import { ItemPerks, ItemStats, Perk, useProfile } from "@/lib/hooks/useProfile";
@@ -58,7 +58,7 @@ interface ProcessedItem {
   ornamentItem: ItemDefinition | undefined,
   perks: ItemPerks,
   stats: ItemStats
-  state: number,
+  state: number
 }
 
 const Vault: React.FC<VaultProps> = ({

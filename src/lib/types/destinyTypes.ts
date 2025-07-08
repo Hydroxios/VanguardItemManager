@@ -1,12 +1,17 @@
 // Common types used across the application
 
+import { ItemDefinition } from "../hooks/useDefinitions";
+import { ItemPerks, ItemStats } from "../hooks/useProfile";
+
 export interface EquipmentItem {
-  item: any;
-  itemInstance: any;
-  ornamentItem: any;
-  perks?: any;
-  stats?: any;
-  state: any;
+  item: ItemDefinition;
+  itemInstanceId: string;
+  ornamentItem: ItemDefinition;
+  perks: ItemPerks;
+  stats: ItemStats;
+  state: number;
+  hash: number;
+  quantity?: number
 }
 
 export interface EquipmentSection {
@@ -20,29 +25,6 @@ export interface CharacterEquipment {
   loadouts: any[];
   stats: Record<string, number>;
   inventory: any[];
-}
-
-export interface CharacterViewProps {
-  db: any;
-  token: string;
-  characterId: string;
-  membershipType: number;
-  membershipId: string;
-  currencies: any;
-  loadoutsColorDefinition: any;
-  loadoutIconDefinition: any;
-  character: CharacterEquipment;
-  itemInstances: any;
-  itemPerks: any;
-  itemStats: any;
-  charactersInventory: any;
-  profileInventory: any[];
-  statsDefinition: any;
-  perksDefinition: any;
-  classDefinition: any;
-  recordDefinition?: any;
-  changeCharacter: () => void;
-  refresh: () => Promise<void>;
 }
 
 // Equipment slot type hash constants

@@ -12,6 +12,7 @@ import { useItemTooltip } from '@/lib/hooks/useItemTooltip';
 
 interface ItemTooltipProps {
   item: any;
+  itemInstanceId: string
   itemInstance: any;
   itemInstances: any;
   itemPerks: any;

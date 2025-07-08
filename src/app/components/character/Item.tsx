@@ -3,7 +3,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useItemTooltip } from "@/lib/hooks/useItemTooltip";
 import { useDefinitions } from "@/lib/hooks/useDefinitions";
-import { useProfile } from "@/lib/hooks/useProfile";
 import LoadingItem from "./LoadingItem";
 
 interface ItemProps {
@@ -30,7 +29,7 @@ const Item = ({
   quantity = 1,
 }: ItemProps) => {
   
-  const { showTooltip, hideTooltip, tooltipState } = useItemTooltip();
+  const { showTooltip, hideTooltip } = useItemTooltip();
   const [tooltipVisible, setTooltipVisible] = useState(false);
   const itemRef = useRef<HTMLDivElement>(null);
   const [imageLoaded, setImageLoaded] = useState(false);

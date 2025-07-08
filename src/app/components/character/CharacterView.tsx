@@ -8,13 +8,14 @@ import Loadouts from "./Loadouts";
 import CharacterStats from "./CharacterStats";
 import InventoryItems from "./InventoryItems";
 import { transferItem, safeTransferItem } from "@/lib/bungie";
-import { useNotifications } from "./NotificationsProvider";
-import Vault from "@/app/components/Vault";
+import { useNotifications } from "@/app/components/NotificationsProvider";
+import Vault from "./Vault";
 import Engrams from "./Engrams";
 import Postmaster from "./Postmaster";
-import { useDefinitions } from "@/lib/hooks/useDefinitions";
-import { useProfile } from "@/lib/hooks/useProfile";
+import { ItemDefinition, useDefinitions } from "@/lib/hooks/useDefinitions";
+import { ItemPerks, ItemStats, useProfile } from "@/lib/hooks/useProfile";
 import useAuth from "@/lib/hooks/useAuth";
+import { EquipmentItem } from "@/lib/types/destinyTypes";
 
 interface CharacterViewProps {
   characterId: string;
@@ -33,14 +34,14 @@ const EQUIPMENT_SLOTS = {
   CLASS_ITEM: 1585787867,
 };
 
-interface EquipmentItem {
-  item: any;
-  itemInstanceId: string
-  ornamentItem: any;
-  perks?: any;
-  stats?: any;
-  state: any;
-  hash: number
+interface InventoryItem {
+  item: ItemDefinition;
+  itemInstanceId: string;
+  ornamentItem: ItemDefinition;
+  perks: ItemPerks;
+  stats: ItemStats;
+  state: number;
+  hash: number;
 }
 
 interface EquipmentSection {
@@ -79,7 +80,7 @@ const CharacterView: React.FC<CharacterViewProps> = ({
     recordsDefinitions,
   } = useDefinitions();
 
-  const { token } = useAuth();
+  const { token, lastUpdate, refreshUserToken } = useAuth();
 
   const {
     user,
@@ -166,7 +167,7 @@ const CharacterView: React.FC<CharacterViewProps> = ({
             await safeTransferItem(
               token as string,
               user.membershipType,
-              args[0],
+              Number.parseInt(args[0]),
               args[1],
               args[2],
               characterId,
@@ -177,7 +178,7 @@ const CharacterView: React.FC<CharacterViewProps> = ({
             await transferItem(
               token as string,
               user.membershipType,
-              args[0],
+              Number.parseInt(args[0]),
               args[1],
               characterId,
               false
@@ -215,7 +216,7 @@ const CharacterView: React.FC<CharacterViewProps> = ({
         await safeTransferItem(
           token as string,
           user.membershipType,
-          hash,
+          Number.parseInt(hash),
           itemInstanceId,
           characterId,
           "vault",
@@ -320,6 +321,7 @@ const CharacterView: React.FC<CharacterViewProps> = ({
       }
     });
 
+  
     // Process inventory items
     characterInventories[characterId].items.forEach((item) => {
       if (item.itemInstanceId && item.location === 1) {
@@ -328,7 +330,7 @@ const CharacterView: React.FC<CharacterViewProps> = ({
 
         if (i.equippingBlock) {
           const slotHash = i.equippingBlock.equipmentSlotTypeHash;
-          const inventoryItem = {
+          const inventoryItem :InventoryItem = {
             item: i,
             itemInstanceId: item.itemInstanceId,
             ornamentItem,
@@ -417,7 +419,16 @@ const CharacterView: React.FC<CharacterViewProps> = ({
 
     // Random chance for exotic vault display (Easter egg)
     setVaultExotic(Math.random() < 0.01);
-  }, []);
+  }, [
+    profileCurrencies,
+    itemDefinitions,
+    characterEquipment,
+    characterInventories,
+    itemComponents,
+    characters,
+    characterId,
+    recordsDefinitions,
+  ]);
 
   // Setup initial data and refresh interval
   useEffect(() => {
@@ -439,11 +450,15 @@ const CharacterView: React.FC<CharacterViewProps> = ({
     }
 
     const intervalId = setInterval(() => {
+      console.log(Date.now() - lastUpdate)
+      if(Date.now() - lastUpdate >= 3600 * 1000){ 
+        refreshUserToken()
+      }
       refresh();
     }, 60000);
 
     return () => clearInterval(intervalId);
-  }, []);
+  }, [initializeData, characters, characterId, recordsDefinitions, lastUpdate, refreshUserToken, refresh]);
 
   // Load current locale from localStorage
   useEffect(() => {
@@ -545,7 +560,6 @@ const CharacterView: React.FC<CharacterViewProps> = ({
 
       <Loadouts
         characterId={characterId}
-        refreshChar={refresh}
       />
 
       <div className="flex justify-center items-center mt-4">

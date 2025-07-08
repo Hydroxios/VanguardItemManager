@@ -17,6 +17,7 @@ import {
   equipItems as apiEquipItems,
   pullFromPostmaster as apiPullFromPostmaster
 } from './api/bungieApiClient';
+import { Item } from './hooks/useProfile';
 
 const rootPath = "https://www.bungie.net/Platform"
 const apiKey = process.env.NODE_ENV === 'production' ? "401004d697cc44a8a8f76fdc47105211" : "56071839a5234888ae60e56b80d63141";
@@ -40,6 +41,13 @@ export interface Character {
     raceHash :number
 }
 
+export interface ItemResponse {
+    characterId: string
+    item: {
+      data: Item
+    }
+}
+
 export const refreshToken = async (refreshToken: string) => {
     const response = await fetch("https://www.bungie.net/Platform/App/OAuth/token/", {
         method: "POST",
@@ -61,7 +69,7 @@ export const refreshToken = async (refreshToken: string) => {
         localStorage.setItem("rtoken", data.refresh_token);
         localStorage.setItem("lastUpdate", Date.now().toString());
         lastUpdate = Date.now()
-        return data.access_token;
+        return data.access_token as string;
     } else {
         console.error("Failed to refresh access token:", data);
         throw new Error("Failed to refresh token");
@@ -69,7 +77,7 @@ export const refreshToken = async (refreshToken: string) => {
 }
 
 export const getCurrentUser = async (token :string) => {
-   const res = await fetch(rootPath + "/User/GetMembershipsForCurrentUser/", {
+   const res = await fetch("/api/User/GetMembershipsForCurrentUser", {
     headers: {
         Authorization: "Bearer " + token,
         "X-Api-Key": apiKey,
@@ -87,23 +95,19 @@ export const getCurrentUser = async (token :string) => {
 }
 
 export const getProfile = async (token :string, membershipId: string, membershipType: number) => {
-    const validToken = await checkToken(token);
-    const res = await fetch(rootPath + `/Destiny2/${membershipType}/Profile/${membershipId}/?components=100,102,103,104,200,201,202,205,206,300,302,304,1300`, {
+    const res = await fetch(`/api/Destiny2/${membershipType}/Profile/${membershipId}?components=100,102,103,104,200,201,202,205,206,300,302,304,307,308,310,1300`, {
         headers: {
-            Authorization: "Bearer " + validToken,
+            Authorization: "Bearer " + token,
             "X-Api-Key": apiKey,
             "User-Agent": "HximApp/1.0 AppId/45124 (+https://hxitemmanager.web.app;hydroxios@gmail.com)"
         }
     })
-    if(res.status === 401){
-        window.location.reload()
-    }
     const data = await res.json()
     return data.Response
 }
 
 export const getDefinitions = async (locale? :string) => {
-    const res = await fetch(rootPath + "/Destiny2/Manifest/", {
+    const res = await fetch("/api/Destiny2/Manifest", {
         headers: {
             "X-Api-Key": apiKey,
             "User-Agent": "HximApp/1.0 AppId/45124 (+https://hxitemmanager.web.app;hydroxios@gmail.com)"
@@ -117,7 +121,7 @@ export const getDefinitions = async (locale? :string) => {
 }
 
 export const getGlobalAlerts = async () => {
-    const res = await fetch(rootPath + "/GlobalAlerts/", {
+    const res = await fetch("/api/GlobalAlerts", {
         headers: {
             "X-Api-Key": apiKey,
             "User-Agent": "HximApp/1.0 AppId/45124 (+https://hxitemmanager.web.app;hydroxios@gmail.com)"
@@ -128,7 +132,7 @@ export const getGlobalAlerts = async () => {
 }
 
 export const getCharacter = async (token: string, membershipId: string, membershipType: number, characterId: string) => {
-    const res = await fetch(rootPath + `/Destiny2/${membershipType}/Profile/${membershipId}/Character/${characterId}/?components=103,201,205`, {
+    const res = await fetch(`/api/Destiny2/${membershipType}/Profile/${membershipId}/Character/${characterId}?components=103,201,205`, {
         headers: {
             Authorization: "Bearer " + token,
             "X-Api-Key": apiKey,
@@ -140,7 +144,7 @@ export const getCharacter = async (token: string, membershipId: string, membersh
 }
 
 export const getCharacterInventory = async (token: string, membershipId: string, membershipType: number, characterId: string) => {
-    const res = await fetch(rootPath + `/Destiny2/${membershipType}/Profile/${membershipId}/Character/${characterId}/?components=201`, {
+    const res = await fetch(`/api/Destiny2/${membershipType}/Profile/${membershipId}/Character/${characterId}?components=201`, {
         headers: {
             Authorization: "Bearer " + token,
             "X-Api-Key": apiKey,
@@ -153,7 +157,7 @@ export const getCharacterInventory = async (token: string, membershipId: string,
 
 export const getItem = async (token: string, membershipType: number, membershipId: string, itemInstanceId: string, components :string) => {
     try {
-        const res = await fetch(rootPath + `/Destiny2/${membershipType}/Profile/${membershipId}/Item/${itemInstanceId}/?components=${components}`, {
+        const res = await fetch(`/api/Destiny2/${membershipType}/Profile/${membershipId}/Item/${itemInstanceId}?components=${components}`, {
             headers: {
                 Authorization: "Bearer " + token,
                 "X-API-Key": apiKey,
@@ -161,14 +165,14 @@ export const getItem = async (token: string, membershipType: number, membershipI
             }
         });
         const data = await res.json();
-        return data.Response;
+        return data.Response as ItemResponse;
     } catch {
         return undefined;
     }
 }
 
 export const equipLoadout = async (token: string, membershipType: number, characterId: string, loadoutIndex: number) => {
-    await fetch(rootPath + `/Destiny2/Actions/Loadouts/EquipLoadout/`, {
+    await fetch(`/api/Destiny2/Actions/Loadouts/EquipLoadout`, {
         method: 'POST',
         headers: {
             Authorization: "Bearer " + token,
@@ -184,15 +188,13 @@ export const equipLoadout = async (token: string, membershipType: number, charac
     });
 }
 
-export const transferItem = async (token: string, membershipType: number, itemHash: string, itemInstanceId: string, characterId: string, toVault: boolean, quantity?: number) => {
-    const validToken = await checkToken(token);
-    const response = await fetch(rootPath + `/Destiny2/Actions/Items/TransferItem/`, {
+export const transferItem = async (token: string, membershipType: number, itemHash: number, itemInstanceId: string, characterId: string, toVault: boolean, quantity?: number) => {
+    const response = await fetch(`/api/Destiny2/Actions/Items/TransferItem/`, {
         method: 'POST',
         headers: {
-            Authorization: "Bearer " + validToken,
+            Authorization: "Bearer " + token,
             "X-Api-Key": apiKey,
-            'Content-Type': 'application/json',
-            "User-Agent": "HximApp/1.0 AppId/45124 (+https://hxitemmanager.web.app;hydroxios@gmail.com)"
+            'Content-Type': 'application/json'
         },
         body: JSON.stringify({
             itemReferenceHash: itemHash,
@@ -214,14 +216,14 @@ export const transferItem = async (token: string, membershipType: number, itemHa
  * Check if an item is equipped and transfer it safely
  * transferStatus === 1 means the item is equipped and needs to be unequipped first
  */
-export const safeTransferItem = async (token: string, membershipType: number, itemHash: string, itemInstanceId: string, 
+export const safeTransferItem = async (token: string, membershipType: number, itemHash: number, itemInstanceId: string, 
                                        sourceCharacterId: string, targetCharacterId: string, membershipId: string) => {
     // First check if the item is equipped
-    const itemData = await getItem(token, membershipType, membershipId, itemInstanceId, "307,302,304,305");
+    const itemResponse = await getItem(token, membershipType, membershipId, itemInstanceId, "307,302,304,305");
     
-    if (itemData && itemData.item && itemData.item.data) {
-        const transferStatus = itemData.item.data.transferStatus;
-        const equipmentSlotHash = itemData.item.data.bucketHash; // The slot this item is equipped in
+    if (itemResponse && itemResponse.item) {
+        const transferStatus = itemResponse.item.data.transferStatus;
+        const equipmentSlotHash = itemResponse.item.data.bucketHash; // The slot this item is equipped in
         
         // If transferStatus is 1, the item is equipped and we need to unequip it
         if (transferStatus === 1) {
@@ -318,8 +320,7 @@ export const equipItem = async (token: string, membershipType: number, character
         headers: {
             Authorization: "Bearer " + token,
             "X-Api-Key": apiKey,
-            'Content-Type': 'application/json',
-            "User-Agent": "HximApp/1.0 AppId/45124 (+https://hxitemmanager.web.app;hydroxios@gmail.com)"
+            'Content-Type': 'application/json'
         },
         body: JSON.stringify({
             membershipType: membershipType,
@@ -335,11 +336,10 @@ export const equipItem = async (token: string, membershipType: number, character
 }
 
 export const pullFromPostmaster = async (token: string, membershipType: number, characterId: string, itemReferenceHash: string, itemInstanceId: string, stackSize: number = 1) => {
-    const validToken = await checkToken(token);
     const response = await fetch(rootPath + `/Destiny2/Actions/Items/PullFromPostmaster/`, {
         method: 'POST',
         headers: {
-            Authorization: "Bearer " + validToken,
+            Authorization: "Bearer " + token,
             "X-Api-Key": apiKey,
             'Content-Type': 'application/json',
             "User-Agent": "HximApp/1.0 AppId/45124 (+https://hxitemmanager.web.app;hydroxios@gmail.com)"
@@ -443,18 +443,4 @@ export const clearLoadout = async (
     } catch (error: any) {
         throw new Error(error.message || "Failed to clear loadout");
     }
-}
-
-const checkToken = async (token :string) => {
-    const now = Date.now()
-    if(!lastUpdate) lastUpdate = localStorage.getItem("lastUpdate");
-    if((now - lastUpdate) >= 3600000){
-        lastUpdate = now;
-        console.log("Token Refreshed !")
-        localStorage.setItem("lastUpdate", now.toString())
-        const nToken = await refreshToken(localStorage.getItem("rtoken") as string)
-        localStorage.setItem("token", nToken)
-        return nToken;
-    }
-    return token;
 }

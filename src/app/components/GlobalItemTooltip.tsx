@@ -3,8 +3,8 @@
 import { useEffect, useState, useLayoutEffect } from "react"
 import WeaponStat from "./WeaponStat"
 import { useItemTooltip } from "@/lib/hooks/useItemTooltip"
-import { useDebug } from "./DebugProvider"
-import DebugInfos from "./DebugInfos"
+import { useDebug } from "@/app/components/debug/DebugProvider"
+import DebugInfos from "@/app/components/debug/DebugInfos"
 import { useDefinitions } from "@/lib/hooks/useDefinitions"
 import { useProfile } from "@/lib/hooks/useProfile"
 
@@ -56,7 +56,7 @@ const GlobalItemTooltip = () => {
     const [color, setColor] = useState("#ffffff")
 
     const {debugMode} = useDebug()
-    const { itemDefinitions, statsDefinitions, perksDefinitions, classDefinitions } = useDefinitions()
+    const { bucketDefinitions, statsDefinitions, perksDefinitions, classDefinitions } = useDefinitions()
     const { itemComponents, characters } = useProfile()
 
 
@@ -364,7 +364,7 @@ const GlobalItemTooltip = () => {
             {debugMode && <DebugInfos data={{
                 "itemInstance": itemComponents.instances[itemInstanceId],
                 ...itemComponents.perks[itemInstanceId], 
-                ...itemComponents.stats[itemInstanceId], 
+                ...itemComponents.stats[itemInstanceId],
                 item}}
             />}
             

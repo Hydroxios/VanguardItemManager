@@ -1,19 +1,17 @@
 "use client";
 
 import { useProfile } from "@/lib/hooks/useProfile";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 
 const RefreshButton = () => {
-  const [isRotating, setIsRotating] = useState(false);
 
-  const { refresh } = useProfile()
+  const { refresh, refreshing } = useProfile()
+
 
   const handleRefresh = async () => {
-    setIsRotating(true);
     await refresh()
     console.log("refreshed")
-    setIsRotating(false);
   };
 
   return (
@@ -32,7 +30,7 @@ const RefreshButton = () => {
         strokeWidth="2" 
         strokeLinecap="round" 
         strokeLinejoin="round"
-        className={`${isRotating ? 'animate-spin' : ''} text-white`}
+        className={`${refreshing ? 'animate-spin' : ''} text-white`}
       >
         <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" />
       </svg>

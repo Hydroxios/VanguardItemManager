@@ -72,6 +72,14 @@ export interface RaceDefinition {
     raceType: number
 }
 
+export interface BucketDefinition {
+    displayProperties: DisplayPropertiesDefinition
+    category: number
+    scope: number
+    itemCount: number
+    location: number
+}
+
 export interface ItemDefinitions extends Record<string, ItemDefinition> {}
 export interface ClassDefinitions extends Record<string, ClassDefinition> {}
 export interface StatsDefinitions extends Record<string, StatsDefinition> {}
@@ -80,6 +88,7 @@ export interface RecordsDefinitions extends Record<string, RecordDefinition> {}
 export interface LoadoutColorDefinitions extends Record<string, LoadoutColorDefinition> {}
 export interface LoadoutIconDefinitions extends Record<string, LoadoutIconDefinition> {}
 export interface RaceDefinitions extends Record<string, RaceDefinition> {}
+export interface BucketDefinitions extends Record<string, RaceDefinition> {}
 
 interface Definitions {
     loadingDefinitions: boolean
@@ -91,6 +100,7 @@ interface Definitions {
     loadoutColorDefinitions: LoadoutColorDefinitions
     loadoutIconDefinitions: LoadoutIconDefinitions
     raceDefinitions: RaceDefinitions
+    bucketDefinitions: BucketDefinitions
 }
 
 const DefinitionsContext = createContext<Definitions | undefined>(undefined)
@@ -106,6 +116,7 @@ export const DefinitionsProvider = ({children}: { children: ReactNode }) => {
     const [loadoutColorDefinitions, setLoadoutColorDefinitions] = useState<LoadoutColorDefinitions>({})
     const [loadoutIconDefinitions, setLoadoutIconDefinitions] = useState<LoadoutIconDefinitions>({})
     const [raceDefinitions, setRaceDefinitions] = useState<RaceDefinitions>({})
+    const [bucketDefinitions, setBucketDefinitions] = useState<RaceDefinitions>({})
 
     useEffect(() => {
         const fetchDefinitions = async () => {
@@ -119,6 +130,7 @@ export const DefinitionsProvider = ({children}: { children: ReactNode }) => {
             setLoadoutColorDefinitions(db.DestinyLoadoutColorDefinition)
             setLoadoutIconDefinitions(db.DestinyLoadoutIconDefinition)
             setRaceDefinitions(db.DestinyRaceDefinition)
+            setBucketDefinitions(db.DestinyInventoryBucketDefinition)
             setLoading(false)
         }
         fetchDefinitions()
@@ -133,8 +145,9 @@ export const DefinitionsProvider = ({children}: { children: ReactNode }) => {
         recordsDefinitions,
         loadoutColorDefinitions,
         loadoutIconDefinitions,
-        raceDefinitions
-    }), [loading, itemDefinitions, classDefinitions, statsDefinitions, perksDefinitions, recordsDefinitions, loadoutColorDefinitions, loadoutIconDefinitions, raceDefinitions]);
+        raceDefinitions,
+        bucketDefinitions
+    }), [loading, itemDefinitions, classDefinitions, statsDefinitions, perksDefinitions, recordsDefinitions, loadoutColorDefinitions, loadoutIconDefinitions, raceDefinitions, bucketDefinitions]);
 
     return (
         <DefinitionsContext.Provider  

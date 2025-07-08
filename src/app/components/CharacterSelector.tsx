@@ -48,7 +48,7 @@ const CharacterSelector = ({
           await safeTransferItem(
             token ?? "", 
             user.membershipType, 
-            args[0], 
+            Number.parseInt(args[0]), 
             args[1], 
             args[2], 
             characterId, 
@@ -56,7 +56,7 @@ const CharacterSelector = ({
           );
         } else {
           // Item is being transferred from vault to character
-          await transferItem(token ?? "", user.membershipType, args[0], args[1], characterId, false);
+          await transferItem(token ?? "", user.membershipType, Number.parseInt(args[0]), args[1], characterId, false);
         }
         await refresh();
         addNotification(

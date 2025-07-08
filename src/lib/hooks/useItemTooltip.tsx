@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, createContext, useContext, ReactNode } from 'react';
-import { ClassDefinitions, PerksDefinitions, StatsDefinitions } from './useDefinitions';
+import { ClassDefinitions, ItemDefinition, PerksDefinitions, StatsDefinitions } from './useDefinitions';
 
 interface TooltipState {
-  item: any;
+  item: ItemDefinition | undefined;
   itemInstanceId: any;
   positions: { x: number, y: number };
   open: boolean;
@@ -19,7 +19,7 @@ interface TooltipContextType {
 }
 
 const initialState: TooltipState = {
-  item: null,
+  item: undefined,
   itemInstanceId: null,
   positions: { x: 0, y: 0 },
   open: false,

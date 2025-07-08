@@ -2,13 +2,14 @@
 
 import Item from "./Item"
 import { equipItem, safeTransferItem } from "@/lib/bungie"
-import { useNotifications } from "./NotificationsProvider"
-import { useDefinitions } from "@/lib/hooks/useDefinitions"
+import { useNotifications } from "@/app/components/NotificationsProvider"
+import { ItemDefinition, useDefinitions } from "@/lib/hooks/useDefinitions"
 import useAuth from "@/lib/hooks/useAuth"
 import { useProfile } from "@/lib/hooks/useProfile"
+import { EquipmentItem } from "@/lib/types/destinyTypes"
 
 interface InventoryItemsProps {
-    items: any[],
+    items: EquipmentItem[],
     open: boolean,
     characterId: string;
     right: boolean
@@ -30,11 +31,11 @@ const InventoryItems = ({
     const { token } = useAuth()
     const { user } = useProfile()
 
-    const equip = async (item: any, itemInstance: any, state: number, hash: number, ornamentItem?: any,) => {
+    const equip = async (item: ItemDefinition, itemInstanceId: string, state: number, hash: number, ornamentItem?: any,) => {
         try {
-            await equipItem(token as string, user.membershipType, characterId, itemInstance.itemInstanceId)
+            await equipItem(token as string, user.membershipType, characterId, itemInstanceId)
             if(onEquip){
-                await onEquip(item, itemInstance.itemInstanceId, state, hash, ornamentItem);
+                //await onEquip(item, itemInstanceId, state, hash, ornamentItem);
                 addNotification("Successfully Equipped " + item.displayProperties.name + " !", "", "success", "https://www.bungie.net" + (ornamentItem ? ornamentItem.displayProperties.icon : item.displayProperties.icon), 5000)
             }
         } catch (err: any) {
@@ -52,7 +53,7 @@ const InventoryItems = ({
                                 itemHash={item.hash}
                                 itemInstanceId={item.itemInstanceId} 
                                 ornamentItem={item.ornamentItem} 
-                                onDoubleClick={() => equip(item.item, item.itemInstance, item.state, item.hash, item.ornamentItem)} 
+                                onDoubleClick={() => equip(item.item, item.itemInstanceId, item.state, item.hash, item.ornamentItem)} 
                                 state={item.state}
                                 characterId={characterId}
                                 perks={item.perks}

@@ -5,9 +5,10 @@ import { refreshToken } from '../bungie';
 
 interface UseAuthResult {
   token: string | null;
+  lastUpdate: number
   isTokenLoading: boolean;
   isTokenRefreshing: boolean;
-  refreshUserToken: () => Promise<void>;
+  refreshUserToken: () => Promise<string | null>;
 }
 
 const AuthContext = createContext<UseAuthResult | undefined>(undefined);
@@ -16,15 +17,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [token, setToken] = useState<string | null>(null);
   const [isTokenLoading, setIsTokenLoading] = useState<boolean>(true);
   const [isTokenRefreshing, setIsTokenRefreshing] = useState<boolean>(false);
+  const [lastUpdate, setLastUpdate] = useState(0)
 
-  const refreshUserToken = useCallback(async () => {
+  const refreshUserToken = useCallback(async (): Promise<string | null> => {
     const refreshTokenValue = localStorage.getItem("rtoken");
-    if (!refreshTokenValue) return;
+    if (!refreshTokenValue) return null;
 
     setIsTokenRefreshing(true);
     try {
-      await refreshToken(refreshTokenValue);
+      const t = await refreshToken(refreshTokenValue);
       setToken(localStorage.getItem("token"));
+      setLastUpdate(Date.now())
+      return t;
     } catch (error) {
       console.error("Failed to refresh token:", error);
       // If refresh fails, clear stored tokens to prompt re-login
@@ -32,6 +36,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       localStorage.removeItem("rtoken");
       localStorage.removeItem("lastUpdate");
       setToken(null);
+      return null;
     } finally {
       setIsTokenRefreshing(false);
     }
@@ -43,15 +48,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // Check if token needs refreshing
     if (localStorage.getItem("lastUpdate")) {
       const now = Date.now();
-      const lastUpdate = new Date(
+      const lu = new Date(
         Number(localStorage.getItem("lastUpdate"))
       ).getTime();
       
-      if (now - lastUpdate > 3600 * 1000) {
+      if (now - lu > 3600 * 1000) {
         // Token is older than 1 hour, refresh it
         refreshUserToken();
       } else {
         // Token is still valid
+        setLastUpdate(lu)
         setToken(storedToken);
       }
     } else {
@@ -64,6 +70,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const value: UseAuthResult = {
     token,
+    lastUpdate,
     isTokenLoading,
     isTokenRefreshing,
     refreshUserToken

@@ -1,26 +1,31 @@
 "use client";
 
-import {
-  getGlobalAlerts,
-} from "@/lib/bungie";
+import { getGlobalAlerts } from "@/lib/bungie";
 import { useEffect, useState } from "react";
 import CharacterSelector from "./CharacterSelector";
-import CharacterView from "./CharacterView";
-import SearchButton from "./SearchButton";
-import RefreshButton from "./RefreshButton";
+import CharacterView from "@/app/components/character/CharacterView";
+import SearchButton from "@/app/components/inputs/SearchButton";
+import RefreshButton from "@/app/components/inputs/RefreshButton";
 import "./loading.css";
 import Loader from "./Loader";
-import Switch from "./Switch";
-import { useDebug } from "./DebugProvider";
+import Switch from "@/app/components/inputs/Switch";
+import { useDebug } from "@/app/components/debug/DebugProvider";
 import { useDefinitions } from "@/lib/hooks/useDefinitions";
 import { useProfile } from "@/lib/hooks/useProfile";
 
-const AppView = () => {
-  const [currentCharacter, setCurrentCharacter] = useState<
-    string | undefined
-  >();
+interface Alert {
+  AlertKey: string
+  AlertHtml: string
+  AlertTimestamp: Date
+  AlertLink: string
+  AlertLevel: number
+  AlertType: number
+}
 
-  const [alerts, setAlerts] = useState<any[]>([]);
+const AppView = () => {
+  const [currentCharacter, setCurrentCharacter] = useState<string | undefined>();
+
+  const [alerts, setAlerts] = useState<Alert[]>([]);
 
   const {debugMode, setDebugMode} = useDebug()
 
@@ -80,10 +85,14 @@ const AppView = () => {
         )}
       </div>
       {alerts.length > 0 && (
-        <footer className="p-4 bg-gray-800 text-white w-full text-center mt-2 border-t-4 border-red-500 absolute bottom-8 right-0 z-[-1]">
+        <footer className="p-4 bg-gray-800 text-white w-full text-center mt-2 border-t-4 border-red-500 absolute bottom-8 right-0 ">
           <ul>
             {alerts.map((alert, index) => (
-              <li key={index}>{alert.AlertHtml}</li>
+              <li key={index}>
+                <span className="cursor-pointer" onClick={() => window.open(alert.AlertLink)}>
+                  {alert.AlertHtml}
+                </span>
+              </li>
             ))}
           </ul>
         </footer>

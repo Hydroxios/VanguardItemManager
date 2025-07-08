@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { pullFromPostmaster, transferItem } from "@/lib/bungie";
-import { useNotifications } from "./NotificationsProvider";
+import { useNotifications } from "@/app/components/NotificationsProvider";
 import { useDefinitions } from "@/lib/hooks/useDefinitions";
 import { useProfile } from "@/lib/hooks/useProfile";
 import useAuth from "@/lib/hooks/useAuth";
@@ -20,7 +20,7 @@ const Postmaster: React.FC<PostmasterProps> = ({
 
   const { token } = useAuth()
   const { itemDefinitions } = useDefinitions()
-  const { user, profileInventory, characterInventories } = useProfile()
+  const { user, characterInventories } = useProfile()
 
   // Filter for postmaster items from the current character's inventory
   const postmasterItems = characterInventories[characterId]?.items.filter(
