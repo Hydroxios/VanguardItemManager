@@ -1,25 +1,8 @@
 // This file is kept for backwards compatibility but delegates to the new API client
 // export * from './api/bungieApiClient';
-import { 
-  clearLoadout as apiClearLoadout,
-  refreshToken as apiRefreshToken,
-  getCurrentUser as apiGetCurrentUser,
-  getProfile as apiGetProfile,
-  getDefinitions as apiGetDefinitions,
-  getGlobalAlerts as apiGetGlobalAlerts,
-  getCharacter as apiGetCharacter,
-  getCharacterInventory as apiGetCharacterInventory,
-  getItem as apiGetItem,
-  equipLoadout as apiEquipLoadout,
-  transferItem as apiTransferItem,
-  safeTransferItem as apiSafeTransferItem,
-  equipItem as apiEquipItem,
-  equipItems as apiEquipItems,
-  pullFromPostmaster as apiPullFromPostmaster
-} from './api/bungieApiClient';
 import { Item } from './hooks/useProfile';
 
-const rootPath = "https://www.bungie.net/Platform"
+//const rootPath = "https://www.bungie.net/Platform"
 const apiKey = process.env.NODE_ENV === 'production' ? "401004d697cc44a8a8f76fdc47105211" : "56071839a5234888ae60e56b80d63141";
 
 let lastUpdate :any = undefined;
@@ -48,8 +31,36 @@ export interface ItemResponse {
     }
 }
 
+interface BungieFetchData {
+    token?: string
+    method?: "GET" | "POST"
+    body?: string
+    onError?: (err: Error) => void
+}
+
+const baseUrl = "https://www.bungie.net/Platform"
+
+const bungie = async (url: string, init: BungieFetchData) =>{
+
+    const headers: HeadersInit = {"X-Api-Key": apiKey}
+    if(init.token) headers["Authorization"] = `Bearer ${init.token}`;
+    if(init.method === "POST") headers["Content-Type"] = "application/json"
+
+    const response = await fetch(`${baseUrl}${url}`, {
+        method: init.method ?? "GET",
+        headers,
+        body: init.body ?? undefined
+    })
+    const data = await response.json()
+    if(!response.ok){
+        if(init.onError) init.onError(new Error(data.Message));
+        return {error: data.Message}
+    }
+    return data.Response
+}
+
 export const refreshToken = async (refreshToken: string) => {
-    const response = await fetch("https://www.bungie.net/Platform/App/OAuth/token/", {
+    const response = await fetch(`${baseUrl}/App/OAuth/token/`, {
         method: "POST",
         headers: {
             "Content-Type": "application/x-www-form-urlencoded",
@@ -77,7 +88,7 @@ export const refreshToken = async (refreshToken: string) => {
 }
 
 export const getCurrentUser = async (token :string) => {
-   const res = await fetch("/api/User/GetMembershipsForCurrentUser", {
+   const res = await fetch(`${baseUrl}/User/GetMembershipsForCurrentUser`, {
     headers: {
         Authorization: "Bearer " + token,
         "X-Api-Key": apiKey,
@@ -95,48 +106,27 @@ export const getCurrentUser = async (token :string) => {
 }
 
 export const getProfile = async (token :string, membershipId: string, membershipType: number) => {
-    const res = await fetch(`/api/Destiny2/${membershipType}/Profile/${membershipId}?components=100,102,103,104,200,201,202,205,206,300,302,304,307,308,310,1300`, {
-        headers: {
-            Authorization: "Bearer " + token,
-            "X-Api-Key": apiKey,
-            "User-Agent": "HximApp/1.0 AppId/45124 (+https://hxitemmanager.web.app;hydroxios@gmail.com)"
-        }
-    })
-    const data = await res.json()
-    return data.Response
+    const profile = await bungie(`/Destiny2/${membershipType}/Profile/${membershipId}?components=100,102,103,104,200,201,202,205,206,300,302,304,307,308,310,1300`, {token})
+    return profile
 }
 
 export const getDefinitions = async (locale? :string) => {
-    const res = await fetch("/api/Destiny2/Manifest", {
-        headers: {
-            "X-Api-Key": apiKey,
-            "User-Agent": "HximApp/1.0 AppId/45124 (+https://hxitemmanager.web.app;hydroxios@gmail.com)"
-        }
-    });
-    const data = await res.json();
-    const aggregateUrl = "https://www.bungie.net" + data.Response.jsonWorldContentPaths[locale ?? "en"]
-    const aggregateRes = await fetch(aggregateUrl);
-    const aggregateData = await aggregateRes.json();
-    return aggregateData;
+    const manifests = await bungie("/Destiny2/Manifest", {})
+    const response = await fetch(`https://www.bungie.net${manifests.jsonWorldContentPaths[locale ?? "en"]}`);
+    const data = await response.json();
+    return data;
 }
 
 export const getGlobalAlerts = async () => {
-    const res = await fetch("/api/GlobalAlerts", {
-        headers: {
-            "X-Api-Key": apiKey,
-            "User-Agent": "HximApp/1.0 AppId/45124 (+https://hxitemmanager.web.app;hydroxios@gmail.com)"
-        }
-    })
-    const data = await res.json()
-    return data.Response
+    const alerts = await bungie(`/GlobalAlerts`, {})
+    return alerts
 }
 
 export const getCharacter = async (token: string, membershipId: string, membershipType: number, characterId: string) => {
-    const res = await fetch(`/api/Destiny2/${membershipType}/Profile/${membershipId}/Character/${characterId}?components=103,201,205`, {
+    const res = await fetch(`${baseUrl}/Destiny2/${membershipType}/Profile/${membershipId}/Character/${characterId}?components=103,201,205`, {
         headers: {
             Authorization: "Bearer " + token,
             "X-Api-Key": apiKey,
-            "User-Agent": "HximApp/1.0 AppId/45124 (+https://hxitemmanager.web.app;hydroxios@gmail.com)"
         }
     });
     const data = await res.json();
@@ -144,11 +134,10 @@ export const getCharacter = async (token: string, membershipId: string, membersh
 }
 
 export const getCharacterInventory = async (token: string, membershipId: string, membershipType: number, characterId: string) => {
-    const res = await fetch(`/api/Destiny2/${membershipType}/Profile/${membershipId}/Character/${characterId}?components=201`, {
+    const res = await fetch(`${baseUrl}/Destiny2/${membershipType}/Profile/${membershipId}/Character/${characterId}?components=201`, {
         headers: {
             Authorization: "Bearer " + token,
-            "X-Api-Key": apiKey,
-            "User-Agent": "HximApp/1.0 AppId/45124 (+https://hxitemmanager.web.app;hydroxios@gmail.com)"
+            "X-Api-Key": apiKey
         }
     });
     const data = await res.json();
@@ -157,11 +146,10 @@ export const getCharacterInventory = async (token: string, membershipId: string,
 
 export const getItem = async (token: string, membershipType: number, membershipId: string, itemInstanceId: string, components :string) => {
     try {
-        const res = await fetch(`/api/Destiny2/${membershipType}/Profile/${membershipId}/Item/${itemInstanceId}?components=${components}`, {
+        const res = await fetch(`${baseUrl}/Destiny2/${membershipType}/Profile/${membershipId}/Item/${itemInstanceId}?components=${components}`, {
             headers: {
                 Authorization: "Bearer " + token,
-                "X-API-Key": apiKey,
-                "User-Agent": "HximApp/1.0 AppId/45124 (+https://hxitemmanager.web.app;hydroxios@gmail.com)"
+                "X-API-Key": apiKey
             }
         });
         const data = await res.json();
@@ -172,30 +160,20 @@ export const getItem = async (token: string, membershipType: number, membershipI
 }
 
 export const equipLoadout = async (token: string, membershipType: number, characterId: string, loadoutIndex: number) => {
-    await fetch(`/api/Destiny2/Actions/Loadouts/EquipLoadout`, {
-        method: 'POST',
-        headers: {
-            Authorization: "Bearer " + token,
-            "X-Api-Key": apiKey,
-            'Content-Type': 'application/json',
-            "User-Agent": "HximApp/1.0 AppId/45124 (+https://hxitemmanager.web.app;hydroxios@gmail.com)"
-        },
+    await bungie("/Destiny2/Actions/Loadouts/EquipLoadout", {
+        method: "POST",
         body: JSON.stringify({
             membershipType: membershipType,
             characterId: characterId,
             loadoutIndex: loadoutIndex
-        })
-    });
+        }),
+        token
+    })
 }
 
 export const transferItem = async (token: string, membershipType: number, itemHash: number, itemInstanceId: string, characterId: string, toVault: boolean, quantity?: number) => {
-    const response = await fetch(`/api/Destiny2/Actions/Items/TransferItem/`, {
-        method: 'POST',
-        headers: {
-            Authorization: "Bearer " + token,
-            "X-Api-Key": apiKey,
-            'Content-Type': 'application/json'
-        },
+    await bungie("/Destiny2/Actions/Items/TransferItem/", {
+        method: "POST",
         body: JSON.stringify({
             itemReferenceHash: itemHash,
             transferToVault: toVault,
@@ -203,13 +181,12 @@ export const transferItem = async (token: string, membershipType: number, itemHa
             itemId: itemInstanceId,
             characterId: characterId,
             membershipType: membershipType
-        })
-    });
-
-    if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.Message);
-    }
+        }),
+        token,
+        onError: (err) => {
+            throw err;
+        }
+    })
 }
 
 /**
@@ -298,13 +275,12 @@ export const safeTransferItem = async (token: string, membershipType: number, it
 }
 
 export const equipItems = async (token: string, membershipType: number, characterId: number, itemIds: number[]) => {
-    await fetch(rootPath + `/Destiny2/Actions/Items/EquipItems/`, {
+    await fetch(`${baseUrl}/Destiny2/Actions/Items/EquipItems/`, {
         method: 'POST',
         headers: {
             Authorization: "Bearer " + token,
             "X-Api-Key": apiKey,
-            'Content-Type': 'application/json',
-            "User-Agent": "HximApp/1.0 AppId/45124 (+https://hxitemmanager.web.app;hydroxios@gmail.com)"
+            'Content-Type': 'application/json'
         },
         body: JSON.stringify({
             membershipType: membershipType,
@@ -315,7 +291,7 @@ export const equipItems = async (token: string, membershipType: number, characte
 }
 
 export const equipItem = async (token: string, membershipType: number, characterId: string, itemId: string) => {
-    const response = await fetch(rootPath + `/Destiny2/Actions/Items/EquipItem/`, {
+        const response = await fetch(`${baseUrl}/Destiny2/Actions/Items/EquipItem/`, {
         method: 'POST',
         headers: {
             Authorization: "Bearer " + token,
@@ -335,14 +311,13 @@ export const equipItem = async (token: string, membershipType: number, character
     }
 }
 
-export const pullFromPostmaster = async (token: string, membershipType: number, characterId: string, itemReferenceHash: string, itemInstanceId: string, stackSize: number = 1) => {
-    const response = await fetch(rootPath + `/Destiny2/Actions/Items/PullFromPostmaster/`, {
+export const pullFromPostmaster = async (token: string, membershipType: number, characterId: string, itemReferenceHash: number, itemInstanceId: string, stackSize: number = 1) => {
+    const response = await fetch(`${baseUrl}/Destiny2/Actions/Items/PullFromPostmaster/`, {
         method: 'POST',
         headers: {
             Authorization: "Bearer " + token,
             "X-Api-Key": apiKey,
-            'Content-Type': 'application/json',
-            "User-Agent": "HximApp/1.0 AppId/45124 (+https://hxitemmanager.web.app;hydroxios@gmail.com)"
+            'Content-Type': 'application/json'
         },
         body: JSON.stringify({
             membershipType: membershipType,
@@ -359,88 +334,23 @@ export const pullFromPostmaster = async (token: string, membershipType: number, 
     }
 }
 
-export const updateLoadout = async (
-    token: string, 
-    membershipType: number, 
-    characterId: string, 
-    loadoutIndex: number, 
-    name: string, 
-    iconHash: number, 
-    colorHash: number,
-    items: { itemInstanceId: string, plugItemHashes: number[] }[]
-) => {
-    const response = await fetch(rootPath + `/Destiny2/Actions/Loadouts/UpdateLoadout/`, {
-        method: 'POST',
-        headers: {
-            Authorization: "Bearer " + token,
-            "X-Api-Key": apiKey,
-            'Content-Type': 'application/json',
-            "User-Agent": "HximApp/1.0 AppId/45124 (+https://hxitemmanager.web.app;hydroxios@gmail.com)"
-        },
-        body: JSON.stringify({
-            colorHash,
-            iconHash,
-            membershipType,
-            characterId,
-            loadoutIndex,
-            name,
-            items
-        })
-    });
-
-    if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.Message);
-    }
-    
-    return response.json();
-}
-
-export const createLoadout = async (
-    token: string, 
-    membershipType: number, 
-    characterId: string, 
-    name: string, 
-    iconHash: number, 
-    colorHash: number,
-    items: { itemInstanceId: string, plugItemHashes: number[] }[]
-) => {
-    const response = await fetch(rootPath + `/Destiny2/Actions/Loadouts/CreateLoadout/`, {
-        method: 'POST',
-        headers: {
-            Authorization: "Bearer " + token,
-            "X-Api-Key": apiKey,
-            'Content-Type': 'application/json',
-            "User-Agent": "HximApp/1.0 AppId/45124 (+https://hxitemmanager.web.app;hydroxios@gmail.com)"
-        },
-        body: JSON.stringify({
-            colorHash,
-            iconHash,
-            membershipType,
-            characterId,
-            name,
-            items
-        })
-    });
-
-    if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.Message);
-    }
-    
-    return response.json();
-}
-
 export const clearLoadout = async (
     token: string,
     membershipType: number,
     characterId: string,
     loadoutIndex: number
 ) => {
-    try {
-        // Use the API client implementation
-        return await apiClearLoadout(token, membershipType, characterId, loadoutIndex);
-    } catch (error: any) {
-        throw new Error(error.message || "Failed to clear loadout");
-    }
+    await fetch(`${baseUrl}/Destiny2/Actions/Loadouts/ClearLoadout/`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "X-Api-Key": apiKey,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          membershipType: membershipType,
+          characterId: characterId,
+          loadoutIndex: loadoutIndex
+        })
+    })
 }

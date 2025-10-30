@@ -8,7 +8,7 @@ interface SwitchProps {
 
 const Switch: React.FC<SwitchProps> = ({ checked, onChange, label }) => {
   return (
-    <div className="flex items-center gap-2 absolute top-[75] left-[10] z-[100]">
+    <div className="flex items-center gap-2">
       <button
         type="button"
         className={`w-12 h-6 flex items-center rounded-full border border-[rgb(138,138,138)] shadow-[0_0_10px_rgba(255,106,0,0.3),0_0_20px_rgba(30,144,255,0.2),inset_0_0_8px_rgba(255,255,255,0.15)] backdrop-blur-sm transition-all duration-200 focus:outline-none ${checked ? 'bg-[rgba(255,106,0,0.8)]' : 'bg-[rgba(10,10,20,0.8)]'} hover:bg-opacity-90`}

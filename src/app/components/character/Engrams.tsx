@@ -1,9 +1,9 @@
 import { useDefinitions } from "@/lib/hooks/useDefinitions";
-import { Item } from "@/lib/hooks/useProfile";
+import { Item, ItemComponents } from "@/lib/hooks/useProfile";
 import React, { useEffect, useState } from "react";
 
 interface EngramsProps {
-  items: any;
+  items: Item[];
 }
 
 const Engrams: React.FC<EngramsProps> = ({
@@ -16,7 +16,7 @@ const Engrams: React.FC<EngramsProps> = ({
 
   // Log all items to check their structure
   useEffect(() => {
-    setEngrams(items.items.filter((item: any) => {
+    setEngrams(items.filter((item: any) => {
       const itemDefinition = itemDefinitions[item.itemHash];
       // Check if item is an engram (typically they have a specific category hash)
       // Filter out engrams in the postmaster (location 4)
@@ -30,7 +30,7 @@ const Engrams: React.FC<EngramsProps> = ({
       );
     }));
 
-  }, []);
+  }, [items]);
   
   // Render an empty engram slot
   const renderEmptySlot = (index: number) => {

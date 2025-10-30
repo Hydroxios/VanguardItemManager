@@ -1,3 +1,6 @@
+import { LightAsync as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { atomOneDark } from 'react-syntax-highlighter/dist/esm/styles/hljs';
+
 const DebugInfos = ({ data } : {data: any}) => {
     
 
@@ -6,7 +9,9 @@ const DebugInfos = ({ data } : {data: any}) => {
             <div className="absolute right-0 top-0">
                 <button onClick={() => navigator.clipboard.writeText(JSON.stringify(data, null, 2))}>Copy</button>
             </div>
-            <pre style={{color: 'white', fontSize: 10, textAlign: "left"}}>{JSON.stringify(data, null, 2)}</pre>
+            <SyntaxHighlighter language="json" style={atomOneDark} customStyle={{fontSize: 10, textAlign: "left"}}>
+                {JSON.stringify(data, null, 2)}
+            </SyntaxHighlighter>
         </div>
     )
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useEffect } from 'react';
+import DestinyIcon from './destiny-ui/DestinyIcon';
 
 interface FooterMenuProps {
   vaultExotic: boolean;
@@ -55,7 +56,7 @@ const FooterMenu: React.FC<FooterMenuProps> = ({
 
   return (
     <footer
-      className="fixed bottom-0 right-0 w-full flex flex-row items-center justify-between gap-2 bg-black bg-opacity-90"
+      className="fixed bottom-0 right-0 w-full flex flex-row items-center justify-between gap-2"
       style={{
         height: "35px",
         borderTop: "2px solid #1a1a1a",
@@ -158,7 +159,7 @@ const FooterMenu: React.FC<FooterMenuProps> = ({
         className="flex flex-row items-center gap-2 mr-5"
         onClick={changeCharacter}
       >
-        <img src={"./ghost.svg"} height={16} width={16} alt="Ghost icon" />
+        <DestinyIcon icon=''/>
         Change Character
       </button>
     </footer>

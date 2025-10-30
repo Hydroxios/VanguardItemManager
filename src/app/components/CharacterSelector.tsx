@@ -88,7 +88,7 @@ const CharacterSelector = ({
       {Object.values(characters).map((character) => (
         <div
           key={character.characterId}
-          className="flex flex-row items-center w-[350px] h-[60px] bg-gray-800 border border-gray-600 rounded-lg cursor-pointer relative box-breathing"
+          className="flex flex-row items-center w-[350px] h-[60px] bg-gray-800 cursor-pointer relative box-breathing"
           onClick={() => handleCharacterSelect(character.characterId)}
           style={{
             backgroundImage: `url(https://www.bungie.net${itemDefinitions[character.emblemHash].secondaryIcon})`,
@@ -99,7 +99,7 @@ const CharacterSelector = ({
           onDrop={(e) => handleDrop(e, character.characterId)}
         >
           {/* Remove the img tag as the emblem is now a background */}
-          <div className="text-left p-1" style={{ marginLeft: '60px' }}>
+          <div className="text-left p-1 ml-[60px]">
             <p>{classDefinitions[character.classHash].displayProperties.name}</p>
             <p>{raceDefinitions[character.raceHash].displayProperties.name}</p>
           </div>

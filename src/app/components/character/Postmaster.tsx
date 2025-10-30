@@ -2,8 +2,9 @@ import React, { useState } from "react";
 import { pullFromPostmaster, transferItem } from "@/lib/bungie";
 import { useNotifications } from "@/app/components/NotificationsProvider";
 import { useDefinitions } from "@/lib/hooks/useDefinitions";
-import { useProfile } from "@/lib/hooks/useProfile";
+import { Item, useProfile } from "@/lib/hooks/useProfile";
 import useAuth from "@/lib/hooks/useAuth";
+import { useItemTooltip } from "@/lib/hooks/useItemTooltip";
 
 interface PostmasterProps {
   characterId: string;
@@ -21,6 +22,7 @@ const Postmaster: React.FC<PostmasterProps> = ({
   const { token } = useAuth()
   const { itemDefinitions } = useDefinitions()
   const { user, characterInventories } = useProfile()
+  const { showTooltip, tooltipState } = useItemTooltip()
 
   // Filter for postmaster items from the current character's inventory
   const postmasterItems = characterInventories[characterId]?.items.filter(
@@ -34,7 +36,7 @@ const Postmaster: React.FC<PostmasterProps> = ({
   };
 
   // Collect from postmaster to character inventory
-  const collectItem = async (item: any, needRefresh?: boolean) => {
+  const collectItem = async (item: Item, needRefresh?: boolean) => {
     try {
 
       await pullFromPostmaster(
@@ -43,7 +45,7 @@ const Postmaster: React.FC<PostmasterProps> = ({
         characterId,
         item.itemHash,
         item.itemInstanceId,
-        1        
+        item.quantity ?? 1
       )
       const itemDef = itemDefinitions[item.itemHash];
       const itemName = itemDef?.displayProperties?.name || "Item";
@@ -115,7 +117,7 @@ const Postmaster: React.FC<PostmasterProps> = ({
       <div
         key={item.itemInstanceId || `${item.itemHash}-${item.quantity}`}
         className="relative w-12 h-12 flex items-center justify-center cursor-pointer group"
-        onClick={() => collectItem(item)}
+        onDoubleClick={() => collectItem(item)}
       >
         <div className={`absolute inset-0 border border-${rarityColor} opacity-70`}></div>
         <div className="w-full h-full flex items-center justify-center">
@@ -133,10 +135,6 @@ const Postmaster: React.FC<PostmasterProps> = ({
             {item.quantity}
           </div>
         )}
-        <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 transition-opacity duration-200"></div>
-        <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-80 p-1 rounded text-xs text-white whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
-          Click to collect
-        </div>
       </div>
     );
   };
@@ -150,8 +148,8 @@ const Postmaster: React.FC<PostmasterProps> = ({
       >
         <div className="w-full h-full flex items-center justify-center opacity-20">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M3 6H21V18H3V6Z" stroke="#888" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-            <path d="M3 6L12 12L21 6" stroke="#888" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M3 6H21V18H3V6Z" stroke="#FFFFFF" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+            <path d="M3 6L12 12L21 6" stroke="#FFFFFF" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
         </div>
       </div>
@@ -177,9 +175,9 @@ const Postmaster: React.FC<PostmasterProps> = ({
   };
 
   return (
-    <div className={`${isCollapsed ? 'w-[200px]' : 'w-fit'} bg-black bg-opacity-80 rounded shadow-lg overflow-hidden`}>
+    <div className={`${isCollapsed ? 'w-[200px]' : 'w-fit'} shadow-lg overflow-hidden p-[2px] border-2 border-[rgb(138,138,138)]`}>
       <div 
-        className="flex justify-between items-center border-b border-gray-600 p-2 cursor-pointer hover:bg-gray-800"
+        className="flex justify-between items-center bg-[#5a5a5a] bg-opacity-45 p-2 cursor-pointer backdrop-blur-sm hover:bg-opacity-30 transition-all"
         onClick={toggleCollapse}
       >
         <h3 className="text-white text-xs uppercase tracking-wider flex items-center">
@@ -188,7 +186,7 @@ const Postmaster: React.FC<PostmasterProps> = ({
         <div className="flex items-center">
           {!isCollapsed && postmasterItems.length > 1 && (
             <button
-              className="mr-2 px-2 py-0.5 bg-yellow-400 text-black text-xs rounded hover:bg-yellow-500 focus:bg-yellow-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="mr-2 px-2 py-0.5 bg-yellow-400 text-black text-xs hover:bg-yellow-500 focus:bg-yellow-500 disabled:opacity-50 disabled:cursor-not-allowed"
               onClick={e => { e.stopPropagation(); collectAllItems(); }}
               disabled={isCollectingAll}
             >
@@ -210,8 +208,8 @@ const Postmaster: React.FC<PostmasterProps> = ({
       </div>
       
       {!isCollapsed && (
-        <div className="p-2">
-          <div className="grid grid-cols-7 gap-1">
+        <div className="p-2 bg-[#5a5a5a] bg-opacity-45 p-2 cursor-pointer backdrop-blur-sm hover:bg-opacity-30 transition-all">
+          <div className="grid grid-cols-7 gap-1 ">
             {createGridItems()}
           </div>
         </div>

@@ -4,14 +4,14 @@ import { getGlobalAlerts } from "@/lib/bungie";
 import { useEffect, useState } from "react";
 import CharacterSelector from "./CharacterSelector";
 import CharacterView from "@/app/components/character/CharacterView";
-import SearchButton from "@/app/components/inputs/SearchButton";
 import RefreshButton from "@/app/components/inputs/RefreshButton";
 import "./loading.css";
 import Loader from "./Loader";
-import Switch from "@/app/components/inputs/Switch";
 import { useDebug } from "@/app/components/debug/DebugProvider";
 import { useDefinitions } from "@/lib/hooks/useDefinitions";
 import { useProfile } from "@/lib/hooks/useProfile";
+import { useItemTooltip } from "@/lib/hooks/useItemTooltip";
+import DestinyCheckBox from "./destiny-ui/DestinyCheckbox";
 
 interface Alert {
   AlertKey: string
@@ -31,7 +31,7 @@ const AppView = () => {
 
   const { loadingDefinitions } = useDefinitions()
   const { loadingProfile, user } = useProfile()
-
+  const { keepOpen, setKeepOpen } = useItemTooltip()
   const init = async () => {
     const alerts: any[] = await getGlobalAlerts();
     setAlerts(alerts);
@@ -48,8 +48,7 @@ const AppView = () => {
           <>
             {!loadingProfile ? (
               <>
-                <div className="flex flex-row gap-4 fixed top-5 right-5" style={{zIndex: 1001}}>
-                  <SearchButton/>
+                <div className="flex flex-row gap-2 fixed right-[15px] top-[10px]" style={{zIndex: 1001}}>
                   <RefreshButton/>
                 </div>
                 {currentCharacter ? (
@@ -81,7 +80,7 @@ const AppView = () => {
             )}
           </>
         ) : (
-          <Loader title="Loading Destiny Databases..."/>
+          <Loader title={`Loading Destiny Databases...`}/>
         )}
       </div>
       {alerts.length > 0 && (
@@ -97,7 +96,14 @@ const AppView = () => {
           </ul>
         </footer>
       )}
-      {process.env.NODE_ENV === "development" && <Switch label="Debug Mode" checked={debugMode} onChange={() => {setDebugMode(!debugMode)}}/>}
+      {process.env.NODE_ENV === "development" && <div className="fixed top-[80px] left-5 z-[1002] flex flex-col gap-4 items-start w-[200px]">
+        <div>
+          <DestinyCheckBox label="Debug Mode" checked={debugMode} onClick={() => {setDebugMode(!debugMode)}} />
+        </div>
+        <div>
+          <DestinyCheckBox label="Keep Tooltip Open" checked={keepOpen} onClick={() => {setKeepOpen(!keepOpen)}}/> 
+        </div>
+      </div>}
     </div>
   );
 };

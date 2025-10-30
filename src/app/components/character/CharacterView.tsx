@@ -16,6 +16,10 @@ import { ItemDefinition, useDefinitions } from "@/lib/hooks/useDefinitions";
 import { ItemPerks, ItemStats, useProfile } from "@/lib/hooks/useProfile";
 import useAuth from "@/lib/hooks/useAuth";
 import { EquipmentItem } from "@/lib/types/destinyTypes";
+import PowerHelperButton from "../inputs/PowerHelperButton";
+import { useDebug } from "../debug/DebugProvider";
+import DestinyIcon from "../destiny-ui/DestinyIcon";
+import SearchBar from "../inputs/SearchBar";
 
 interface CharacterViewProps {
   characterId: string;
@@ -67,9 +71,9 @@ const CharacterView: React.FC<CharacterViewProps> = ({
 
   const [currenciesData, setCurrenciesData] = useState<any[]>([]);
   const [statistics, setStatistics] = useState<any>();
-  const [vaultExotic, setVaultExotic] = useState(false);
   const [characterTitle, setCharacterTitle] = useState<string>("");
   const [isVaultOpen, setIsVaultOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false)
   const { addNotification } = useNotifications();
   const [isVimMenuOpen, setIsVimMenuOpen] = useState(false);
   const [currentLocale, setCurrentLocale] = useState<string>("en");
@@ -250,11 +254,16 @@ const CharacterView: React.FC<CharacterViewProps> = ({
     if (profileCurrencies.length >= 3) {
       const c: any[] = [];
       const glimmers = profileCurrencies[0];
+      const unstableCores = profileCurrencies[1]
       const brightDusts = profileCurrencies[2];
       c.push({
         item: itemDefinitions[glimmers.itemHash],
         quantity: glimmers.quantity,
       });
+      c.push({
+        item: itemDefinitions[unstableCores.itemHash],
+        quantity: unstableCores.quantity,
+      })
       c.push({
         item: itemDefinitions[brightDusts.itemHash],
         quantity: brightDusts.quantity,
@@ -417,8 +426,6 @@ const CharacterView: React.FC<CharacterViewProps> = ({
     // Set character stats
     setStatistics(characters[characterId].stats);
 
-    // Random chance for exotic vault display (Easter egg)
-    setVaultExotic(Math.random() < 0.01);
   }, [
     profileCurrencies,
     itemDefinitions,
@@ -488,10 +495,36 @@ const CharacterView: React.FC<CharacterViewProps> = ({
     };
 
     document.addEventListener("mousedown", handleClickOutside);
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if(isVaultOpen){
+          setIsVaultOpen(false)
+        } else if(searchOpen){
+          setSearchOpen(false)
+        } else {
+          changeCharacter()
+        }
+      }
+      if(e.key === "z" && !isVaultOpen && !searchOpen){
+        setIsVaultOpen(true)
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if(e.key === "s" && !searchOpen && !isVaultOpen){
+        setSearchOpen(true)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp)
+
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
     };
-  }, []);
+  }, [isVaultOpen, searchOpen]);
 
   // Render equipment section
   const renderEquipmentSection = useCallback(
@@ -544,14 +577,19 @@ const CharacterView: React.FC<CharacterViewProps> = ({
     [equipment, toggleEquipmentSection, handleEquip]
   );
 
+  const { debugMode } = useDebug();
+ 
   return (
     <div className="mx-auto" onDrop={handleDrop} onDragOver={handleDragOver}>
-      {currenciesData?.length > 0 && <Currencies currencies={currenciesData} />}
+      <div className="flex flex-row gap-2 items-center fixed left-[15px] top-[10px] z-[1001]">
+        {currenciesData?.length > 0 && <Currencies currencies={currenciesData} />}
+        {debugMode && <PowerHelperButton onClick={() => {}}/>}
+      </div>
 
       {/* Display Engrams at the top center fixed position */}
       <div className="fixed top-0 left-0 right-0 flex justify-center pt-3 z-50">
         <div className="px-6 py-3 shadow-lg">
-          <Engrams items={characterInventories[characterId]} />
+          <Engrams items={characterInventories[characterId].items} />
         </div>
       </div>
 
@@ -585,10 +623,10 @@ const CharacterView: React.FC<CharacterViewProps> = ({
       {characterTitle && (
         <div className="text-center mt-6 mb-4 relative max-w-[350px] mx-auto">
           <div
-            className="py-1 px-10 relative"
+            className="py-1 px-10 relative "
             style={{
               background:
-                "linear-gradient(to right, rgba(71, 39, 112, 0), rgba(104, 53, 155, 0.95), rgba(71, 39, 112, 0))",
+                "linear-gradient(to right, rgba(104, 53, 155, 0.05), rgba(104, 53, 155, 0.65), rgba(104, 53, 155, 0.05))",
             }}
           >
             <div className="absolute left-0 right-0 top-0 border-t border-gray-300 opacity-30"></div>
@@ -618,15 +656,15 @@ const CharacterView: React.FC<CharacterViewProps> = ({
         refresh={refresh}
       />
 
+      <SearchBar open={searchOpen} currentCharacterId={characterId} onClose={() => setSearchOpen(false)}/>
+
       {/* Add bottom margin to prevent footer overlap */}
       <div className="pb-16"></div>
 
       <footer
-        className="fixed bottom-0 right-0 w-full flex flex-row items-center justify-between gap-2 bg-black bg-opacity-90"
+        className="fixed bottom-0 right-0 w-full flex flex-row items-center justify-between gap-2"
         style={{
           height: "35px",
-          borderTop: "2px solid #1a1a1a",
-          boxShadow: "0 -4px 8px rgba(0, 0, 0, 0.3)",
           zIndex: 40,
         }}
       >
@@ -641,18 +679,16 @@ const CharacterView: React.FC<CharacterViewProps> = ({
               width={24}
               alt="Intellect icon"
             />
-            <p className="text-gray-500">VIM v1.0</p>
+            <p>Vanguard Item Manager v1.0</p>
           </button>
 
           {isVimMenuOpen && (
             <div
-              className="absolute bottom-9 left-0 w-56 z-50"
+              className="absolute bottom-9 left-[30px] w-56 z-50"
               style={{
                 background:
                   "linear-gradient(to bottom, rgba(15, 15, 25, 0.98), rgba(25, 25, 35, 0.98))",
-                borderTop: "1px solid #7e57c2",
-                borderLeft: "1px solid #7e57c2",
-                borderRight: "1px solid #7e57c2",
+                border: "1px solid #7e57c2",
                 boxShadow: "0 -4px 12px rgba(0, 0, 0, 0.5)",
               }}
             >
@@ -755,27 +791,31 @@ const CharacterView: React.FC<CharacterViewProps> = ({
           )}
         </div>
 
-        <button
-          className="flex flex-row items-center gap-2"
-          onDrop={handleVaultDrop}
-          onDragOver={handleDragOver}
-          onClick={() => setIsVaultOpen(!isVaultOpen)}
-        >
-          <img
-            src={vaultExotic ? "./vault_exotic.svg" : "./vault.svg"}
-            height={16}
-            width={16}
-            alt="Vault icon"
-          />
-          {isVaultOpen ? "Close Vault" : "Open Vault"}
-        </button>
-        <button
-          className="flex flex-row items-center gap-2 mr-5"
-          onClick={changeCharacter}
-        >
-          <img src={"./ghost.svg"} height={16} width={16} alt="Ghost icon" />
-          Change Character
-        </button>
+        <div className="flex flex-row gap-2 mr-5">
+          <button
+            className="flex flex-row items-center gap-2"
+            onDrop={handleVaultDrop}
+            onDragOver={handleDragOver}
+            onClick={() => setIsVaultOpen(!isVaultOpen)}
+          >
+            <DestinyIcon icon=""/>
+            Vault
+          </button>
+          <button
+            className="flex flex-row items-center gap-2"
+            onClick={() => setSearchOpen(!searchOpen)}
+          >
+            <DestinyIcon icon=""/>
+            Search
+          </button>
+          <button
+            className="flex flex-row items-center gap-2"
+            onClick={changeCharacter}
+          >
+            <DestinyIcon icon=""/>
+            Back
+          </button>
+        </div>
       </footer>
     </div>
   );

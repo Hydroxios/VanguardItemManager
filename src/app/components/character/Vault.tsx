@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { transferItem } from "@/lib/bungie";
 import Item from "./Item";
 import { useNotifications } from "@/app/components/NotificationsProvider";
 import { ItemDefinition, useDefinitions } from "@/lib/hooks/useDefinitions";
 import useAuth from "@/lib/hooks/useAuth";
-import { ItemPerks, ItemStats, Perk, useProfile } from "@/lib/hooks/useProfile";
+import { Item as ItemInstance,ItemPerks, ItemStats, Perk, useProfile } from "@/lib/hooks/useProfile";
 
 interface VaultProps {
   isOpen: boolean;
@@ -54,7 +54,7 @@ const ELEMENT_ICONS = {
 
 interface ProcessedItem {
   item: ItemDefinition,
-  itemInstance: any,
+  itemInstance: ItemInstance,
   ornamentItem: ItemDefinition | undefined,
   perks: ItemPerks,
   stats: ItemStats
@@ -83,6 +83,7 @@ const Vault: React.FC<VaultProps> = ({
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [vaultHeight, setVaultHeight] = useState<number>(50); // Default height in vh
   const [isResizing, setIsResizing] = useState<boolean>(false);
+  
   const resizeRef = useRef<HTMLDivElement>(null);
 
   const { addNotification } = useNotifications();
@@ -90,7 +91,6 @@ const Vault: React.FC<VaultProps> = ({
 
   const { token } = useAuth()
   const { user, profileInventory, itemComponents } = useProfile()
-
 
   // Process inventory items into categories
   useEffect(() => {
@@ -188,63 +188,97 @@ const Vault: React.FC<VaultProps> = ({
     );
     event.dataTransfer.effectAllowed = "move";
   }, []);
-  
-  // Render items using flex instead of grid
-  const renderItems = useCallback((items: any[]) => {
+
+  const filteredItems = useMemo(() => {
+    let itemsToFilter = activeTab === 'weapons' 
+        ? processedItems.weapons 
+        : activeTab === 'armor' 
+        ? processedItems.armor 
+        : processedItems.misc;
+
     // Apply weapon type filter if we're on the weapons tab
-    let filteredItems: ProcessedItem[] = items;
     if (activeTab === 'weapons') {
-      // Apply weapon type filter
-      if (weaponTypeFilter !== 'all') {
-        filteredItems = filteredItems.filter(item => 
-          item.item.itemTypeDisplayName === weaponTypeFilter
-        );
-      }
-      // Apply element filter
-      if (elementFilter !== 'all') {
-        const elementTypeValue = ELEMENT_TYPES[elementFilter as keyof typeof ELEMENT_TYPES];
-        filteredItems = filteredItems.filter(item => 
-          item.item.defaultDamageType === elementTypeValue
-        );
-      }
+        // Apply weapon type filter
+        if (weaponTypeFilter !== 'all') {
+            itemsToFilter = itemsToFilter.filter(item => 
+                item.item.itemTypeDisplayName === weaponTypeFilter
+            );
+        }
+        // Apply element filter
+        if (elementFilter !== 'all') {
+            const elementTypeValue = ELEMENT_TYPES[elementFilter as keyof typeof ELEMENT_TYPES];
+            itemsToFilter = itemsToFilter.filter(item => 
+                item.item.defaultDamageType === elementTypeValue
+            );
+        }
     }
+
     // Apply search filter if search query exists
-    if (searchQuery.trim() !== "") {
-      const query = searchQuery.toLowerCase().trim();
-      // Check if we're searching for a perk
-      if (query.startsWith("perk:")) {
-        const perkQuery = query.substring(5).trim().toLowerCase(); // Remove "perk:" prefix
-        if (perkQuery) {
-          filteredItems = filteredItems.filter(item => {
-            // First check if there's perk data in itemPerks
+    if (searchQuery.trim() === "") {
+        return itemsToFilter;
+    }
+
+    const query = searchQuery.toLowerCase().trim();
+    const searchTerms = query.split(' ').filter(term => term.length > 0);
+
+    const filters = {
+        perk: searchTerms.find(term => term.startsWith('perk:'))?.substring(5),
+        tier: searchTerms.find(term => term.startsWith('tier:'))?.substring(5),
+        is: searchTerms.find(term => term.startsWith('is:'))?.substring(3),
+        name: searchTerms.filter(term => !term.includes(':')).join(' ')
+    };
+
+    return itemsToFilter.filter(item => {
+        if (filters.name && !item.item.displayProperties.name.toLowerCase().includes(filters.name)) {
+            return false;
+        }
+
+        if (filters.perk) {
+            const perkQuery = filters.perk;
             const instanceId = item.itemInstance.itemInstanceId;
             const itemPerkData = instanceId ? itemComponents.perks[instanceId] : null;
-            // If we have perk data from itemPerks, check there
-            if (itemPerkData) {
-              // Only check for active perks
-              const matchingActivePerks = itemPerkData.perks.filter((perk: any) => 
+            
+            const hasMatchingPerk = itemPerkData?.perks.some((perk: any) => 
                 perk.visible && 
                 perk.isActive && 
                 perksDefinitions[perk.perkHash]?.displayProperties?.name?.toLowerCase().includes(perkQuery)
-              );
-              if (matchingActivePerks.length > 0) {
-                return true;
-              }
+            );
+
+            if (!hasMatchingPerk) {
+                // Fallback to checking item name for perk as a convenience
+                if (!item.item.displayProperties.name.toLowerCase().includes(perkQuery)) {
+                    return false;
+                }
             }
-            // Check item name as a fallback for convenience
-            if (item.item && item.item.displayProperties.name.toLowerCase().includes(perkQuery)) {
-              return true;
-            }
-            return false;
-          });
         }
-      } else {
-        // Regular name search
-        filteredItems = filteredItems.filter(item => 
-          item.item.displayProperties.name.toLowerCase().includes(query)
-        );
-      }
-    }
+
+        if (filters.tier) {
+            const tierQuery = parseInt(filters.tier, 10);
+            if (isNaN(tierQuery) || itemComponents.instances[item.itemInstance.itemInstanceId]?.gearTier !== tierQuery) {
+                return false;
+            }
+        }
+
+        if (filters.is) {
+            const q = filters.is;
+            if (q === "featured" && !item.item.isFeaturedItem) {
+                return false;
+            }
+            if (q === "unfeatured" && item.item.isFeaturedItem) {
+                return false;
+            }
+            if(q === "exotic" && item.item.inventory.tierType !== 6){
+              return false;
+            }
+        }
+
+        return true;
+    });
+
+}, [activeTab, processedItems, weaponTypeFilter, elementFilter, searchQuery, itemComponents, perksDefinitions]);
+  
+  // Render items using flex instead of grid
+  const renderItems = useCallback((items: any[]) => {
     return (
       <div 
         className="flex flex-wrap content-start"
@@ -255,8 +289,8 @@ const Vault: React.FC<VaultProps> = ({
           gap: 0
         }}
       >
-        {filteredItems.length > 0 ? (
-          filteredItems.map((item, index) => (
+        {items.length > 0 ? (
+          items.map((item, index) => (
             <div 
               key={index} 
               className="cursor-pointer hover:z-10 hover:scale-105 transition-transform relative"
@@ -297,7 +331,7 @@ const Vault: React.FC<VaultProps> = ({
         )}
       </div>
     );
-  }, [handleTransfer, handleDragStart, characterId, activeTab, weaponTypeFilter, elementFilter, searchQuery]);
+  }, [handleTransfer, handleDragStart, characterId]);
   
   // Reset filters when changing tabs
   useEffect(() => {
@@ -404,12 +438,6 @@ const Vault: React.FC<VaultProps> = ({
   
   if (!isOpen) return null;
   
-  const activeItems = activeTab === 'weapons' 
-    ? processedItems.weapons 
-    : activeTab === 'armor' 
-    ? processedItems.armor 
-    : processedItems.misc;
-  
   return (
     <div 
       className="fixed bottom-0 left-0 right-0 z-50 flex flex-col"
@@ -499,7 +527,7 @@ const Vault: React.FC<VaultProps> = ({
               </button>
               
               {isFilterDropdownOpen && (
-                <div className="absolute right-0 top-full mt-1 bg-[rgba(30,30,40,0.95)] border border-gray-700 rounded shadow-lg z-10 max-h-64 overflow-y-auto custom-scrollbar">
+                <div className="absolute right-0 top-full mt-1 bg-[rgba(30,30,40,0.95)] border border-gray-700 rounded shadow-lg z-10 max-h-64 overflow-y-auto">
                   {Object.entries(weaponTypes).map(([type, label]) => (
                     <button
                       key={type}
@@ -539,7 +567,7 @@ const Vault: React.FC<VaultProps> = ({
               </button>
               
               {isElementDropdownOpen && (
-                <div className="absolute right-0 top-full mt-1 bg-[rgba(30,30,40,0.95)] border border-gray-700 rounded shadow-lg z-10 custom-scrollbar">
+                <div className="absolute right-0 top-full mt-1 bg-[rgba(30,30,40,0.95)] border border-gray-700 rounded shadow-lg z-10">
                   <button
                     className={`block w-full text-left px-4 py-2 text-sm hover:bg-[rgba(126,87,194,0.3)] ${elementFilter === 'all' ? 'bg-[rgba(126,87,194,0.5)] text-white' : 'text-gray-200'}`}
                     onClick={() => {
@@ -603,8 +631,8 @@ const Vault: React.FC<VaultProps> = ({
       </div>
       
       <div className="flex-1 overflow-y-auto overflow-x-hidden vault-items bg-[rgba(20,20,30,0.8)]" style={{ padding: 0, margin: 0 }}>
-        {activeItems.length > 0 ? (
-          renderItems(activeItems)
+        {filteredItems.length > 0 ? (
+          renderItems(filteredItems)
         ) : (
           <div className="flex items-center justify-center h-full">
             <p className="text-gray-400">No items found in vault</p>

@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { useItemTooltip } from "@/lib/hooks/useItemTooltip";
 import { useDefinitions } from "@/lib/hooks/useDefinitions";
 import LoadingItem from "./LoadingItem";
+import { useProfile } from "@/lib/hooks/useProfile";
 
 interface ItemProps {
   itemHash: number;
@@ -16,6 +17,7 @@ interface ItemProps {
   armor :boolean
   onDoubleClick?: () => void;
   quantity?: number;
+  size?: number; // Add size prop
 }
 
 const Item = ({
@@ -27,6 +29,7 @@ const Item = ({
   armor,
   onDoubleClick,
   quantity = 1,
+  size = 64, // Default size to 64
 }: ItemProps) => {
   
   const { showTooltip, hideTooltip } = useItemTooltip();
@@ -34,7 +37,8 @@ const Item = ({
   const itemRef = useRef<HTMLDivElement>(null);
   const [imageLoaded, setImageLoaded] = useState(false);
 
-  const { itemDefinitions } = useDefinitions()
+  const { itemComponents } = useProfile()
+  const { itemDefinitions, itemConstantsDefinitions } = useDefinitions()
 
   // Handle mouse movement globally to detect if we should keep tooltip open
   useEffect(() => {
@@ -99,11 +103,11 @@ const Item = ({
     }
     
     // Start tooltip slightly above cursor to prevent immediate overlap
-    let tooltipY = e.clientY - 20;
+    let tooltipY = e.clientY + 250;
     
     // If we're in the bottom 30% of the screen, position the tooltip higher
     if (e.clientY > viewportHeight * 0.7) {
-      tooltipY = e.clientY - 300; // Approximate height adjustment
+      tooltipY = e.clientY - 250; // Approximate height adjustment
       // Ensure it doesn't go off the top of the screen
       tooltipY = Math.max(10, tooltipY);
     }
@@ -115,7 +119,9 @@ const Item = ({
       characterId,
       armor,
       x: tooltipX,
-      y: tooltipY
+      y: tooltipY,
+      state: state,
+      drawTransfert: true
     });
     setTooltipVisible(true);
   };
@@ -126,8 +132,9 @@ const Item = ({
       key={itemHash}
       style={{
         boxShadow: "0 4px 8px rgba(0, 0, 0, 0.3)",
-        height: 64,
-        cursor: "pointer"
+        height: size,
+        cursor: "pointer",
+        width: size, // Set width based on size prop
       }}
       onDoubleClick={() => {
         hideTooltip();
@@ -151,8 +158,8 @@ const Item = ({
         {ornamentItem ? (
           <img
             src={"https://bungie.net" + ornamentItem.displayProperties.icon}
-            height={64}
-            width={64}
+            height={size} // Use size prop
+            width={size} // Use size prop
             style={{
               border:
                 "2px solid " +
@@ -166,8 +173,8 @@ const Item = ({
         ) : (
           <img
             src={"https://bungie.net" + itemDefinitions[itemHash].displayProperties.icon}
-            height={64}
-            width={64}
+            height={size} // Use size prop
+            width={size} // Use size prop
             style={{
               border:
                 "2px solid " +
@@ -179,27 +186,38 @@ const Item = ({
             onError={() => setImageLoaded(true)}
           />
         )}
-        {itemDefinitions[itemHash].iconWatermark && imageLoaded && (
-          <img
-            src={"https://bungie.net" + itemDefinitions[itemHash].iconWatermark}
-            height={64}
-            width={64}
-            style={{ position: "absolute", top: 2, left: 2 }}
-            draggable={false}
-            alt="Watermark"
-          />
+        {imageLoaded && itemComponents.instances[itemInstanceId] && (
+          <>
+            <img
+              src={"https://bungie.net" + (itemDefinitions[itemHash].isFeaturedItem ? itemDefinitions[itemHash].iconWatermarkFeatured : itemDefinitions[itemHash].iconWatermark)}
+              height={size} // Use size prop
+              width={size} // Use size prop
+              style={{ position: "absolute", top: -1, left: -1, width: size, height: size }} // Ensure watermark scales with size
+              draggable={false}
+              alt="Watermark"
+            />
+            {itemComponents.instances[itemInstanceId] && itemComponents.instances[itemInstanceId].gearTier ? (
+              <img
+                src={"https://bungie.net" + itemConstantsDefinitions["1"].gearTierOverlayImagePaths[Math.max(itemComponents.instances[itemInstanceId].gearTier-1, 0)]}
+                height={size * 0.875} // Scale overlay relative to size (56/64 = 0.875)
+                width={size * 0.875} // Scale overlay relative to size
+                style={{ position: "absolute", top: size * 0.046875, left: size * 0 }} // Scale position relative to size (3/64 = 0.046875)
+                draggable={false}
+                alt="Gear Tier"
+              />
+            ) : ""}
+          </>
         )}
         {/* Display quantity for stackable items */}
         {quantity > 1 && imageLoaded && (
           <div style={{
             position: 'absolute',
-            bottom: 0,
-            right: 0,
-            background: 'rgba(0,0,0,0.75)',
-            color: 'white',
+            bottom: 2,
+            right: 2,
+            background: 'black',
+            color: (quantity < itemDefinitions[itemHash].inventory.maxStackSize ? "white" : "gold"),
             fontSize: '0.75rem',
             padding: '0 4px',
-            borderRadius: '4px',
             pointerEvents: 'none',
           }}>
             {quantity}

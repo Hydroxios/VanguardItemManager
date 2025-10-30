@@ -20,6 +20,7 @@ export interface ItemInstance {
     itemLevel: number
     primaryStat: {statHash: number, value: number}
     quality: number
+    gearTier: number
 }
 
 export interface Loadout {
@@ -121,14 +122,22 @@ export const ProfileProvider = ({children}: ProfileProviderProps) => {
     const {token, lastUpdate, refreshUserToken} = useAuth()
 
     const fetchProfile = async () => {
+        if(refreshing) return;
+
         let t = token;
         if(Date.now() - lastUpdate >= 3600 * 1000){
             t = await refreshUserToken()
         }
-        const u = await getCurrentUser(t as string);
-        setUser(u)
+
+        let u;
+        if(!user){
+            u = await getCurrentUser(t as string);
+            setUser(u as BungieUser)
+        } else {
+            u = user
+        }
+        
         const profile = await getProfile(t as string, u.membershipId, u.membershipType)
-        console.log(profile)
         setCharacterEquipement(profile.characterEquipment.data)
 
         setCharacterInventories(profile.characterInventories.data)
@@ -173,6 +182,7 @@ export const ProfileProvider = ({children}: ProfileProviderProps) => {
         user: user as BungieUser,
         refreshing,
         refresh: async () => {
+            if (refreshing) return;
             setRefreshing(true);
             try {
                 await fetchProfile();

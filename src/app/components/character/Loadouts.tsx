@@ -277,7 +277,7 @@ const Loadouts = ({
             )}
           </div>
         )}
-        <div className={`grid grid-cols-2 grid-rows-6 gap-2 p-4 fixed left-5 top-1/2 transform -translate-y-1/2 ${onCooldown ? 'grayscale' : ''}`}> 
+        <div className={`grid grid-cols-2 grid-rows-6 gap-1 p-4 fixed left-5 top-1/2 transform -translate-y-1/2 ${onCooldown ? 'grayscale' : ''}`}> 
           {elements &&
             elements.map((element: any, index: number) => (
               <div
@@ -287,17 +287,17 @@ const Loadouts = ({
                 <div
                   style={{
                     border: "2px solid white",
-                    boxShadow: "0 4px 8px rgba(0, 0, 0, 0.3)",
+                    boxShadow: "0 4px 8px rgba(0, 0, 0, 0.04)",
                     cursor: element.icon && !onCooldown ? "pointer" : "",
                     position: "relative"
                   }}
                   onClick={() => (element.icon && !onCooldown ? handleEquip(index) : "")}
-                  onContextMenu={(e) => (element.icon ? toggleContextMenu(index, e) : undefined)}
+                  onContextMenu={(e) => (element.icon ? toggleContextMenu(index, e) : "")}
                 >
                   {onCooldown ? (
                     <div
                       className="size-[48px] border-2 border-white relative flex items-center justify-center"
-                      style={{ boxShadow: "0 4px 8px rgba(0, 0, 0, 0.3)" }}
+                      style={{ boxShadow: "0 4px 8px rgba(0, 0, 0, 0.11)" }}
                     >
                       <div className="w-8 h-8 border-4 border-gray-300 border-t-white rounded-full animate-spin"></div>
                     </div>
@@ -357,7 +357,7 @@ const Loadouts = ({
                         </>
                       ) : (
                         <div 
-                          className="relative cursor-pointer" 
+                          className="relative cursor-pointer bg-[#5a5a5a] bg-opacity-45 hover:bg-opacity-30" 
                           onClick={(e) => {
                             e.stopPropagation();
                           }}
@@ -367,9 +367,6 @@ const Loadouts = ({
                             height={48}
                             width={48}
                           />
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <span className="text-white font-bold text-lg">+</span>
-                          </div>
                         </div>
                       )}
                     </div>

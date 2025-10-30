@@ -1,6 +1,7 @@
 import { createContext, ReactNode, useContext, useEffect, useState, useMemo } from "react";
 import { getDefinitions } from "../bungie";
 import { DisplayPropertiesDefinition } from "../types";
+import { it } from "node:test";
 
 
 export interface ItemDefinition {
@@ -13,13 +14,16 @@ export interface ItemDefinition {
         tierType: number
     }
     iconWatermarkShelved: string
+    iconWatermarkFeatured: string
     secondaryIcon: string
     secondaryOverlay: string
     secondarySpecial: string
+    isFeaturedItem: boolean
     equippingBlock: {
         equipmentSlotTypeHash: number
-        ammoType: string
+        ammoType: number
     }
+    flavorText: string
     itemCategoryHashes: number []
     itemType: number
     itemSubType: number
@@ -80,6 +84,11 @@ export interface BucketDefinition {
     location: number
 }
 
+export interface ItemConstantsDefinition {
+    gearTierOverlayImagePaths: string[]
+    hash: number
+}
+
 export interface ItemDefinitions extends Record<string, ItemDefinition> {}
 export interface ClassDefinitions extends Record<string, ClassDefinition> {}
 export interface StatsDefinitions extends Record<string, StatsDefinition> {}
@@ -89,6 +98,8 @@ export interface LoadoutColorDefinitions extends Record<string, LoadoutColorDefi
 export interface LoadoutIconDefinitions extends Record<string, LoadoutIconDefinition> {}
 export interface RaceDefinitions extends Record<string, RaceDefinition> {}
 export interface BucketDefinitions extends Record<string, RaceDefinition> {}
+export interface ItemConstantsDefinitions extends Record<string, ItemConstantsDefinition> {}
+
 
 interface Definitions {
     loadingDefinitions: boolean
@@ -101,6 +112,7 @@ interface Definitions {
     loadoutIconDefinitions: LoadoutIconDefinitions
     raceDefinitions: RaceDefinitions
     bucketDefinitions: BucketDefinitions
+    itemConstantsDefinitions: ItemConstantsDefinitions
 }
 
 const DefinitionsContext = createContext<Definitions | undefined>(undefined)
@@ -117,6 +129,7 @@ export const DefinitionsProvider = ({children}: { children: ReactNode }) => {
     const [loadoutIconDefinitions, setLoadoutIconDefinitions] = useState<LoadoutIconDefinitions>({})
     const [raceDefinitions, setRaceDefinitions] = useState<RaceDefinitions>({})
     const [bucketDefinitions, setBucketDefinitions] = useState<RaceDefinitions>({})
+    const [itemConstantsDefinitions, setItemConstantsDefinitions] = useState<ItemConstantsDefinitions>({})
 
     useEffect(() => {
         const fetchDefinitions = async () => {
@@ -131,6 +144,7 @@ export const DefinitionsProvider = ({children}: { children: ReactNode }) => {
             setLoadoutIconDefinitions(db.DestinyLoadoutIconDefinition)
             setRaceDefinitions(db.DestinyRaceDefinition)
             setBucketDefinitions(db.DestinyInventoryBucketDefinition)
+            setItemConstantsDefinitions(db.DestinyInventoryItemConstantsDefinition)
             setLoading(false)
         }
         fetchDefinitions()
@@ -146,8 +160,9 @@ export const DefinitionsProvider = ({children}: { children: ReactNode }) => {
         loadoutColorDefinitions,
         loadoutIconDefinitions,
         raceDefinitions,
-        bucketDefinitions
-    }), [loading, itemDefinitions, classDefinitions, statsDefinitions, perksDefinitions, recordsDefinitions, loadoutColorDefinitions, loadoutIconDefinitions, raceDefinitions, bucketDefinitions]);
+        bucketDefinitions,
+        itemConstantsDefinitions
+    }), [loading, itemDefinitions, classDefinitions, statsDefinitions, perksDefinitions, recordsDefinitions, loadoutColorDefinitions, loadoutIconDefinitions, raceDefinitions, bucketDefinitions, itemConstantsDefinitions]);
 
     return (
         <DefinitionsContext.Provider  
