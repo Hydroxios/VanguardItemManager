@@ -1,22 +1,26 @@
 import { useDefinitions } from "@/lib/hooks/useDefinitions";
-import { Item, ItemComponents } from "@/lib/hooks/useProfile";
+import { Item, ItemComponents, useProfile } from "@/lib/hooks/useProfile";
 import React, { useEffect, useState } from "react";
 
+const MAX_ENGRAMS = 10;
+
 interface EngramsProps {
-  items: Item[];
+  characterId: string;
 }
 
 const Engrams: React.FC<EngramsProps> = ({
-  items,
+  characterId,
 }) => {
 
   const [engrams, setEngrams] = useState<Item[]>([])
 
   const {itemDefinitions} = useDefinitions()
 
+  const { characterInventories } = useProfile()
+
   // Log all items to check their structure
   useEffect(() => {
-    setEngrams(items.filter((item: any) => {
+    setEngrams(() => characterInventories[characterId].items.filter((item) => {
       const itemDefinition = itemDefinitions[item.itemHash];
       // Check if item is an engram (typically they have a specific category hash)
       // Filter out engrams in the postmaster (location 4)
@@ -30,14 +34,14 @@ const Engrams: React.FC<EngramsProps> = ({
       );
     }));
 
-  }, [items]);
+  }, [characterInventories, characterId]);
   
   // Render an empty engram slot
   const renderEmptySlot = (index: number) => {
     return (
       <div
         key={`empty-${index}`}
-        className="relative w-10 h-10 flex items-center justify-center"
+        className="relative w-10 h-10 flex items-center justify-center shadow-xl"
       >
         <svg
           width="36"
@@ -70,7 +74,7 @@ const Engrams: React.FC<EngramsProps> = ({
   };
 
   // Custom rendering function for engram items
-  const renderEngramItem = (engram: any) => {
+  const renderEngramItem = (engram: any, index: number) => {
     const itemDefinition = itemDefinitions[engram.itemHash];
 
     return (
@@ -78,12 +82,44 @@ const Engrams: React.FC<EngramsProps> = ({
         key={engram.itemInstanceId || `${engram.itemHash}-${engram.quantity}`}
         className="relative w-10 h-10 flex items-center justify-center"
       >
-        <div className="w-full h-full flex items-center justify-center">
+        {/* Background empty engram slot */}
+        <div className="absolute inset-0 flex items-center justify-center z-0" aria-hidden>
+          <svg
+            width="36"
+            height="36"
+            viewBox="0 0 96 96"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <g style={{ opacity: 0.2 }}>
+              <polygon
+                style={{ opacity: 0.5, fill: "#FFFFFF" }}
+                points="30.88,7.06 22.19,12.73 4.8,43.62 4.8,54.44 22.19,82.76 30.88,87.91 65.13,87.91 74.33,82.76 90.69,54.95 90.69,43.11 72.59,12.22 65.64,8.09"
+              />
+              <path d="M90.84,42.72L73.45,12.85c-0.06-0.11-0.16-0.2-0.27-0.27l0,0c-0.13-0.21-0.35-0.34-0.59-0.36l-7.07-4.28 c-0.12-0.07-0.25-0.11-0.4-0.11H30.88c-0.13,0-0.27,0.04-0.38,0.1l-7.5,4.35l-0.43-0.07c-0.32-0.05-0.63,0.1-0.79,0.39L4.9,42.99 c-0.15,0.27-0.12,0.61,0.07,0.86l0.09,0.11v10.48c0,0.14,0.04,0.27,0.11,0.39l16.36,27.81c0.07,0.11,0.16,0.21,0.27,0.27l8.69,5.15 c0.12,0.07,0.25,0.11,0.39,0.11h33.74c0.13,0,0.26-0.03,0.37-0.1l9.2-5.15c0.12-0.07,0.21-0.16,0.28-0.28l16.36-27.29 c0.07-0.12,0.11-0.26,0.11-0.4V43.11C90.94,42.97,90.9,42.84,90.84,42.72z M73.6,63.8l-9.74,22.56H31.14l-8.76-22.55l10.25-5.36 L48,50.42L56.78,55L73.6,63.8z M23.01,14.06l0.27-0.16l23.95,3.86v31.31l-4.1,2.14L21.62,62.47L6.72,43.59L23.01,14.06z M74.38,62.47l-25.61-13.4V17.76l23.37-3.92l17.11,30.23L74.38,62.47z M31.08,9.38h33.83l5.31,3.21L48,16.32l-22.61-3.64 L31.08,9.38z M6.59,54.22V45.9l14.15,17.93l8.41,21.64l-6.41-3.8L6.59,54.22z M73.27,81.67l-7.53,4.21l9.51-22.03l14.16-17.54v8.43 L73.27,81.67z" />
+              <g>
+                <path
+                  style={{ fill: "#FFFFFF" }}
+                  d="M65.22,89.6H30.25c-0.14,0-0.27-0.04-0.39-0.11l-9.01-5.34c-0.11-0.07-0.2-0.16-0.27-0.27L3.63,55.06 c-0.07-0.12-0.11-0.25-0.11-0.39V43.47c0-0.13,0.03-0.26,0.1-0.38l17.22-31.22c0.07-0.12,0.17-0.22,0.29-0.29l8.74-5.07 c0.12-0.07,0.25-0.1,0.38-0.1h35.5c0.14,0,0.27,0.04,0.4,0.11l7.95,4.8c0.11,0.07,0.2,0.16,0.27,0.27l18.01,30.95 c0.07,0.12,0.11,0.25,0.11,0.39v12.27c0,0.14-0.04,0.28-0.11,0.4L75.41,83.89c-0.07,0.11-0.17,0.21-0.28,0.28l-9.54,5.34 C65.48,89.56,65.35,89.6,65.22,89.6z M30.46,88.05h34.56l9.18-5.14l16.74-27.92V43.14l-17.81-30.6l-7.6-4.59H30.46l-8.38,4.86 L5.06,43.66v10.8L21.8,82.92L30.46,88.05z"
+                />
+              </g>
+              <g>
+                <path
+                  style={{ fill: "#FFFFFF" }}
+                  d="M65.22,89.6H30.25c-0.14,0-0.27-0.04-0.39-0.11l-9.01-5.34c-0.11-0.07-0.2-0.16-0.27-0.27L3.63,55.06 c-0.07-0.12-0.11-0.25-0.11-0.39V43.47c0-0.13,0.03-0.26,0.1-0.38l17.22-31.22c0.07-0.12,0.17-0.22,0.29-0.29l8.74-5.07 c0.12-0.07,0.25-0.1,0.38-0.1h35.5c0.14,0,0.27,0.04,0.4,0.11l7.95,4.8c0.11,0.07,0.2,0.16,0.27,0.27l18.01,30.95 c0.07,0.12,0.11,0.25,0.11,0.39v12.27c0,0.14-0.04,0.28-0.11,0.4L75.41,83.89c-0.07,0.11-0.17,0.21-0.28,0.28l-9.54,5.34 C65.48,89.56,65.35,89.6,65.22,89.6z M30.46,88.05h34.56l9.18-5.14l16.74-27.92V43.14l-17.81-30.6l-7.6-4.59H30.46l-8.38,4.86 L5.06,43.66v10.8L21.8,82.92L30.46,88.05z"
+                />
+              </g>
+            </g>
+          </svg>
+        </div>
+        <div
+          className="w-full h-full flex items-center justify-center z-10 animate-fade-in-stagger"
+          style={{ animationDelay: `${index * 80}ms` }}
+        >
           {itemDefinition?.displayProperties?.icon && (
             <img
               src={`https://www.bungie.net${itemDefinition.displayProperties.icon}`}
               alt={itemDefinition.displayProperties.name || "Engram"}
-              className="w-10 h-10 object-contain"
+              className="w-10 h-10 object-contain shadow-xl"
             />
           )}
         </div>
@@ -101,12 +137,12 @@ const Engrams: React.FC<EngramsProps> = ({
     const gridItems = [];
 
     // Add actual engrams
-    for (let i = 0; i < Math.min(engrams.length, 10); i++) {
-      gridItems.push(renderEngramItem(engrams[i]));
+    for (let i = 0; i < Math.min(engrams.length, MAX_ENGRAMS); i++) {
+      gridItems.push(renderEngramItem(engrams[i], i));
     }
 
     // Fill remaining slots with empty ones
-    for (let i = engrams.length; i < 10; i++) {
+    for (let i = engrams.length; i < MAX_ENGRAMS; i++) {
       gridItems.push(renderEmptySlot(i));
     }
 
@@ -115,10 +151,6 @@ const Engrams: React.FC<EngramsProps> = ({
 
   return (
     <div className="w-fit">
-      <div className="flex justify-between items-center border-b border-gray-600 pb-1 mb-1">
-        <h3 className="text-white text-xs uppercase tracking-wider">Engrams</h3>
-        <span className="text-gray-400 text-xs">{engrams.length}/10</span>
-      </div>
       <div className="flex gap-0.5 justify-center">
         {createGridItems()}
       </div>

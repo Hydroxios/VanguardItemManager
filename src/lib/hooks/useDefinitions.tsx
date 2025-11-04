@@ -89,6 +89,12 @@ export interface ItemConstantsDefinition {
     hash: number
 }
 
+export interface SeasonDefinition {
+    displayProperties: DisplayPropertiesDefinition
+    seasonNumber: number
+    hash: number
+}
+
 export interface ItemDefinitions extends Record<string, ItemDefinition> {}
 export interface ClassDefinitions extends Record<string, ClassDefinition> {}
 export interface StatsDefinitions extends Record<string, StatsDefinition> {}
@@ -99,7 +105,7 @@ export interface LoadoutIconDefinitions extends Record<string, LoadoutIconDefini
 export interface RaceDefinitions extends Record<string, RaceDefinition> {}
 export interface BucketDefinitions extends Record<string, RaceDefinition> {}
 export interface ItemConstantsDefinitions extends Record<string, ItemConstantsDefinition> {}
-
+export interface SeasonDefinitions extends Record<string, SeasonDefinition> {}
 
 interface Definitions {
     loadingDefinitions: boolean
@@ -113,6 +119,7 @@ interface Definitions {
     raceDefinitions: RaceDefinitions
     bucketDefinitions: BucketDefinitions
     itemConstantsDefinitions: ItemConstantsDefinitions
+    seasonDefinitions: SeasonDefinitions
 }
 
 const DefinitionsContext = createContext<Definitions | undefined>(undefined)
@@ -130,7 +137,7 @@ export const DefinitionsProvider = ({children}: { children: ReactNode }) => {
     const [raceDefinitions, setRaceDefinitions] = useState<RaceDefinitions>({})
     const [bucketDefinitions, setBucketDefinitions] = useState<RaceDefinitions>({})
     const [itemConstantsDefinitions, setItemConstantsDefinitions] = useState<ItemConstantsDefinitions>({})
-
+    const [seasonDefinitions, setSeasonDefinitions] = useState<SeasonDefinitions>({})
     useEffect(() => {
         const fetchDefinitions = async () => {
             if(!loading) return;
@@ -145,6 +152,7 @@ export const DefinitionsProvider = ({children}: { children: ReactNode }) => {
             setRaceDefinitions(db.DestinyRaceDefinition)
             setBucketDefinitions(db.DestinyInventoryBucketDefinition)
             setItemConstantsDefinitions(db.DestinyInventoryItemConstantsDefinition)
+            setSeasonDefinitions(db.DestinySeasonDefinition)
             setLoading(false)
         }
         fetchDefinitions()
@@ -161,7 +169,8 @@ export const DefinitionsProvider = ({children}: { children: ReactNode }) => {
         loadoutIconDefinitions,
         raceDefinitions,
         bucketDefinitions,
-        itemConstantsDefinitions
+        itemConstantsDefinitions,
+        seasonDefinitions
     }), [loading, itemDefinitions, classDefinitions, statsDefinitions, perksDefinitions, recordsDefinitions, loadoutColorDefinitions, loadoutIconDefinitions, raceDefinitions, bucketDefinitions, itemConstantsDefinitions]);
 
     return (

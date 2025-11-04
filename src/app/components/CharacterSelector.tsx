@@ -88,7 +88,7 @@ const CharacterSelector = ({
       {Object.values(characters).map((character) => (
         <div
           key={character.characterId}
-          className="flex flex-row items-center w-[350px] h-[60px] bg-gray-800 cursor-pointer relative box-breathing"
+          className="flex flex-row items-center w-[350px] h-[60px] bg-gray-800 cursor-pointer relative box-breathing hover:backdrop-blur-lg transition-all duration-300"
           onClick={() => handleCharacterSelect(character.characterId)}
           style={{
             backgroundImage: `url(https://www.bungie.net${itemDefinitions[character.emblemHash].secondaryIcon})`,

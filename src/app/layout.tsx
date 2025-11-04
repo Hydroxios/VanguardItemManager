@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Roboto } from "next/font/google";
+import "../../node_modules/flag-icons/css/flag-icons.min.css";
 import "./globals.css";
 import { NotificationsProvider } from "./components/NotificationsProvider";
 import { DebugProvider } from "@/app/components/debug/DebugProvider";

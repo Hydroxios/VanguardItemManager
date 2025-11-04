@@ -13,6 +13,14 @@ export interface BungieUser {
     membershipType: number
 }
 
+export interface UserInfo {
+    displayName: string
+    iconPath: string
+    crossSaveOverride: number
+    isPublic: boolean
+    bungieGlobalDisplayNameCode: number
+}
+
 export interface Character {
     characterId: string;
     emblemHash: number;
@@ -67,8 +75,8 @@ export const refreshToken = async (refreshToken: string) => {
             "User-Agent": "HximApp/1.0 AppId/45124 (+https://hxitemmanager.web.app;hydroxios@gmail.com)"
         },
         body: new URLSearchParams({
-            client_id: process.env.NODE_ENV === "production" ? "46066" : "45124", // Replace with your actual client_id
-            client_secret: process.env.NODE_ENV === "production" ? "MkdPd6spUjiFiPbCKac3ZdMlT0pdDV7ErAZ-9eEfUg8" : "HSNNQvKDJuZZvzmswHAy66ZeS9y3c..tZ6U8keEb.v4", // Replace with your actual client_secret
+            client_id: process.env.NODE_ENV === "production" ? "46066" : "45124",
+            client_secret: process.env.NODE_ENV === "production" ? "MkdPd6spUjiFiPbCKac3ZdMlT0pdDV7ErAZ-9eEfUg8" : "HSNNQvKDJuZZvzmswHAy66ZeS9y3c..tZ6U8keEb.v4",
             grant_type: "refresh_token",
             refresh_token: refreshToken,
         }),

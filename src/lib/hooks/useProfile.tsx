@@ -1,5 +1,5 @@
 import { createContext, ReactNode, useContext, useEffect, useState, useMemo } from "react";
-import { BungieUser, getCurrentUser, getProfile } from "../bungie";
+import { BungieUser, getCurrentUser, getProfile, UserInfo } from "../bungie";
 import useAuth from "./useAuth";
 
 export interface Item {
@@ -51,6 +51,7 @@ export interface Character {
 }
 
 export interface ProfileData {
+    userInfo: UserInfo | undefined
     characterIds: string[]
     currentGuardianRank: number
     currentSeasonHash: number
@@ -115,7 +116,7 @@ export const ProfileProvider = ({children}: ProfileProviderProps) => {
 
     const [itemComponents, setItemComponents] = useState<ItemComponents>({instances: {}, perks: {}, stats: {}})
 
-    const [profileData, setProfileData] = useState<ProfileData>({characterIds: [], currentGuardianRank: 1, currentSeasonHash: 0})
+    const [profileData, setProfileData] = useState<ProfileData>({userInfo: undefined, characterIds: [], currentGuardianRank: 0, currentSeasonHash: 0})
     const [profileCurrencies, setProfileCurrencies] = useState<Currency[]>([])
     const [profileInventory, setProfileInventory] = useState<Item[]>([])
 
@@ -138,6 +139,7 @@ export const ProfileProvider = ({children}: ProfileProviderProps) => {
         }
         
         const profile = await getProfile(t as string, u.membershipId, u.membershipType)
+
         setCharacterEquipement(profile.characterEquipment.data)
 
         setCharacterInventories(profile.characterInventories.data)

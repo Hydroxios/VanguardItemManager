@@ -317,7 +317,7 @@ const GlobalItemTooltip = () => {
 
   return (
     <div
-      className={`flex flex-col fixed items-start bg-black bg-opacity-90 z-[2000] pointer-events-auto item-tooltip max-h-[90vh] overflow-y-auto overflow-x-hidden`}
+      className={`flex flex-col fixed items-start bg-black bg-opacity-90 z-[1005] pointer-events-auto item-tooltip max-h-[90vh] overflow-y-auto overflow-x-hidden`}
       style={{
         top: adjustedPosition.y,
         left: adjustedPosition.x,
@@ -353,12 +353,12 @@ const GlobalItemTooltip = () => {
           {item.isFeaturedItem ? (
             <img
               src={`https://bungie.net${item.iconWatermarkShelved}`}
-              className="absolute top-[-2] right-[-70px]"
+              className="absolute top-[-2px] right-[-70px]"
             />
           ) : (
             <img
               src={`https://bungie.net${item.iconWatermark}`}
-              className="absolute top-[-2] right-[-70px]"
+              className="absolute top-[-2px] right-[-70px]"
             />
           )}
           {itemInstanceId && itemComponents.instances[itemInstanceId] && itemComponents.instances[itemInstanceId!].gearTier > 0 ? (
@@ -699,11 +699,7 @@ const GlobalItemTooltip = () => {
                   }}
                 >
                   <img
-                    src={
-                      classDefinitions[
-                        c.classHash
-                      ].displayProperties.name.toLowerCase() + ".svg"
-                    }
+                    src={`${c.classHash}.svg`}
                     height={32}
                     width={32}
                     alt={classDefinitions[c.classHash].displayProperties.name}

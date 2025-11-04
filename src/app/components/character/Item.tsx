@@ -156,35 +156,48 @@ const Item = ({
       >
         {!imageLoaded && <LoadingItem />}
         {ornamentItem ? (
-          <img
-            src={"https://bungie.net" + ornamentItem.displayProperties.icon}
-            height={size} // Use size prop
-            width={size} // Use size prop
-            style={{
-              border:
-                "2px solid " +
-                (state & 4 ? "#FFBB00" : state & 8 ? "red" : "white"),
-              display: imageLoaded ? undefined : "none"
-            }}
-            alt={ornamentItem.displayProperties.name || "Item"}
-            onLoad={() => setImageLoaded(true)}
-            onError={() => setImageLoaded(true)}
-          />
+          <div style={{ width: size, height: size }}>
+            <img
+              src={"https://bungie.net" + ornamentItem.displayProperties.icon}
+              height={size}
+              width={size}
+              style={{
+                border:
+                  "2px solid " + (state & 4 && !(state & 8) ? "#FFBB00" : state & 8 ? "red" : "white"),
+                display: imageLoaded ? undefined : "none"
+              }}
+              alt={ornamentItem.displayProperties.name || "Item"}
+              onLoad={() => setImageLoaded(true)}
+              onError={() => setImageLoaded(true)}
+            />
+            {state & 4 && !(state & 8) ? (
+              <svg className="mw-border-svg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden>
+                {/* Glint travels along the square path; base border is the CSS border on the img */}
+                <rect x="1" y="1" width="98" height="98" pathLength="1000" className="mw-glint" />
+              </svg>
+            ) : null}
+          </div>
         ) : (
-          <img
-            src={"https://bungie.net" + itemDefinitions[itemHash].displayProperties.icon}
-            height={size} // Use size prop
-            width={size} // Use size prop
-            style={{
-              border:
-                "2px solid " +
-                (state & 4 ? "#FFBB00" : state & 8 ? "red" : "white"),
-              display: imageLoaded ? undefined : "none"
-            }}
-            alt={itemDefinitions[itemHash].displayProperties.name || "Item"}
-            onLoad={() => setImageLoaded(true)}
-            onError={() => setImageLoaded(true)}
-          />
+          <div style={{ width: size, height: size }}>
+            <img
+              src={"https://bungie.net" + itemDefinitions[itemHash].displayProperties.icon}
+              height={size}
+              width={size}
+              style={{
+                border:
+                  "2px solid " + (state & 4 && !(state & 8) ? "#FFBB00" : state & 8 ? "red" : "white"),
+                display: imageLoaded ? undefined : "none"
+              }}
+              alt={itemDefinitions[itemHash].displayProperties.name || "Item"}
+              onLoad={() => setImageLoaded(true)}
+              onError={() => setImageLoaded(true)}
+            />
+            {state & 4 && !(state & 8) ? (
+              <svg className="mw-border-svg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden>
+                <rect x="1" y="1" width="98" height="98" pathLength="1000" className="mw-glint" />
+              </svg>
+            ) : null}
+          </div>
         )}
         {imageLoaded && itemComponents.instances[itemInstanceId] && (
           <>

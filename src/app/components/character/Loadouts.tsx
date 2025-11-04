@@ -54,7 +54,7 @@ const Loadouts = ({
       ls.push({ color: color?.colorImagePath, icon: icon?.iconImagePath });
     }
     setElements(() => ls);
-  }, []);
+  }, [characterLoadouts, characterId]);
 
   const handleEquip = async (index: number) => {
     setOnCooldown(() => true);

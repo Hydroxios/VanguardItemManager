@@ -107,18 +107,6 @@ footer {
   100% { left: 0; }
 }
 
-footer button {
-  padding: 4px;
-  text-align: center;
-  justify-items: center;
-}
-
-footer button:hover {
-  background-color: var(--background);
-  height: 100%;
-  animation: box-shadow-breathing 1.5s infinite;
-}
-
 .box-breathing:hover {
   animation: box-shadow-breathing 1.5s infinite;
 }
@@ -153,6 +141,43 @@ footer button:hover {
 
 .animate-fade-in {
   animation: fadeIn 0.15s ease-out forwards;
+}
+
+/* Stagger-ready variant: stays hidden until its animation starts */
+.animate-fade-in-stagger {
+  opacity: 0;
+  animation: fadeIn 0.15s ease-out forwards;
+}
+
+/* ===== Masterwork rotating shine strictly on border (square) ===== */
+.mw-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+/* === SVG square-path glint that follows the border === */
+.mw-border-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.mw-glint {
+  vector-effect: non-scaling-stroke;
+  stroke: rgba(255, 255, 255, 0.70);
+  stroke-width: 2px;
+  fill: none;
+  stroke-linejoin: miter;
+  stroke-dasharray: 40 960; /* short bright segment + rest */
+  animation: mw-dash 10s linear infinite;
+}
+
+@keyframes mw-dash {
+  0% { stroke-dashoffset: 0; }
+  20% { stroke-dashoffset: -1000; } /* finish lap at ~2s */
+  100% { stroke-dashoffset: -1000; } /* stay idle until loop */
 }
 
 /* Custom Scrollbar Styles */
@@ -221,7 +246,7 @@ footer button:hover {
     transparent 100%
   );
   transform: skewX(-25deg);
-  animation: masterwork-shine 2.5s infinite linear;
+  animation: masterwork-shine 4s infinite linear;
 }
 
 @keyframes masterwork-shine {
@@ -235,5 +260,3 @@ footer button:hover {
     left: 120%;
   }
 }
-
-

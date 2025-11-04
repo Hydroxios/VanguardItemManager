@@ -20,10 +20,13 @@ import PowerHelperButton from "../inputs/PowerHelperButton";
 import { useDebug } from "../debug/DebugProvider";
 import DestinyIcon from "../destiny-ui/DestinyIcon";
 import SearchBar from "../inputs/SearchBar";
+import { useItemTooltip } from "@/lib/hooks/useItemTooltip";
+import CharacterHeader from "@/app/components/character/CharacterHeader";
 
 interface CharacterViewProps {
   characterId: string;
-  changeCharacter: () => void;
+  changeCharacter: (characterId: string | undefined) => void;
+  onOpenSettings: () => void;
 }
 
 // Equipment slot type hash constants
@@ -57,6 +60,7 @@ interface EquipmentSection {
 const CharacterView: React.FC<CharacterViewProps> = ({
   characterId,
   changeCharacter,
+  onOpenSettings,
 }) => {
   const [equipment, setEquipment] = useState<Record<string, EquipmentSection>>({
     primary: { current: undefined, inventory: [], isOpen: false },
@@ -95,6 +99,8 @@ const CharacterView: React.FC<CharacterViewProps> = ({
     profileCurrencies,
     refresh,
   } = useProfile();
+
+  const { hideTooltip} = useItemTooltip();
 
   // Toggle equipment section open/closed
   const toggleEquipmentSection = useCallback(
@@ -254,16 +260,11 @@ const CharacterView: React.FC<CharacterViewProps> = ({
     if (profileCurrencies.length >= 3) {
       const c: any[] = [];
       const glimmers = profileCurrencies[0];
-      const unstableCores = profileCurrencies[1]
       const brightDusts = profileCurrencies[2];
       c.push({
         item: itemDefinitions[glimmers.itemHash],
         quantity: glimmers.quantity,
       });
-      c.push({
-        item: itemDefinitions[unstableCores.itemHash],
-        quantity: unstableCores.quantity,
-      })
       c.push({
         item: itemDefinitions[brightDusts.itemHash],
         quantity: brightDusts.quantity,
@@ -502,17 +503,20 @@ const CharacterView: React.FC<CharacterViewProps> = ({
         } else if(searchOpen){
           setSearchOpen(false)
         } else {
-          changeCharacter()
+          hideTooltip();
+          changeCharacter(undefined)
         }
       }
       if(e.key === "z" && !isVaultOpen && !searchOpen){
         setIsVaultOpen(true)
+        hideTooltip();
       }
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
       if(e.key === "s" && !searchOpen && !isVaultOpen){
         setSearchOpen(true)
+        hideTooltip();
       }
     }
 
@@ -576,25 +580,24 @@ const CharacterView: React.FC<CharacterViewProps> = ({
     },
     [equipment, toggleEquipmentSection, handleEquip]
   );
-
-  const { debugMode } = useDebug();
  
   return (
     <div className="mx-auto" onDrop={handleDrop} onDragOver={handleDragOver}>
-      <div className="flex flex-row gap-2 items-center fixed left-[15px] top-[10px] z-[1001]">
+      <div className="flex flex-row gap-2 items-center fixed right-[15px] top-[80px] z-[50] hover:shadow-lg">
         {currenciesData?.length > 0 && <Currencies currencies={currenciesData} />}
-        {debugMode && <PowerHelperButton onClick={() => {}}/>}
       </div>
 
+      <CharacterHeader characterId={characterId} changeCharacter={changeCharacter} toggleSearch={() => setSearchOpen(!searchOpen)} onOpenSettings={onOpenSettings} />
+
       {/* Display Engrams at the top center fixed position */}
-      <div className="fixed top-0 left-0 right-0 flex justify-center pt-3 z-50">
-        <div className="px-6 py-3 shadow-lg">
-          <Engrams items={characterInventories[characterId].items} />
+      <div className="fixed bottom-[100px] right-1/2 translate-x-1/2 flex justify-center z-50">
+        <div className="px-6 py-3">
+          <Engrams characterId={characterId} />
         </div>
       </div>
 
       {/* Add padding to account for fixed Engrams component */}
-      <div className="pt-24"></div>
+      <div className="pt-20"></div>
 
       <Loadouts
         characterId={characterId}
@@ -641,7 +644,7 @@ const CharacterView: React.FC<CharacterViewProps> = ({
       {statistics && <CharacterStats stats={statistics} />}
 
       {/* Add Postmaster widget here, before the Vault component */}
-      <div className="fixed right-0 bottom-14 pr-4 z-40">
+      <div className="fixed right-0 top-[150px] pr-4 z-40">
         <Postmaster
           characterId={characterId}
           refresh={refresh}
@@ -662,155 +665,32 @@ const CharacterView: React.FC<CharacterViewProps> = ({
       <div className="pb-16"></div>
 
       <footer
-        className="fixed bottom-0 right-0 w-full flex flex-row items-center justify-between gap-2"
+        className="fixed bottom-0 right-0 w-full flex flex-row items-center justify-end"
         style={{
           height: "35px",
           zIndex: 40,
         }}
       >
-        <div className="relative" ref={vimMenuRef}>
+        <div className="flex flex-row gap-2 mr-2 mb-2">
           <button
-            className="flex flex-row items-center gap-2 ml-5"
-            onClick={() => setIsVimMenuOpen(!isVimMenuOpen)}
-          >
-            <img
-              src={"intellect.svg"}
-              height={24}
-              width={24}
-              alt="Intellect icon"
-            />
-            <p>Vanguard Item Manager v1.0</p>
-          </button>
-
-          {isVimMenuOpen && (
-            <div
-              className="absolute bottom-9 left-[30px] w-56 z-50"
-              style={{
-                background:
-                  "linear-gradient(to bottom, rgba(15, 15, 25, 0.98), rgba(25, 25, 35, 0.98))",
-                border: "1px solid #7e57c2",
-                boxShadow: "0 -4px 12px rgba(0, 0, 0, 0.5)",
-              }}
-            >
-              <div className="flex justify-between items-center border-b border-gray-700 bg-[rgba(30,30,40,0.5)] py-1">
-                <div className="flex items-center gap-1 ml-3">
-                  <img
-                    src={"intellect.svg"}
-                    height={16}
-                    width={16}
-                    alt="Intellect icon"
-                  />
-                  <h2 className="text-base font-medium text-white">
-                    Language Settings
-                  </h2>
-                </div>
-                <button
-                  className="text-gray-400 hover:text-white transition-colors mr-2"
-                  onClick={() => setIsVimMenuOpen(false)}
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-4 w-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M6 18L18 6M6 6l12 12"
-                    />
-                  </svg>
-                </button>
-              </div>
-
-              <div className="p-2 bg-[rgba(20,20,30,0.8)]">
-                <div
-                  className={`flex items-center px-3 py-2 cursor-pointer hover:bg-[rgba(126,87,194,0.3)] rounded mb-1 ${
-                    currentLocale === "en"
-                      ? "bg-[rgba(126,87,194,0.5)] text-white"
-                      : "text-gray-200"
-                  }`}
-                  onClick={() => handleLanguageChange("en")}
-                >
-                  <span className="mr-2">🇺🇸</span> English
-                </div>
-                <div
-                  className={`flex items-center px-3 py-2 cursor-pointer hover:bg-[rgba(126,87,194,0.3)] rounded mb-1 ${
-                    currentLocale === "fr"
-                      ? "bg-[rgba(126,87,194,0.5)] text-white"
-                      : "text-gray-200"
-                  }`}
-                  onClick={() => handleLanguageChange("fr")}
-                >
-                  <span className="mr-2">🇫🇷</span> Français
-                </div>
-                <div
-                  className={`flex items-center px-3 py-2 cursor-pointer hover:bg-[rgba(126,87,194,0.3)] rounded mb-1 ${
-                    currentLocale === "es"
-                      ? "bg-[rgba(126,87,194,0.5)] text-white"
-                      : "text-gray-200"
-                  }`}
-                  onClick={() => handleLanguageChange("es")}
-                >
-                  <span className="mr-2">🇪🇸</span> Español
-                </div>
-                <div
-                  className={`flex items-center px-3 py-2 cursor-pointer hover:bg-[rgba(126,87,194,0.3)] rounded mb-1 ${
-                    currentLocale === "de"
-                      ? "bg-[rgba(126,87,194,0.5)] text-white"
-                      : "text-gray-200"
-                  }`}
-                  onClick={() => handleLanguageChange("de")}
-                >
-                  <span className="mr-2">🇩🇪</span> Deutsch
-                </div>
-                <div
-                  className={`flex items-center px-3 py-2 cursor-pointer hover:bg-[rgba(126,87,194,0.3)] rounded mb-1 ${
-                    currentLocale === "it"
-                      ? "bg-[rgba(126,87,194,0.5)] text-white"
-                      : "text-gray-200"
-                  }`}
-                  onClick={() => handleLanguageChange("it")}
-                >
-                  <span className="mr-2">🇮🇹</span> Italiano
-                </div>
-                <div
-                  className={`flex items-center px-3 py-2 cursor-pointer hover:bg-[rgba(126,87,194,0.3)] rounded ${
-                    currentLocale === "ja"
-                      ? "bg-[rgba(126,87,194,0.5)] text-white"
-                      : "text-gray-200"
-                  }`}
-                  onClick={() => handleLanguageChange("ja")}
-                >
-                  <span className="mr-2">🇯🇵</span> 日本語
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="flex flex-row gap-2 mr-5">
-          <button
-            className="flex flex-row items-center gap-2"
+            className="flex flex-row items-center gap-2 p-2 hover:shadow-lg hover:bg-gray-300/10 transition-all duration-300"
             onDrop={handleVaultDrop}
             onDragOver={handleDragOver}
             onClick={() => setIsVaultOpen(!isVaultOpen)}
           >
             <DestinyIcon icon=""/>
-            Vault
+            Vault 
           </button>
           <button
-            className="flex flex-row items-center gap-2"
+            className="flex flex-row items-center gap-2 p-2 hover:shadow-lg hover:bg-gray-300/10 transition-all duration-300"
             onClick={() => setSearchOpen(!searchOpen)}
           >
             <DestinyIcon icon=""/>
             Search
           </button>
           <button
-            className="flex flex-row items-center gap-2"
-            onClick={changeCharacter}
+            className="flex flex-row items-center gap-2 p-2 hover:shadow-lg hover:bg-gray-300/10 transition-all duration-300"
+            onClick={() => changeCharacter(undefined)}
           >
             <DestinyIcon icon=""/>
             Back

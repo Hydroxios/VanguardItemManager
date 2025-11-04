@@ -35,7 +35,7 @@ export const NotificationsProvider: React.FC<{ children: ReactNode }> = ({ child
         {notifications.map((notif) => (
           <div
             key={notif.id}
-            className={`px-4 py-2 shadow-lg text-white bg-black bg-opacity-75 border-t-4 ${
+            className={`px-4 py-2 shadow-lg text-white bg-black bg-opacity-75 border-t-2 ${
               notif.type === "success" ? "border-green-500" :
               notif.type === "error" ? "border-red-500" :
               "border-blue-500"

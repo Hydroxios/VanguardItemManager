@@ -87,6 +87,7 @@ const InventoryItems = ({
                             height: "10px", 
                             width: "10px", 
                             backgroundColor: "#777777",
+                            opacity: 0.5,
                         }}></div>
                     );
                 })}

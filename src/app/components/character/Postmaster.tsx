@@ -175,14 +175,19 @@ const Postmaster: React.FC<PostmasterProps> = ({
   };
 
   return (
-    <div className={`${isCollapsed ? 'w-[200px]' : 'w-fit'} shadow-lg overflow-hidden p-[2px] border-2 border-[rgb(138,138,138)]`}>
+    <div className={`w-fit hover:shadow-lg overflow-hidden p-[2px] transition-all duration-150`}>
       <div 
-        className="flex justify-between items-center bg-[#5a5a5a] bg-opacity-45 p-2 cursor-pointer backdrop-blur-sm hover:bg-opacity-30 transition-all"
+        className={`flex justify-between items-center p-1 cursor-pointer hover:backdrop-blur-sm hover:bg-gray-300/10 transition-all`}
         onClick={toggleCollapse}
       >
-        <h3 className="text-white text-xs uppercase tracking-wider flex items-center">
-          Postmaster
-        </h3>
+        <div className="flex items-center justify-center gap-2">
+          <img src={"./postmaster.png"} height={40} width={40}/>
+          {!isCollapsed && (
+            <h3 className="text-white text-xs uppercase tracking-wider flex items-center">
+              Postmaster
+            </h3>
+          )}
+        </div>
         <div className="flex items-center">
           {!isCollapsed && postmasterItems.length > 1 && (
             <button
@@ -193,27 +198,31 @@ const Postmaster: React.FC<PostmasterProps> = ({
               {isCollectingAll ? 'Collecting...' : 'Collect All'}
             </button>
           )}
-          <span className="text-gray-400 text-xs mr-2">
+          <span className="text-white text-xs mr-2">
             {postmasterItems.length}/21
           </span>
-          <svg 
-            className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${isCollapsed ? 'rotate-180' : ''}`} 
-            viewBox="0 0 24 24" 
-            fill="none" 
+          <svg
+            className={`w-4 h-4 text-white transition-transform duration-150 ${isCollapsed ? 'rotate-180' : ''}`}
+            viewBox="0 0 24 24"
+            fill="none"
             xmlns="http://www.w3.org/2000/svg"
           >
-            <path d="M19 9L12 16L5 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            {/* Arrow points right by default, rotates to point left on collapse */}
+            <path d="M9 5L16 12L9 19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
         </div>
       </div>
-      
       {!isCollapsed && (
-        <div className="p-2 bg-[#5a5a5a] bg-opacity-45 p-2 cursor-pointer backdrop-blur-sm hover:bg-opacity-30 transition-all">
+        <div className="w-[80%] h-[1px] bg-gray-400 opacity-30 mx-auto"></div>
+      )}
+      {!isCollapsed && (
+        <div className="p-2 cursor-pointer hover:backdrop-blur-sm hover:bg-gray-300/10 transition-all">
           <div className="grid grid-cols-7 gap-1 ">
             {createGridItems()}
           </div>
         </div>
       )}
+      
     </div>
   );
 };
