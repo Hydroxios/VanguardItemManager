@@ -166,12 +166,7 @@ const TooltipStats = ({
                                 color: "white",
                             }}
                         >
-                            {itemInstanceId &&
-                                itemComponents.instances[itemInstanceId].primaryStat.value +
-                                (itemComponents.instances[itemInstanceId].primaryStat.value >
-                                    200
-                                    ? "+"
-                                    : "")}
+                            {itemInstanceId && itemComponents.instances[itemInstanceId].primaryStat.value}
                         </div>
                         {!armor && (
                             <>
