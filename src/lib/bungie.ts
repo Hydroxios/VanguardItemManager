@@ -1,11 +1,8 @@
-// This file is kept for backwards compatibility but delegates to the new API client
-// export * from './api/bungieApiClient';
 import { Item } from './hooks/useProfile';
 
-//const rootPath = "https://www.bungie.net/Platform"
-const apiKey = process.env.NODE_ENV === 'production' ? "401004d697cc44a8a8f76fdc47105211" : "56071839a5234888ae60e56b80d63141";
+const apiKey = process.env.NEXT_PUBLIC_BUNGIE_API_KEY || "";
 
-let lastUpdate :any = undefined;
+let lastUpdate: any = undefined;
 
 export interface BungieUser {
     uniqueName: string
@@ -28,14 +25,14 @@ export interface Character {
     light: number;
     classType: number;
     raceType: number
-    classHash :number
-    raceHash :number
+    classHash: number
+    raceHash: number
 }
 
 export interface ItemResponse {
     characterId: string
     item: {
-      data: Item
+        data: Item
     }
 }
 
@@ -48,11 +45,11 @@ interface BungieFetchData {
 
 const baseUrl = "https://www.bungie.net/Platform"
 
-const bungie = async (url: string, init: BungieFetchData) =>{
+const bungie = async (url: string, init: BungieFetchData) => {
 
-    const headers: HeadersInit = {"X-Api-Key": apiKey}
-    if(init.token) headers["Authorization"] = `Bearer ${init.token}`;
-    if(init.method === "POST") headers["Content-Type"] = "application/json"
+    const headers: HeadersInit = { "X-Api-Key": apiKey }
+    if (init.token) headers["Authorization"] = `Bearer ${init.token}`;
+    if (init.method === "POST") headers["Content-Type"] = "application/json"
 
     const response = await fetch(`${baseUrl}${url}`, {
         method: init.method ?? "GET",
@@ -60,9 +57,9 @@ const bungie = async (url: string, init: BungieFetchData) =>{
         body: init.body ?? undefined
     })
     const data = await response.json()
-    if(!response.ok){
-        if(init.onError) init.onError(new Error(data.Message));
-        return {error: data.Message}
+    if (!response.ok) {
+        if (init.onError) init.onError(new Error(data.Message));
+        return { error: data.Message }
     }
     return data.Response
 }
@@ -95,30 +92,30 @@ export const refreshToken = async (refreshToken: string) => {
     }
 }
 
-export const getCurrentUser = async (token :string) => {
-   const res = await fetch(`${baseUrl}/User/GetMembershipsForCurrentUser`, {
-    headers: {
-        Authorization: "Bearer " + token,
-        "X-Api-Key": apiKey,
-        "User-Agent": "HximApp/1.0 AppId/45124 (+https://hxitemmanager.web.app;hydroxios@gmail.com)"
+export const getCurrentUser = async (token: string) => {
+    const res = await fetch(`${baseUrl}/User/GetMembershipsForCurrentUser`, {
+        headers: {
+            Authorization: "Bearer " + token,
+            "X-Api-Key": apiKey,
+            "User-Agent": "HximApp/1.0 AppId/45124 (+https://hxitemmanager.web.app;hydroxios@gmail.com)"
+        }
+    })
+    const data = await res.json()
+    let destinyMembership = data.Response.primaryMembershipId ? data.Response.destinyMemberships.filter((m: any) => m.membershipId === data.Response.primaryMembershipId)[0] : data.Response.destinyMemberships[0];
+    const user: BungieUser = {
+        uniqueName: data.Response.bungieNetUser.uniqueName,
+        membershipId: destinyMembership.membershipId,
+        membershipType: destinyMembership.membershipType
     }
-   }) 
-   const data = await res.json()
-   let destinyMembership = data.Response.primaryMembershipId ? data.Response.destinyMemberships.filter((m :any) => m.membershipId === data.Response.primaryMembershipId)[0] : data.Response.destinyMemberships[0];
-   const user :BungieUser = {
-    uniqueName: data.Response.bungieNetUser.uniqueName,
-    membershipId: destinyMembership.membershipId,
-    membershipType: destinyMembership.membershipType
-   }
-   return user;
+    return user;
 }
 
-export const getProfile = async (token :string, membershipId: string, membershipType: number) => {
-    const profile = await bungie(`/Destiny2/${membershipType}/Profile/${membershipId}?components=100,102,103,104,200,201,202,205,206,300,302,304,307,308,310,1300`, {token})
+export const getProfile = async (token: string, membershipId: string, membershipType: number) => {
+    const profile = await bungie(`/Destiny2/${membershipType}/Profile/${membershipId}?components=100,102,103,104,200,201,202,205,206,300,302,304,307,308,310,1300`, { token })
     return profile
 }
 
-export const getDefinitions = async (locale? :string) => {
+export const getDefinitions = async (locale?: string) => {
     const manifests = await bungie("/Destiny2/Manifest", {})
     const response = await fetch(`https://www.bungie.net${manifests.jsonWorldContentPaths[locale ?? "en"]}`);
     const data = await response.json();
@@ -138,7 +135,7 @@ export const getCharacter = async (token: string, membershipId: string, membersh
         }
     });
     const data = await res.json();
-    return {equipment: data.Response.equipment.data.items ,items: data.Response.inventory.data.items as any[], loadouts: data.Response.loadouts.data.loadouts};
+    return { equipment: data.Response.equipment.data.items, items: data.Response.inventory.data.items as any[], loadouts: data.Response.loadouts.data.loadouts };
 }
 
 export const getCharacterInventory = async (token: string, membershipId: string, membershipType: number, characterId: string) => {
@@ -149,10 +146,10 @@ export const getCharacterInventory = async (token: string, membershipId: string,
         }
     });
     const data = await res.json();
-    return {items: data.Response.inventory.data.items as any[]};
+    return { items: data.Response.inventory.data.items as any[] };
 }
 
-export const getItem = async (token: string, membershipType: number, membershipId: string, itemInstanceId: string, components :string) => {
+export const getItem = async (token: string, membershipType: number, membershipId: string, itemInstanceId: string, components: string) => {
     try {
         const res = await fetch(`${baseUrl}/Destiny2/${membershipType}/Profile/${membershipId}/Item/${itemInstanceId}?components=${components}`, {
             headers: {
@@ -201,48 +198,57 @@ export const transferItem = async (token: string, membershipType: number, itemHa
  * Check if an item is equipped and transfer it safely
  * transferStatus === 1 means the item is equipped and needs to be unequipped first
  */
-export const safeTransferItem = async (token: string, membershipType: number, itemHash: number, itemInstanceId: string, 
-                                       sourceCharacterId: string, targetCharacterId: string, membershipId: string) => {
+export const safeTransferItem = async (token: string, membershipType: number, itemHash: number, itemInstanceId: string,
+    sourceCharacterId: string, targetCharacterId: string, membershipId: string, itemDefinitions?: any): Promise<any | null> => {
     // First check if the item is equipped
     const itemResponse = await getItem(token, membershipType, membershipId, itemInstanceId, "307,302,304,305");
-    
+
     if (itemResponse && itemResponse.item) {
         const transferStatus = itemResponse.item.data.transferStatus;
         const equipmentSlotHash = itemResponse.item.data.bucketHash; // The slot this item is equipped in
-        
+
         // If transferStatus is 1, the item is equipped and we need to unequip it
         if (transferStatus === 1) {
             console.log(`Item ${itemHash} is equipped. Finding replacement...`);
-            
+
             // Get character inventory to find replacement items
             const characterInventory = await getCharacterInventory(token, membershipId, membershipType, sourceCharacterId);
-            
+
             // Try to find another item of the same type in the inventory to equip
             let replacementItem = null;
             if (characterInventory && characterInventory.items) {
                 for (const item of characterInventory.items) {
                     // Avoid using the same item as replacement
                     if (item.itemInstanceId !== itemInstanceId && item.bucketHash === equipmentSlotHash) {
+                        // Check if it's an exotic if definitions are available
+                        if (itemDefinitions) {
+                            const def = itemDefinitions[item.itemHash];
+                            if (def && def.inventory && def.inventory.tierType === 6) {
+                                console.log(`Skipping exotic replacement item ${item.itemHash}`);
+                                continue;
+                            }
+                        }
                         replacementItem = item;
                         break;
                     }
                 }
             }
-            
+
             if (replacementItem) {
                 // Equip the replacement item first
                 console.log(`Equipping replacement item ${replacementItem.itemInstanceId}`);
                 try {
                     await equipItem(token, membershipType, sourceCharacterId, replacementItem.itemInstanceId);
-                    
+
                     // Now that another item is equipped, transfer the original item
                     console.log(`Transferring original item ${itemInstanceId} to ${targetCharacterId === "vault" ? "vault" : "character"}`);
                     await transferItem(token, membershipType, itemHash, itemInstanceId, sourceCharacterId, true);
-                    
+
                     // If not going to vault, transfer to target character
                     if (targetCharacterId !== "vault") {
                         await transferItem(token, membershipType, itemHash, itemInstanceId, targetCharacterId, false);
                     }
+                    return replacementItem;
                 } catch (error) {
                     console.error("Error during replacement equip:", error);
                     // If equipping replacement fails, try direct transfer as fallback
@@ -280,6 +286,7 @@ export const safeTransferItem = async (token: string, membershipType: number, it
             await transferItem(token, membershipType, itemHash, itemInstanceId, targetCharacterId, false);
         }
     }
+    return null;
 }
 
 export const equipItems = async (token: string, membershipType: number, characterId: number, itemIds: number[]) => {
@@ -299,7 +306,7 @@ export const equipItems = async (token: string, membershipType: number, characte
 }
 
 export const equipItem = async (token: string, membershipType: number, characterId: string, itemId: string) => {
-        const response = await fetch(`${baseUrl}/Destiny2/Actions/Items/EquipItem/`, {
+    const response = await fetch(`${baseUrl}/Destiny2/Actions/Items/EquipItem/`, {
         method: 'POST',
         headers: {
             Authorization: "Bearer " + token,
@@ -351,14 +358,14 @@ export const clearLoadout = async (
     await fetch(`${baseUrl}/Destiny2/Actions/Loadouts/ClearLoadout/`, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${token}`,
-          "X-Api-Key": apiKey,
-          'Content-Type': 'application/json'
+            Authorization: `Bearer ${token}`,
+            "X-Api-Key": apiKey,
+            'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          membershipType: membershipType,
-          characterId: characterId,
-          loadoutIndex: loadoutIndex
+            membershipType: membershipType,
+            characterId: characterId,
+            loadoutIndex: loadoutIndex
         })
     })
 }

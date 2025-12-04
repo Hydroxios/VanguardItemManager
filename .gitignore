@@ -50,3 +50,5 @@ firebase.json
 .VSCodeCounter
 
 destiny_ui/
+.vercel
+.env*.local

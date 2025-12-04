@@ -15,7 +15,7 @@ export default function Home() {
     <div className="flex items-center justify-center text-center min-h-screen p-8 ">
       {!token ? (
         <div className="flex flex-col justify-center items-center gap-5">
-          <img src="./vim.png" height={128} width={128} alt="Vanguard Item Manager logo" />
+          <img src="./vanguard.svg" height={256} width={256} alt="Vanguard Item Manager logo" />
           <h1 className="text-3xl sm:text-4xl">Vanguard Item Manager</h1>
           <p>A Custom Destiny Item Manager !</p>
           <div>
@@ -44,7 +44,7 @@ export default function Home() {
           <ProfileProvider>
             <ItemTooltipProvider>
               <AppView />
-              <GlobalItemTooltip/>
+              <GlobalItemTooltip />
             </ItemTooltipProvider>
           </ProfileProvider>
         </DefinitionsProvider>

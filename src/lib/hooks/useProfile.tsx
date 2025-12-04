@@ -1,5 +1,5 @@
-import { createContext, ReactNode, useContext, useEffect, useState, useMemo } from "react";
-import { BungieUser, getCurrentUser, getProfile, UserInfo } from "../bungie";
+import { createContext, ReactNode, useContext, useEffect, useState, useMemo, useRef } from "react";
+import { BungieUser, getCurrentUser, getProfile, UserInfo } from "@/lib/bungie";
 import useAuth from "./useAuth";
 
 export interface Item {
@@ -18,7 +18,7 @@ export interface ItemInstance {
     damageType: number
     isEquipped: boolean
     itemLevel: number
-    primaryStat: {statHash: number, value: number}
+    primaryStat: { statHash: number, value: number }
     quality: number
     gearTier: number
 }
@@ -26,7 +26,7 @@ export interface ItemInstance {
 export interface Loadout {
     colorHash: number
     iconHash: number
-    items: {itemInstanceId: string}[]
+    items: { itemInstanceId: string }[]
 }
 
 export interface Perk {
@@ -67,7 +67,7 @@ export interface Currency {
 }
 
 export interface ItemStats {
-    stats: Record<string, {statHash: number, value: number}>
+    stats: Record<string, { statHash: number, value: number }>
 }
 
 export interface ItemPerks {
@@ -85,9 +85,9 @@ export interface Profile {
     user: BungieUser
     refreshing: boolean;
     refresh: () => Promise<void>
-    characterEquipment: Record<string, {items: Item[]}>
-    characterInventories: Record<string, {items: Item[]}>
-    characterLoadouts: Record<string, {loadouts: Loadout[]}>
+    characterEquipment: Record<string, { items: Item[] }>
+    characterInventories: Record<string, { items: Item[] }>
+    characterLoadouts: Record<string, { loadouts: Loadout[] }>
     characters: Record<string, Character>
     itemComponents: ItemComponents
     profile: ProfileData
@@ -95,6 +95,12 @@ export interface Profile {
     profileInventory: Item[]
     setCharacterEquipment: (characterId: string, items: Item[]) => void;
     setCharacterInventory: (characterId: string, items: Item[]) => void;
+    setProfileInventory: (items: Item[]) => void;
+    moveItem: (itemHash: number, itemInstanceId: string, fromId: string, toId: string, quantity: number, updates?: Partial<Item>) => void;
+    changeEmblem: (characterId: string, emblemHash: number) => void;
+    equipItemLocally: (characterId: string, itemInstanceId: string) => void;
+    transferEquippedItem: (itemHash: number, itemInstanceId: string, fromId: string, toId: string, replacementItemInstanceId: string) => void;
+    equipLoadoutLocally: (characterId: string, loadoutItems: Item[]) => void;
 }
 
 const ProfileContext = createContext<Profile | undefined>(undefined)
@@ -103,46 +109,57 @@ interface ProfileProviderProps {
     children: ReactNode
 }
 
-export const ProfileProvider = ({children}: ProfileProviderProps) => {
+export const ProfileProvider = ({ children }: ProfileProviderProps) => {
 
     const [loading, setLoading] = useState(true)
     const [refreshing, setRefreshing] = useState(false)
     const [user, setUser] = useState<BungieUser>()
 
-    const [characterEquipment, setCharacterEquipement] = useState<Record<string, {items: Item[]}>>({})
-    const [characterInventories, setCharacterInventories] = useState<Record<string, {items: Item[]}>>({})
-    const [characterLoadouts, setCharacterLoadouts] = useState<Record<string, {loadouts: Loadout[]}>>({})
+    const [characterEquipment, setCharacterEquipementState] = useState<Record<string, { items: Item[] }>>({})
+    const [characterInventories, setCharacterInventoriesState] = useState<Record<string, { items: Item[] }>>({})
+    const [characterLoadouts, setCharacterLoadouts] = useState<Record<string, { loadouts: Loadout[] }>>({})
     const [characters, setCharacters] = useState<Record<string, Character>>({})
 
-    const [itemComponents, setItemComponents] = useState<ItemComponents>({instances: {}, perks: {}, stats: {}})
+    const [itemComponents, setItemComponents] = useState<ItemComponents>({ instances: {}, perks: {}, stats: {} })
 
-    const [profileData, setProfileData] = useState<ProfileData>({userInfo: undefined, characterIds: [], currentGuardianRank: 0, currentSeasonHash: 0})
+    const [profileData, setProfileData] = useState<ProfileData>({ userInfo: undefined, characterIds: [], currentGuardianRank: 0, currentSeasonHash: 0 })
     const [profileCurrencies, setProfileCurrencies] = useState<Currency[]>([])
-    const [profileInventory, setProfileInventory] = useState<Item[]>([])
+    const [profileInventory, setProfileInventoryState] = useState<Item[]>([])
 
-    const {token, lastUpdate, refreshUserToken} = useAuth()
+    // Refs to hold the latest state for atomic operations
+    const characterEquipmentRef = useRef(characterEquipment);
+    const characterInventoriesRef = useRef(characterInventories);
+    const profileInventoryRef = useRef(profileInventory);
+    const itemComponentsRef = useRef(itemComponents);
+
+    // Update refs whenever state changes
+    useEffect(() => { characterEquipmentRef.current = characterEquipment; }, [characterEquipment]);
+    useEffect(() => { characterInventoriesRef.current = characterInventories; }, [characterInventories]);
+    useEffect(() => { profileInventoryRef.current = profileInventory; }, [profileInventory]);
+    useEffect(() => { itemComponentsRef.current = itemComponents; }, [itemComponents]);
+
+    const { token, lastUpdate, refreshUserToken } = useAuth()
 
     const fetchProfile = async () => {
-        if(refreshing) return;
+        if (refreshing) return;
 
         let t = token;
-        if(Date.now() - lastUpdate >= 3600 * 1000){
+        if (Date.now() - lastUpdate >= 3600 * 1000) {
             t = await refreshUserToken()
         }
 
         let u;
-        if(!user){
+        if (!user) {
             u = await getCurrentUser(t as string);
             setUser(u as BungieUser)
         } else {
             u = user
         }
-        
+
         const profile = await getProfile(t as string, u.membershipId, u.membershipType)
 
-        setCharacterEquipement(profile.characterEquipment.data)
-
-        setCharacterInventories(profile.characterInventories.data)
+        setCharacterEquipementState(profile.characterEquipment.data)
+        setCharacterInventoriesState(profile.characterInventories.data)
         setCharacterLoadouts(profile.characterLoadouts.data)
         setCharacters(profile.characters.data)
 
@@ -155,9 +172,9 @@ export const ProfileProvider = ({children}: ProfileProviderProps) => {
 
         setProfileData(profile.profile.data)
         setProfileCurrencies(profile.profileCurrencies.data.items)
-        setProfileInventory(profile.profileInventory.data.items)
+        setProfileInventoryState(profile.profileInventory.data.items)
 
-        if(loading){
+        if (loading) {
             setLoading(false)
         }
     }
@@ -167,16 +184,298 @@ export const ProfileProvider = ({children}: ProfileProviderProps) => {
     }, [])
 
     const setCharacterEquipment = (characterId: string, items: Item[]) => {
-        setCharacterEquipement(prev => ({
-            ...prev,
-            [characterId]: { items }
-        }));
+        setCharacterEquipementState(prev => {
+            const newState = { ...prev, [characterId]: { items } };
+            characterEquipmentRef.current = newState;
+            return newState;
+        });
     };
     const setCharacterInventory = (characterId: string, items: Item[]) => {
-        setCharacterInventories(prev => ({
+        setCharacterInventoriesState(prev => {
+            const newState = { ...prev, [characterId]: { items } };
+            characterInventoriesRef.current = newState;
+            return newState;
+        });
+    };
+    const setProfileInventory = (items: Item[]) => {
+        setProfileInventoryState(prev => {
+            profileInventoryRef.current = items;
+            return items;
+        });
+    };
+
+    const moveItem = (itemHash: number, itemInstanceId: string, fromId: string, toId: string, quantity: number, updates?: Partial<Item>) => {
+        // Use refs for current state
+        const currentProfileInventory = profileInventoryRef.current;
+        const currentCharacterInventories = characterInventoriesRef.current;
+        const currentCharacterEquipment = characterEquipmentRef.current;
+
+        // Helper to find and remove item from a list
+        const removeItem = (items: Item[], instanceId: string, qty: number): { item: Item | undefined, newItems: Item[] } => {
+            const index = items.findIndex(i => i.itemInstanceId === instanceId || (i.itemHash === itemHash && !i.itemInstanceId));
+            if (index === -1) return { item: undefined, newItems: items };
+
+            const item = { ...items[index] };
+            let newItems = [...items];
+
+            // Handle stackable items
+            if (item.quantity > qty) {
+                item.quantity = qty; // The moved item has the moved quantity
+                newItems[index] = { ...newItems[index], quantity: newItems[index].quantity - qty }; // Remaining item has reduced quantity
+            } else {
+                // Remove the item entirely if moving all or more
+                newItems.splice(index, 1);
+            }
+            return { item, newItems };
+        };
+
+        // Helper to add item to a list
+        const addItem = (items: Item[], item: Item): Item[] => {
+            const newItems = [...items];
+            // Check if stackable item already exists
+            const existingIndex = newItems.findIndex(i => i.itemHash === item.itemHash && i.itemInstanceId === item.itemInstanceId);
+
+            if (existingIndex !== -1 && !item.itemInstanceId) {
+                newItems[existingIndex] = { ...newItems[existingIndex], quantity: newItems[existingIndex].quantity + item.quantity };
+            } else {
+                newItems.push(item);
+            }
+            return newItems;
+        };
+
+        let itemToMove: Item | undefined;
+
+        // 1. Remove from source
+        if (fromId === "vault") {
+            const result = removeItem(currentProfileInventory, itemInstanceId, quantity);
+            itemToMove = result.item;
+            if (result.newItems !== currentProfileInventory) setProfileInventory(result.newItems);
+        } else {
+            const inventory = currentCharacterInventories[fromId]?.items || [];
+            const result = removeItem(inventory, itemInstanceId, quantity);
+            itemToMove = result.item;
+            if (result.newItems !== inventory) setCharacterInventory(fromId, result.newItems);
+
+            // Also check equipment if not found in inventory
+            if (!itemToMove) {
+                const equipment = currentCharacterEquipment[fromId]?.items || [];
+                const resultEq = removeItem(equipment, itemInstanceId, quantity);
+                itemToMove = resultEq.item;
+                if (resultEq.newItems !== equipment) setCharacterEquipment(fromId, resultEq.newItems);
+            }
+        }
+
+        if (itemToMove && itemToMove.itemInstanceId) {
+            setItemComponents(prev => ({
+                ...prev,
+                instances: {
+                    ...prev.instances,
+                    [itemToMove!.itemInstanceId]: { ...prev.instances[itemToMove!.itemInstanceId], isEquipped: false }
+                }
+            }));
+        }
+
+        if (!itemToMove) {
+            console.warn("Could not find item to move locally");
+            return;
+        }
+
+        // 2. Add to destination
+        const movedItem = { ...itemToMove, ...updates };
+        if (toId === "vault") {
+            movedItem.location = 2; // Vault location
+            setProfileInventory(addItem(profileInventoryRef.current, movedItem)); // Use ref again to be safe? actually we just updated it via setter but setter is async. 
+            // Wait, if we called setProfileInventory above, profileInventoryRef.current is NOT updated yet because the setter updater function hasn't run or the effect hasn't run.
+            // BUT, we manually updated the ref in our custom setters! 
+            // So profileInventoryRef.current IS updated if we used our custom setters.
+            // HOWEVER, we called setProfileInventory(result.newItems) which calls setProfileInventoryState.
+            // Our custom wrapper `setProfileInventory` updates the ref.
+            // So yes, it should be safe.
+        } else {
+            movedItem.location = 1; // Character location
+            const targetInventory = characterInventoriesRef.current[toId]?.items || [];
+            setCharacterInventory(toId, addItem(targetInventory, movedItem));
+        }
+    };
+
+    const changeEmblem = (characterId: string, emblemHash: number) => {
+        setCharacters(prev => ({
             ...prev,
-            [characterId]: { items }
+            [characterId]: {
+                ...prev[characterId],
+                emblemHash
+            }
         }));
+
+        const currentEquipment = characterEquipmentRef.current[characterId]?.items || [];
+        const currentInventory = characterInventoriesRef.current[characterId]?.items || [];
+
+        const newEmblemIndex = currentInventory.findIndex(i => i.itemHash === emblemHash);
+
+        if (newEmblemIndex !== -1) {
+            const newEmblemItem = currentInventory[newEmblemIndex];
+            const oldEmblemIndex = currentEquipment.findIndex(i => i.bucketHash === 28);
+
+            if (oldEmblemIndex !== -1) {
+                const oldEmblemItem = currentEquipment[oldEmblemIndex];
+                const updatedInventory = [...currentInventory];
+                updatedInventory.splice(newEmblemIndex, 1);
+                updatedInventory.push(oldEmblemItem);
+
+                const updatedEquipment = [...currentEquipment];
+                updatedEquipment.splice(oldEmblemIndex, 1);
+                updatedEquipment.push(newEmblemItem);
+
+                setCharacterInventory(characterId, updatedInventory);
+                setCharacterEquipment(characterId, updatedEquipment);
+            }
+        }
+    };
+
+    const equipItemLocally = (characterId: string, itemInstanceId: string) => {
+        const inventory = characterInventoriesRef.current[characterId];
+        const equipment = characterEquipmentRef.current[characterId];
+
+        if (!inventory || !equipment) return;
+
+        const itemToEquipIndex = inventory.items.findIndex(i => i.itemInstanceId === itemInstanceId);
+        if (itemToEquipIndex === -1) return;
+
+        const itemToEquip = inventory.items[itemToEquipIndex];
+        const bucketHash = itemToEquip.bucketHash;
+
+        const currentlyEquippedIndex = equipment.items.findIndex(i => i.bucketHash === bucketHash);
+        if (currentlyEquippedIndex === -1) return;
+
+        const currentlyEquipped = equipment.items[currentlyEquippedIndex];
+
+        const newInventoryItems = [...inventory.items];
+        newInventoryItems.splice(itemToEquipIndex, 1);
+        newInventoryItems.push(currentlyEquipped);
+
+        const newEquipmentItems = [...equipment.items];
+        newEquipmentItems[currentlyEquippedIndex] = itemToEquip;
+
+        setCharacterInventory(characterId, newInventoryItems);
+        setCharacterEquipment(characterId, newEquipmentItems);
+
+        setItemComponents(prev => ({
+            ...prev,
+            instances: {
+                ...prev.instances,
+                [itemInstanceId]: { ...prev.instances[itemInstanceId], isEquipped: true },
+                [currentlyEquipped.itemInstanceId]: { ...prev.instances[currentlyEquipped.itemInstanceId], isEquipped: false }
+            }
+        }));
+    };
+
+    const transferEquippedItem = (itemHash: number, itemInstanceId: string, fromId: string, toId: string, replacementItemInstanceId: string) => {
+        const inventory = characterInventoriesRef.current[fromId];
+        const equipment = characterEquipmentRef.current[fromId];
+
+        if (!inventory || !equipment) return;
+
+        const replacementIndex = inventory.items.findIndex(i => i.itemInstanceId === replacementItemInstanceId);
+        if (replacementIndex === -1) return;
+        const replacementItem = inventory.items[replacementIndex];
+
+        const exoticIndex = equipment.items.findIndex(i => i.itemInstanceId === itemInstanceId);
+        if (exoticIndex === -1) return;
+        const exoticItem = equipment.items[exoticIndex];
+
+        const newInventory = [...inventory.items];
+        newInventory.splice(replacementIndex, 1);
+
+        const newEquipment = [...equipment.items];
+        newEquipment[exoticIndex] = replacementItem;
+
+        const movedItem = { ...exoticItem, location: 1 };
+
+        const addItem = (items: Item[], item: Item): Item[] => {
+            const newItems = [...items];
+            newItems.push(item);
+            return newItems;
+        };
+
+        if (toId === "vault") {
+            movedItem.location = 2;
+            setProfileInventory(addItem(profileInventoryRef.current, movedItem));
+        } else {
+            const targetInventory = characterInventoriesRef.current[toId]?.items || [];
+            setCharacterInventory(toId, addItem(targetInventory, movedItem));
+        }
+
+        setCharacterInventory(fromId, newInventory);
+        setCharacterEquipment(fromId, newEquipment);
+
+        setItemComponents(prev => ({
+            ...prev,
+            instances: {
+                ...prev.instances,
+                [replacementItemInstanceId]: { ...prev.instances[replacementItemInstanceId], isEquipped: true },
+                [itemInstanceId]: { ...prev.instances[itemInstanceId], isEquipped: false }
+            }
+        }));
+    };
+
+    const equipLoadoutLocally = (characterId: string, loadoutItems: Item[]) => {
+        const inventory = characterInventoriesRef.current[characterId];
+        const equipment = characterEquipmentRef.current[characterId];
+
+        if (!inventory || !equipment) return;
+
+        let newInventoryItems = [...inventory.items];
+        let newEquipmentItems = [...equipment.items];
+        const updatedInstances: Record<string, ItemInstance> = {};
+
+        loadoutItems.forEach(itemToEquip => {
+            // Check if already equipped
+            const isAlreadyEquipped = newEquipmentItems.some(i => i.itemInstanceId === itemToEquip.itemInstanceId);
+            if (isAlreadyEquipped) return;
+
+            // Find item in inventory
+            const itemIndex = newInventoryItems.findIndex(i => i.itemInstanceId === itemToEquip.itemInstanceId);
+            if (itemIndex === -1) {
+                // Item might have been just transferred and is in the ref but maybe we missed it?
+                // Or it's not on the character yet (shouldn't happen if we called moveItem correctly before)
+                return;
+            }
+
+            // Find what to unequip
+            const bucketHash = itemToEquip.bucketHash;
+            const currentlyEquippedIndex = newEquipmentItems.findIndex(i => i.bucketHash === bucketHash);
+
+            if (currentlyEquippedIndex !== -1) {
+                const currentlyEquipped = newEquipmentItems[currentlyEquippedIndex];
+
+                // Swap
+                newInventoryItems.splice(itemIndex, 1); // Remove new item from inventory
+                newInventoryItems.push(currentlyEquipped); // Add old item to inventory
+
+                newEquipmentItems[currentlyEquippedIndex] = itemToEquip; // Put new item in equipment
+
+                // Update instances status
+                if (itemComponentsRef.current.instances[itemToEquip.itemInstanceId]) {
+                    updatedInstances[itemToEquip.itemInstanceId] = { ...itemComponentsRef.current.instances[itemToEquip.itemInstanceId], isEquipped: true };
+                }
+                if (itemComponentsRef.current.instances[currentlyEquipped.itemInstanceId]) {
+                    updatedInstances[currentlyEquipped.itemInstanceId] = { ...itemComponentsRef.current.instances[currentlyEquipped.itemInstanceId], isEquipped: false };
+                }
+            }
+        });
+
+        setCharacterInventory(characterId, newInventoryItems);
+        setCharacterEquipment(characterId, newEquipmentItems);
+
+        if (Object.keys(updatedInstances).length > 0) {
+            setItemComponents(prev => ({
+                ...prev,
+                instances: {
+                    ...prev.instances,
+                    ...updatedInstances
+                }
+            }));
+        }
     };
 
     const contextValue = useMemo(() => ({
@@ -201,7 +500,13 @@ export const ProfileProvider = ({children}: ProfileProviderProps) => {
         profileCurrencies,
         profileInventory,
         setCharacterEquipment,
-        setCharacterInventory
+        setCharacterInventory,
+        setProfileInventory,
+        moveItem,
+        changeEmblem,
+        equipItemLocally,
+        transferEquippedItem,
+        equipLoadoutLocally
     }), [loading, user, refreshing, characterEquipment, characterInventories, characterLoadouts, characters, itemComponents, profileData, profileCurrencies, profileInventory]);
 
     return (
@@ -216,6 +521,6 @@ export const useProfile = () => {
     const context = useContext(ProfileContext)
     if (context === undefined) {
         throw new Error('useProfile must be used within a ProfileProvider');
-      }
-      return context;
+    }
+    return context;
 }

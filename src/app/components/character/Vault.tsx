@@ -6,7 +6,7 @@ import Item from "./Item";
 import { useNotifications } from "@/app/components/NotificationsProvider";
 import { ItemDefinition, useDefinitions } from "@/lib/hooks/useDefinitions";
 import useAuth from "@/lib/hooks/useAuth";
-import { Item as ItemInstance,ItemPerks, ItemStats, Perk, useProfile } from "@/lib/hooks/useProfile";
+import { Item as ItemInstance, ItemPerks, ItemStats, Perk, useProfile } from "@/lib/hooks/useProfile";
 
 interface VaultProps {
   isOpen: boolean;
@@ -72,42 +72,43 @@ const Vault: React.FC<VaultProps> = ({
     armor: ProcessedItem[],
     misc: ProcessedItem[]
   }>({ weapons: [], armor: [], misc: [] });
-  
+
   const [activeTab, setActiveTab] = useState<'weapons' | 'armor' | 'misc'>('weapons');
   const [weaponTypeFilter, setWeaponTypeFilter] = useState<string>('all');
   const [elementFilter, setElementFilter] = useState<string>('all');
-  const [weaponTypes, setWeaponTypes] = useState<{[key: string]: string}>({});
+  const [weaponTypes, setWeaponTypes] = useState<{ [key: string]: string }>({});
   const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState<boolean>(false);
   const [isElementDropdownOpen, setIsElementDropdownOpen] = useState<boolean>(false);
+  const [showDuplicates, setShowDuplicates] = useState<boolean>(false);
   const [isAnimatingOut, setIsAnimatingOut] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [vaultHeight, setVaultHeight] = useState<number>(50); // Default height in vh
   const [isResizing, setIsResizing] = useState<boolean>(false);
-  
+
   const resizeRef = useRef<HTMLDivElement>(null);
 
-  const { addNotification } = useNotifications();
+  const { addNotification, updateNotification } = useNotifications();
   const { itemDefinitions, perksDefinitions } = useDefinitions()
 
   const { token } = useAuth()
-  const { user, profileInventory, itemComponents } = useProfile()
+  const { user, profileInventory, itemComponents, moveItem } = useProfile()
 
   // Process inventory items into categories
   useEffect(() => {
     if (!profileInventory || profileInventory.length === 0) return;
-    
+
     const weapons: ProcessedItem[] = [];
     const armor: ProcessedItem[] = [];
     const misc: ProcessedItem[] = [];
-    const types: {[key: string]: string} = { all: 'All Weapons' };
-    
+    const types: { [key: string]: string } = { all: 'All Weapons' };
+
     profileInventory.forEach((item) => {
       // Only process items in the vault (location 2)
       if (item.location !== 2) return;
-      
+
       const itemDef = itemDefinitions[item.itemHash];
       if (!itemDef) return;
-      
+
       const processedItem = {
         item: itemDef,
         itemInstance: item,
@@ -116,14 +117,14 @@ const Vault: React.FC<VaultProps> = ({
         stats: itemComponents.stats[item.itemInstanceId],
         state: item.state,
       };
-      
+
       // Handle items with equippingBlock (weapons and armor)
       if (item.itemInstanceId && itemDef.equippingBlock) {
         const slotHash = itemDef.equippingBlock.equipmentSlotTypeHash;
-        
+
         if (ITEM_TYPES.WEAPONS.includes(slotHash)) {
           weapons.push(processedItem);
-          
+
           // Track weapon types for filtering
           if (itemDef.itemTypeDisplayName) {
             const typeName = itemDef.itemTypeDisplayName;
@@ -139,47 +140,62 @@ const Vault: React.FC<VaultProps> = ({
         misc.push(processedItem);
       }
     });
-    
+
     setProcessedItems({
       weapons: weapons.sort((a, b) => a.item.displayProperties.name.localeCompare(b.item.displayProperties.name)),
       armor: armor.sort((a, b) => a.item.displayProperties.name.localeCompare(b.item.displayProperties.name)),
       misc: misc.sort((a, b) => a.item.displayProperties.name.localeCompare(b.item.displayProperties.name))
     });
-    
+
     setWeaponTypes(types);
-  }, []);
-  
+  }, [profileInventory]);
+
   // Handle item transfer from vault to character
   const handleTransfer = useCallback(async (item: any) => {
+    const notificationId = addNotification(
+      `Transferring ${item.item.displayProperties.name}...`,
+      "Moving item to your character",
+      "info",
+      `https://www.bungie.net${item.item.displayProperties.icon}`,
+      3000,
+      true
+    );
+
     try {
       // For materials and other stackable items
       if (item.item.inventory && item.item.inventory.stackUniqueLabel) {
         const quantity = item.itemInstance.quantity || 1;
         await transferItem(token as string, user.membershipType, item.item.hash, item.itemInstance.itemInstanceId || '0', characterId, false, quantity);
+        moveItem(item.item.hash, item.itemInstance.itemInstanceId || '0', "vault", characterId, quantity);
       } else {
         // For weapons, armor and other non-stackable items
         await transferItem(token as string, user.membershipType, item.item.hash, item.itemInstance.itemInstanceId, characterId, false);
+        moveItem(item.item.hash, item.itemInstance.itemInstanceId, "vault", characterId, 1);
       }
-      
-      addNotification(
+
+      updateNotification(
+        notificationId,
         `Transferred ${item.item.displayProperties.name}`,
         "Item moved to your character",
         "success",
         `https://www.bungie.net${item.item.displayProperties.icon}`,
-        3000
+        3000,
+        false
       );
-      await refresh();
+      // await refresh(); // Removed to prevent slow re-fetch
     } catch (err: any) {
-      addNotification(
+      updateNotification(
+        notificationId,
         `Error transferring ${item.item.displayProperties.name}`,
         err.message,
         "error",
         `https://www.bungie.net${item.item.displayProperties.icon}`,
-        5000
+        5000,
+        false
       );
     }
-  }, [characterId, addNotification, refresh]);
-  
+  }, [characterId, addNotification, updateNotification, refresh, moveItem, token, user]);
+
   // Handle drag start for items
   const handleDragStart = useCallback((event: React.DragEvent, item: any) => {
     event.dataTransfer.setData(
@@ -190,149 +206,103 @@ const Vault: React.FC<VaultProps> = ({
   }, []);
 
   const filteredItems = useMemo(() => {
-    let itemsToFilter = activeTab === 'weapons' 
-        ? processedItems.weapons 
-        : activeTab === 'armor' 
-        ? processedItems.armor 
+    let itemsToFilter = activeTab === 'weapons'
+      ? processedItems.weapons
+      : activeTab === 'armor'
+        ? processedItems.armor
         : processedItems.misc;
+
+    // Apply duplicate filter
+    if (showDuplicates) {
+      const hashCounts = new Map<number, number>();
+      itemsToFilter.forEach(item => {
+        const hash = item.item.hash;
+        hashCounts.set(hash, (hashCounts.get(hash) || 0) + 1);
+      });
+      itemsToFilter = itemsToFilter.filter(item => (hashCounts.get(item.item.hash) || 0) > 1);
+    }
 
     // Apply weapon type filter if we're on the weapons tab
     if (activeTab === 'weapons') {
-        // Apply weapon type filter
-        if (weaponTypeFilter !== 'all') {
-            itemsToFilter = itemsToFilter.filter(item => 
-                item.item.itemTypeDisplayName === weaponTypeFilter
-            );
-        }
-        // Apply element filter
-        if (elementFilter !== 'all') {
-            const elementTypeValue = ELEMENT_TYPES[elementFilter as keyof typeof ELEMENT_TYPES];
-            itemsToFilter = itemsToFilter.filter(item => 
-                item.item.defaultDamageType === elementTypeValue
-            );
-        }
+      // Apply weapon type filter
+      if (weaponTypeFilter !== 'all') {
+        itemsToFilter = itemsToFilter.filter(item =>
+          item.item.itemTypeDisplayName === weaponTypeFilter
+        );
+      }
+      // Apply element filter
+      if (elementFilter !== 'all') {
+        const elementTypeValue = ELEMENT_TYPES[elementFilter as keyof typeof ELEMENT_TYPES];
+        itemsToFilter = itemsToFilter.filter(item =>
+          item.item.defaultDamageType === elementTypeValue
+        );
+      }
     }
 
     // Apply search filter if search query exists
     if (searchQuery.trim() === "") {
-        return itemsToFilter;
+      return itemsToFilter;
     }
 
     const query = searchQuery.toLowerCase().trim();
     const searchTerms = query.split(' ').filter(term => term.length > 0);
 
     const filters = {
-        perk: searchTerms.find(term => term.startsWith('perk:'))?.substring(5),
-        tier: searchTerms.find(term => term.startsWith('tier:'))?.substring(5),
-        is: searchTerms.find(term => term.startsWith('is:'))?.substring(3),
-        name: searchTerms.filter(term => !term.includes(':')).join(' ')
+      perk: searchTerms.find(term => term.startsWith('perk:'))?.substring(5),
+      tier: searchTerms.find(term => term.startsWith('tier:'))?.substring(5),
+      is: searchTerms.find(term => term.startsWith('is:'))?.substring(3),
+      name: searchTerms.filter(term => !term.includes(':')).join(' ')
     };
 
     return itemsToFilter.filter(item => {
-        if (filters.name && !item.item.displayProperties.name.toLowerCase().includes(filters.name)) {
+      if (filters.name && !item.item.displayProperties.name.toLowerCase().includes(filters.name)) {
+        return false;
+      }
+
+      if (filters.perk) {
+        const perkQuery = filters.perk;
+        const instanceId = item.itemInstance.itemInstanceId;
+        const itemPerkData = instanceId ? itemComponents.perks[instanceId] : null;
+
+        const hasMatchingPerk = itemPerkData?.perks.some((perk: any) =>
+          perk.visible &&
+          perk.isActive &&
+          perksDefinitions[perk.perkHash]?.displayProperties?.name?.toLowerCase().includes(perkQuery)
+        );
+
+        if (!hasMatchingPerk) {
+          // Fallback to checking item name for perk as a convenience
+          if (!item.item.displayProperties.name.toLowerCase().includes(perkQuery)) {
             return false;
+          }
         }
+      }
 
-        if (filters.perk) {
-            const perkQuery = filters.perk;
-            const instanceId = item.itemInstance.itemInstanceId;
-            const itemPerkData = instanceId ? itemComponents.perks[instanceId] : null;
-            
-            const hasMatchingPerk = itemPerkData?.perks.some((perk: any) => 
-                perk.visible && 
-                perk.isActive && 
-                perksDefinitions[perk.perkHash]?.displayProperties?.name?.toLowerCase().includes(perkQuery)
-            );
-
-            if (!hasMatchingPerk) {
-                // Fallback to checking item name for perk as a convenience
-                if (!item.item.displayProperties.name.toLowerCase().includes(perkQuery)) {
-                    return false;
-                }
-            }
+      if (filters.tier) {
+        const tierQuery = parseInt(filters.tier, 10);
+        if (isNaN(tierQuery) || itemComponents.instances[item.itemInstance.itemInstanceId]?.gearTier !== tierQuery) {
+          return false;
         }
+      }
 
-        if (filters.tier) {
-            const tierQuery = parseInt(filters.tier, 10);
-            if (isNaN(tierQuery) || itemComponents.instances[item.itemInstance.itemInstanceId]?.gearTier !== tierQuery) {
-                return false;
-            }
+      if (filters.is) {
+        const q = filters.is;
+        if (q === "featured" && !item.item.isFeaturedItem) {
+          return false;
         }
-
-        if (filters.is) {
-            const q = filters.is;
-            if (q === "featured" && !item.item.isFeaturedItem) {
-                return false;
-            }
-            if (q === "unfeatured" && item.item.isFeaturedItem) {
-                return false;
-            }
-            if(q === "exotic" && item.item.inventory.tierType !== 6){
-              return false;
-            }
+        if (q === "unfeatured" && item.item.isFeaturedItem) {
+          return false;
         }
+        if (q === "exotic" && item.item.inventory.tierType !== 6) {
+          return false;
+        }
+      }
 
-        return true;
+      return true;
     });
 
-}, [activeTab, processedItems, weaponTypeFilter, elementFilter, searchQuery, itemComponents, perksDefinitions]);
-  
-  // Render items using flex instead of grid
-  const renderItems = useCallback((items: any[]) => {
-    return (
-      <div 
-        className="flex flex-wrap content-start"
-        style={{ 
-          padding: 0, 
-          margin: 0,
-          width: '100%',
-          gap: 0
-        }}
-      >
-        {items.length > 0 ? (
-          items.map((item, index) => (
-            <div 
-              key={index} 
-              className="cursor-pointer hover:z-10 hover:scale-105 transition-transform relative"
-              style={{ 
-                padding: '1px 0 1px 1px',
-                margin: 0,
-                boxSizing: 'border-box',
-                width: 'calc(100% / 8)',
-                maxWidth: '64px'
-              }}
-              onDoubleClick={() => handleTransfer(item)}
-              draggable
-              onDragStart={(e) => handleDragStart(e, item)}
-            >
-              {/* Show quantity for stackable items */}
-              {item.itemInstance.quantity > 1 && (
-                <div className="absolute bottom-0 right-0 bg-black bg-opacity-75 text-white text-xs px-1 rounded">
-                  {item.itemInstance.quantity}
-                </div>
-              )}
-              <Item 
-                itemHash={item.item.hash}
-                itemInstanceId={item.itemInstance.itemInstanceId}
-                ornamentItem={item.ornamentItem}
-                state={item.state}
-                perks={item.perks || {}}
-                stats={item.stats || {}}
-                characterId={characterId}
-                armor={item.item.equippingBlock ? ITEM_TYPES.ARMOR.includes(item.item.equippingBlock?.equipmentSlotTypeHash) : false}
-                quantity={item.itemInstance.quantity || 1}
-              />
-            </div>
-          ))
-        ) : (
-          <div className="w-full text-center p-4">
-            <p className="text-gray-400">No items match the current filter</p>
-          </div>
-        )}
-      </div>
-    );
-  }, [handleTransfer, handleDragStart, characterId]);
-  
+  }, [activeTab, processedItems, weaponTypeFilter, elementFilter, searchQuery, itemComponents, perksDefinitions, showDuplicates]);
+
   // Reset filters when changing tabs
   useEffect(() => {
     if (activeTab !== 'weapons') {
@@ -340,7 +310,7 @@ const Vault: React.FC<VaultProps> = ({
       setElementFilter('all');
     }
   }, [activeTab]);
-  
+
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -352,13 +322,13 @@ const Vault: React.FC<VaultProps> = ({
         setIsElementDropdownOpen(false);
       }
     };
-    
+
     document.addEventListener('click', handleClickOutside);
     return () => {
       document.removeEventListener('click', handleClickOutside);
     };
   }, []);
-  
+
   // Prevent scrollbar blinking during animation
   useEffect(() => {
     const handleScrollbarDuringAnimation = () => {
@@ -368,14 +338,14 @@ const Vault: React.FC<VaultProps> = ({
         document.body.style.overflow = '';
       }
     };
-    
+
     handleScrollbarDuringAnimation();
-    
+
     return () => {
       document.body.style.overflow = '';
     };
   }, [isOpen, isAnimatingOut]);
-  
+
   // Close with animation
   const handleClose = useCallback(() => {
     setIsAnimatingOut(true);
@@ -384,7 +354,7 @@ const Vault: React.FC<VaultProps> = ({
       setIsAnimatingOut(false);
     }, 300); // Match the animation duration
   }, [setIsOpen]);
-  
+
   // Load saved height from localStorage or use default
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -394,110 +364,105 @@ const Vault: React.FC<VaultProps> = ({
       }
     }
   }, []);
-  
+
   // Handle resize functionality
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (!isResizing) return;
-      
+
       // Calculate height based on mouse position
       const windowHeight = window.innerHeight;
       const mouseY = e.clientY;
-      
+
       // Convert to vh units (min 25vh, max 80vh)
       const newHeightVh = Math.min(Math.max(25, (windowHeight - mouseY) / windowHeight * 100), 80);
       setVaultHeight(newHeightVh);
     };
-    
+
     const handleMouseUp = () => {
       setIsResizing(false);
       document.body.classList.remove('resizing');
-      
+
       // Save height to localStorage
       if (typeof window !== 'undefined') {
         localStorage.setItem('vaultHeight', vaultHeight.toString());
       }
     };
-    
+
     if (isResizing) {
       document.addEventListener('mousemove', handleMouseMove);
       document.addEventListener('mouseup', handleMouseUp);
       document.body.classList.add('resizing');
     }
-    
+
     return () => {
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
       document.body.classList.remove('resizing');
     };
   }, [isResizing, vaultHeight]);
-  
+
   const startResizing = useCallback(() => {
     setIsResizing(true);
   }, []);
-  
+
+
+
   if (!isOpen) return null;
-  
+
   return (
-    <div 
-      className="fixed bottom-0 left-0 right-0 z-50 flex flex-col"
+    <div
+      className="fixed bottom-0 left-0 right-0 z-50 flex flex-col bg-[#1a1a1a]/95 backdrop-blur-md border-t border-white/10 shadow-[0_-4px_20px_rgba(0,0,0,0.5)] transition-all duration-300 ease-out"
       style={{
-        animation: isAnimatingOut ? 'slideDown 0.3s ease-out forwards' : 'slideUp 0.3s ease-out forwards',
         height: `${vaultHeight}vh`,
-        background: 'linear-gradient(to bottom, rgba(15, 15, 25, 0.98), rgba(25, 25, 35, 0.98))',
-        borderTop: '1px solid #7e57c2',
-        boxShadow: '0 -4px 12px rgba(0, 0, 0, 0.5)',
+        animation: isAnimatingOut ? 'slideDown 0.3s ease-out forwards' : 'slideUp 0.3s ease-out forwards',
       }}
     >
       {/* Resize Handle */}
-      <div 
+      <div
         ref={resizeRef}
-        className="absolute top-0 left-0 right-0 h-4 bg-transparent cursor-ns-resize z-10 transform -translate-y-full hover:opacity-100 group"
+        className="absolute top-0 left-0 right-0 h-3 bg-transparent cursor-ns-resize z-10 hover:bg-white/5 group flex items-center justify-center -translate-y-1/2"
         onMouseDown={startResizing}
       >
-        <div className="w-24 h-1.5 bg-purple-700 rounded-full opacity-40 group-hover:opacity-100 transition-opacity mx-auto flex items-center justify-center">
-          <div className="w-10 h-0.5 bg-white opacity-60 rounded-full mt-0.5"></div>
-        </div>
-        
+        <div className="w-16 h-1 bg-white/20 rounded-full group-hover:bg-purple-500/50 transition-colors shadow-sm"></div>
+
         {/* Height indicator when resizing */}
         {isResizing && (
-          <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-purple-800 text-white text-xs py-1 px-2 rounded shadow-lg">
+          <div className="absolute bottom-full mb-2 bg-black/80 text-white text-xs py-1 px-2 rounded-lg backdrop-blur-sm border border-white/10">
             {Math.round(vaultHeight)}%
           </div>
         )}
       </div>
-      
-      <div className="flex justify-between items-center border-b border-gray-700 bg-[rgba(30,30,40,0.5)] py-1">
-        <div className="flex items-center gap-1 ml-3">
-          <img 
-            src="./vault.svg" 
-            className="h-5 w-5 mr-1" 
-            alt="Vault" 
-          />
-          <h2 className="text-base font-medium">Vault</h2>
+
+      {/* Header */}
+      <div className="flex justify-between items-center border-b border-white/5 p-3 select-none">
+        <div className="flex items-center gap-3 ml-2">
+          <div className="p-1.5 bg-purple-500/10 rounded-lg border border-purple-500/20">
+            <img src="./vault.svg" className="h-5 w-5 opacity-80" alt="Vault" />
+          </div>
+          <h2 className="text-lg font-semibold text-white tracking-wide">Vault</h2>
         </div>
-        <div className="flex">
-          <button 
-            className={`px-3 py-0.5 mx-0.5 rounded transition-colors text-sm ${activeTab === 'weapons' ? 'bg-purple-800 text-white' : 'text-gray-300 hover:bg-gray-700'}`}
-            onClick={() => setActiveTab('weapons')}
-          >
-            Weapons ({processedItems.weapons.length})
-          </button>
-          <button 
-            className={`px-3 py-0.5 mx-0.5 rounded transition-colors text-sm ${activeTab === 'armor' ? 'bg-purple-800 text-white' : 'text-gray-300 hover:bg-gray-700'}`}
-            onClick={() => setActiveTab('armor')}
-          >
-            Armor ({processedItems.armor.length})
-          </button>
-          <button 
-            className={`px-3 py-0.5 mx-0.5 rounded transition-colors text-sm ${activeTab === 'misc' ? 'bg-purple-800 text-white' : 'text-gray-300 hover:bg-gray-700'}`}
-            onClick={() => setActiveTab('misc')}
-          >
-            Misc ({processedItems.misc.length})
-          </button>
+
+        <div className="flex bg-black/20 p-1 rounded-xl border border-white/5">
+          {(['weapons', 'armor', 'misc'] as const).map((tab) => (
+            <button
+              key={tab}
+              className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${activeTab === tab
+                ? 'bg-purple-600 text-white shadow-lg shadow-purple-900/20'
+                : 'text-gray-400 hover:text-white hover:bg-white/5'
+                }`}
+              onClick={() => setActiveTab(tab)}
+            >
+              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+              <span className={`ml-2 text-xs ${activeTab === tab ? 'text-purple-200' : 'text-gray-600'}`}>
+                {processedItems[tab].length}
+              </span>
+            </button>
+          ))}
         </div>
-        <button 
-          className="text-gray-400 hover:text-white transition-colors mr-3"
+
+        <button
+          className="p-2 text-gray-500 hover:text-white transition-colors rounded-full hover:bg-white/10 mr-1"
           onClick={handleClose}
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -505,33 +470,39 @@ const Vault: React.FC<VaultProps> = ({
           </svg>
         </button>
       </div>
-      
-      <div className="flex items-center p-1 bg-[rgba(25,25,35,0.5)] border-b border-gray-700">
+
+      {/* Filters Bar */}
+      <div className="flex items-center p-3 border-b border-white/5 bg-black/10 gap-3">
         <div className="flex-1"></div>
-        
+
         {activeTab === 'weapons' && (
           <>
-            <div className="relative weapon-type-filter mr-2">
+            {/* Type Filter */}
+            <div className="relative weapon-type-filter">
               <button
-                className="flex items-center gap-1 bg-[rgba(40,40,60,0.8)] px-3 py-1 rounded text-sm text-gray-200 hover:bg-[rgba(50,50,70,0.9)]"
+                className="flex items-center gap-2 bg-black/20 px-3 py-1.5 rounded-lg text-sm text-gray-300 hover:text-white hover:bg-white/5 border border-white/5 transition-colors"
                 onClick={(e) => {
                   e.stopPropagation();
                   setIsFilterDropdownOpen(!isFilterDropdownOpen);
                   setIsElementDropdownOpen(false);
                 }}
               >
-                <span>Type: {weaponTypeFilter === 'all' ? 'All Weapons' : weaponTypeFilter}</span>
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <span className="text-gray-500">Type:</span>
+                <span className="font-medium">{weaponTypeFilter === 'all' ? 'All' : weaponTypeFilter}</span>
+                <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 text-gray-500 transition-transform ${isFilterDropdownOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
-              
+
               {isFilterDropdownOpen && (
-                <div className="absolute right-0 top-full mt-1 bg-[rgba(30,30,40,0.95)] border border-gray-700 rounded shadow-lg z-10 max-h-64 overflow-y-auto">
+                <div className="absolute right-0 top-full mt-2 w-48 bg-[#1a1a1a] border border-white/10 rounded-xl shadow-xl z-20 max-h-64 overflow-y-auto custom-scrollbar">
                   {Object.entries(weaponTypes).map(([type, label]) => (
                     <button
                       key={type}
-                      className={`block w-full text-left px-4 py-2 text-sm hover:bg-[rgba(126,87,194,0.3)] ${weaponTypeFilter === type ? 'bg-[rgba(126,87,194,0.5)] text-white' : 'text-gray-200'}`}
+                      className={`block w-full text-left px-4 py-2 text-sm transition-colors ${weaponTypeFilter === type
+                        ? 'bg-purple-500/10 text-purple-300'
+                        : 'text-gray-400 hover:bg-white/5 hover:text-white'
+                        }`}
                       onClick={() => {
                         setWeaponTypeFilter(type);
                         setIsFilterDropdownOpen(false);
@@ -543,10 +514,11 @@ const Vault: React.FC<VaultProps> = ({
                 </div>
               )}
             </div>
-            
+
+            {/* Element Filter */}
             <div className="relative element-filter">
               <button
-                className="flex items-center gap-1 bg-[rgba(40,40,60,0.8)] px-3 py-1 rounded text-sm text-gray-200 hover:bg-[rgba(50,50,70,0.9)]"
+                className="flex items-center gap-2 bg-black/20 px-3 py-1.5 rounded-lg text-sm text-gray-300 hover:text-white hover:bg-white/5 border border-white/5 transition-colors"
                 onClick={(e) => {
                   e.stopPropagation();
                   setIsElementDropdownOpen(!isElementDropdownOpen);
@@ -554,22 +526,26 @@ const Vault: React.FC<VaultProps> = ({
                 }}
               >
                 {elementFilter !== 'all' && (
-                  <img 
-                    src={ELEMENT_ICONS[elementFilter as keyof typeof ELEMENT_ICONS]} 
-                    className="h-4 w-4 mr-1" 
+                  <img
+                    src={ELEMENT_ICONS[elementFilter as keyof typeof ELEMENT_ICONS]}
+                    className="h-4 w-4"
                     alt={elementFilter}
                   />
                 )}
-                <span>Element: {elementFilter === 'all' ? 'All' : elementFilter.charAt(0).toUpperCase() + elementFilter.slice(1)}</span>
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <span className="text-gray-500">Element:</span>
+                <span className="font-medium">{elementFilter === 'all' ? 'All' : elementFilter.charAt(0).toUpperCase() + elementFilter.slice(1)}</span>
+                <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 text-gray-500 transition-transform ${isElementDropdownOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
-              
+
               {isElementDropdownOpen && (
-                <div className="absolute right-0 top-full mt-1 bg-[rgba(30,30,40,0.95)] border border-gray-700 rounded shadow-lg z-10">
+                <div className="absolute right-0 top-full mt-2 w-40 bg-[#1a1a1a] border border-white/10 rounded-xl shadow-xl z-20">
                   <button
-                    className={`block w-full text-left px-4 py-2 text-sm hover:bg-[rgba(126,87,194,0.3)] ${elementFilter === 'all' ? 'bg-[rgba(126,87,194,0.5)] text-white' : 'text-gray-200'}`}
+                    className={`block w-full text-left px-4 py-2 text-sm transition-colors ${elementFilter === 'all'
+                      ? 'bg-purple-500/10 text-purple-300'
+                      : 'text-gray-400 hover:bg-white/5 hover:text-white'
+                      }`}
                     onClick={() => {
                       setElementFilter('all');
                       setIsElementDropdownOpen(false);
@@ -580,15 +556,18 @@ const Vault: React.FC<VaultProps> = ({
                   {Object.keys(ELEMENT_TYPES).map((element) => (
                     <button
                       key={element}
-                      className={`flex items-center w-full text-left px-4 py-2 text-sm hover:bg-[rgba(126,87,194,0.3)] ${elementFilter === element ? 'bg-[rgba(126,87,194,0.5)] text-white' : 'text-gray-200'}`}
+                      className={`flex items-center w-full text-left px-4 py-2 text-sm transition-colors ${elementFilter === element
+                        ? 'bg-purple-500/10 text-purple-300'
+                        : 'text-gray-400 hover:bg-white/5 hover:text-white'
+                        }`}
                       onClick={() => {
                         setElementFilter(element);
                         setIsElementDropdownOpen(false);
                       }}
                     >
-                      <img 
-                        src={ELEMENT_ICONS[element as keyof typeof ELEMENT_ICONS]} 
-                        className="h-4 w-4 mr-2" 
+                      <img
+                        src={ELEMENT_ICONS[element as keyof typeof ELEMENT_ICONS]}
+                        className="h-4 w-4 mr-2"
                         alt={element}
                       />
                       {element.charAt(0).toUpperCase() + element.slice(1)}
@@ -599,105 +578,130 @@ const Vault: React.FC<VaultProps> = ({
             </div>
           </>
         )}
-        
-        <div className="relative mx-3 w-56">
+
+        {/* Duplicates Toggle */}
+        <button
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm border transition-colors ${showDuplicates
+            ? 'bg-purple-500/20 text-purple-300 border-purple-500/30'
+            : 'bg-black/20 text-gray-400 border-white/5 hover:text-white hover:bg-white/5'
+            }`}
+          onClick={() => setShowDuplicates(!showDuplicates)}
+          title="Show Duplicates"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+          </svg>
+          <span className="hidden sm:inline">Duplicates</span>
+        </button>
+
+        {/* Search Input */}
+        <div className="relative w-64 group">
           <input
             type="text"
-            placeholder="Search items, perk:name"
+            placeholder="Search items, perk:name..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-[rgba(40,40,60,0.8)] text-gray-200 pl-9 pr-3 py-1 rounded text-sm border border-gray-700 focus:outline-none focus:border-purple-500"
+            className="w-full bg-black/20 text-white pl-10 pr-8 py-1.5 rounded-lg text-sm border border-white/5 focus:outline-none focus:border-purple-500/50 focus:bg-black/40 transition-all placeholder-gray-600"
           />
-          <svg 
-            xmlns="http://www.w3.org/2000/svg" 
-            className="h-4 w-4 absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-400" 
-            fill="none" 
-            viewBox="0 0 24 24" 
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 group-focus-within:text-purple-400 transition-colors"
+            fill="none"
+            viewBox="0 0 24 24"
             stroke="currentColor"
           >
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
           {searchQuery && (
-            <button 
-              className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
+            <button
+              className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-white p-0.5 rounded-full hover:bg-white/10"
               onClick={() => setSearchQuery("")}
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
           )}
         </div>
       </div>
-      
-      <div className="flex-1 overflow-y-auto overflow-x-hidden vault-items bg-[rgba(20,20,30,0.8)]" style={{ padding: 0, margin: 0 }}>
-        {filteredItems.length > 0 ? (
-          renderItems(filteredItems)
-        ) : (
-          <div className="flex items-center justify-center h-full">
-            <p className="text-gray-400">No items found in vault</p>
-          </div>
-        )}
+
+      {/* Items Grid */}
+      <div className="flex-1 overflow-hidden vault-items bg-black/20" style={{ padding: '8px' }}>
+        <div className="h-full overflow-y-auto custom-scrollbar p-2">
+          {filteredItems.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full text-gray-500 opacity-50">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+              </svg>
+              <p>No items match the current filter</p>
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-2 justify-center content-start">
+              {filteredItems.map((item, index) => (
+                <div
+                  key={item.itemInstance.itemInstanceId || `${item.item.hash}-${index}`}
+                  className="aspect-square cursor-pointer hover:z-10 hover:scale-110 transition-all duration-200 relative group shadow-lg hover:shadow-purple-500/20 border border-transparent hover:border-white/20"
+                  style={{ width: 56, height: 56 }}
+                  onDoubleClick={() => handleTransfer(item)}
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, item)}
+                >
+                  <div className="w-full h-full flex items-center justify-center bg-black/20">
+                    <Item
+                      itemHash={item.item.hash}
+                      itemInstanceId={item.itemInstance.itemInstanceId}
+                      ornamentItem={item.ornamentItem}
+                      state={item.state}
+                      perks={item.perks || {}}
+                      stats={item.stats || {}}
+                      characterId={characterId}
+                      armor={item.item.equippingBlock ? ITEM_TYPES.ARMOR.includes(item.item.equippingBlock?.equipmentSlotTypeHash) : false}
+                      quantity={item.itemInstance.quantity || 1}
+                      size={56}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
-      
+
       <style jsx>{`
         @keyframes slideUp {
-          from {
-            transform: translateY(100%);
-          }
-          to {
-            transform: translateY(0);
-          }
+          from { transform: translateY(100%); }
+          to { transform: translateY(0); }
         }
         
         @keyframes slideDown {
-          from {
-            transform: translateY(0);
-          }
-          to {
-            transform: translateY(100%);
-          }
+          from { transform: translateY(0); }
+          to { transform: translateY(100%); }
         }
         
-        /* Style for when resizing is active */
         body.resizing {
           cursor: ns-resize;
           user-select: none;
         }
         
-        /* Apply scrollbar styles to both vault items and dropdowns */
-        .vault-items::-webkit-scrollbar,
         .custom-scrollbar::-webkit-scrollbar {
-          width: 4px;
-          position: absolute;
-          right: 0;
+          width: 6px;
         }
         
-        .vault-items::-webkit-scrollbar-track,
         .custom-scrollbar::-webkit-scrollbar-track {
-          background: rgba(20, 20, 30, 0.5);
+          background: rgba(0, 0, 0, 0.2);
         }
         
-        .vault-items::-webkit-scrollbar-thumb,
         .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: rgba(126, 87, 194, 0.5);
-          border-radius: 2px;
-          transition: background 0.3s ease;
+          background: rgba(255, 255, 255, 0.1);
+          border-radius: 3px;
         }
         
-        .vault-items::-webkit-scrollbar-thumb:hover,
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: rgba(126, 87, 194, 0.8);
-        }
-        
-        .vault-items,
-        .custom-scrollbar {
-          scrollbar-width: thin;
-          scrollbar-color: rgba(126, 87, 194, 0.5) rgba(20, 20, 30, 0.5);
+          background: rgba(255, 255, 255, 0.2);
         }
       `}</style>
-    </div>
+    </div >
   );
 };
 
-export default Vault; 
+export default Vault;

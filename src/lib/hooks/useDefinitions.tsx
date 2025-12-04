@@ -24,11 +24,15 @@ export interface ItemDefinition {
         ammoType: number
     }
     flavorText: string
-    itemCategoryHashes: number []
+    itemCategoryHashes: number[]
     itemType: number
     itemSubType: number
     defaultDamageType: number
     hash: number
+    perks: {
+        perkHash: number
+        perkVisibility: number
+    }[]
 }
 
 export interface ClassDefinition {
@@ -95,17 +99,17 @@ export interface SeasonDefinition {
     hash: number
 }
 
-export interface ItemDefinitions extends Record<string, ItemDefinition> {}
-export interface ClassDefinitions extends Record<string, ClassDefinition> {}
-export interface StatsDefinitions extends Record<string, StatsDefinition> {}
-export interface PerksDefinitions extends Record<string, PerkDefinition> {}
-export interface RecordsDefinitions extends Record<string, RecordDefinition> {}
-export interface LoadoutColorDefinitions extends Record<string, LoadoutColorDefinition> {}
-export interface LoadoutIconDefinitions extends Record<string, LoadoutIconDefinition> {}
-export interface RaceDefinitions extends Record<string, RaceDefinition> {}
-export interface BucketDefinitions extends Record<string, RaceDefinition> {}
-export interface ItemConstantsDefinitions extends Record<string, ItemConstantsDefinition> {}
-export interface SeasonDefinitions extends Record<string, SeasonDefinition> {}
+export interface ItemDefinitions extends Record<string, ItemDefinition> { }
+export interface ClassDefinitions extends Record<string, ClassDefinition> { }
+export interface StatsDefinitions extends Record<string, StatsDefinition> { }
+export interface PerksDefinitions extends Record<string, PerkDefinition> { }
+export interface RecordsDefinitions extends Record<string, RecordDefinition> { }
+export interface LoadoutColorDefinitions extends Record<string, LoadoutColorDefinition> { }
+export interface LoadoutIconDefinitions extends Record<string, LoadoutIconDefinition> { }
+export interface RaceDefinitions extends Record<string, RaceDefinition> { }
+export interface BucketDefinitions extends Record<string, RaceDefinition> { }
+export interface ItemConstantsDefinitions extends Record<string, ItemConstantsDefinition> { }
+export interface SeasonDefinitions extends Record<string, SeasonDefinition> { }
 
 interface Definitions {
     loadingDefinitions: boolean
@@ -124,7 +128,7 @@ interface Definitions {
 
 const DefinitionsContext = createContext<Definitions | undefined>(undefined)
 
-export const DefinitionsProvider = ({children}: { children: ReactNode }) => {
+export const DefinitionsProvider = ({ children }: { children: ReactNode }) => {
 
     const [loading, setLoading] = useState(true)
     const [itemDefinitions, setItemDefinitions] = useState<ItemDefinitions>({})
@@ -140,7 +144,7 @@ export const DefinitionsProvider = ({children}: { children: ReactNode }) => {
     const [seasonDefinitions, setSeasonDefinitions] = useState<SeasonDefinitions>({})
     useEffect(() => {
         const fetchDefinitions = async () => {
-            if(!loading) return;
+            if (!loading) return;
             const db = await getDefinitions(localStorage.getItem("locale") ?? "en")
             setItemDefinitions(db.DestinyInventoryItemDefinition)
             setClassDefinitions(db.DestinyClassDefinition)
@@ -159,8 +163,8 @@ export const DefinitionsProvider = ({children}: { children: ReactNode }) => {
     }, [])
 
     const contextValue = useMemo(() => ({
-        loadingDefinitions: loading, 
-        itemDefinitions, 
+        loadingDefinitions: loading,
+        itemDefinitions,
         classDefinitions,
         statsDefinitions,
         perksDefinitions,
@@ -174,7 +178,7 @@ export const DefinitionsProvider = ({children}: { children: ReactNode }) => {
     }), [loading, itemDefinitions, classDefinitions, statsDefinitions, perksDefinitions, recordsDefinitions, loadoutColorDefinitions, loadoutIconDefinitions, raceDefinitions, bucketDefinitions, itemConstantsDefinitions]);
 
     return (
-        <DefinitionsContext.Provider  
+        <DefinitionsContext.Provider
             value={contextValue}>
             {children}
         </DefinitionsContext.Provider>
@@ -185,6 +189,6 @@ export const useDefinitions = () => {
     const context = useContext(DefinitionsContext)
     if (context === undefined) {
         throw new Error('useDefinitions must be used within a DefinitionsProvider');
-      }
-      return context;
+    }
+    return context;
 }

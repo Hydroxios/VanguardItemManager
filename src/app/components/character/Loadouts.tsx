@@ -13,6 +13,7 @@ import { useNotifications } from "@/app/components/NotificationsProvider";
 import { useDefinitions } from "@/lib/hooks/useDefinitions";
 import useAuth from "@/lib/hooks/useAuth";
 import { Item, Loadout, useProfile } from "@/lib/hooks/useProfile";
+import LoadoutViewerModal from "./LoadoutViewerModal";
 
 interface LoadoutsProps {
   characterId: string;
@@ -28,6 +29,7 @@ const Loadouts = ({
   const [loadoutToDelete, setLoadoutToDelete] = useState<number | null>(null);
   const [equipingLoadout, setEquipingLoadout] = useState<Loadout | null>(null)
   const [equipedItemIds, setEquipedItemIds] = useState<string[]>([]);
+  const [viewingLoadoutIndex, setViewingLoadoutIndex] = useState<number | null>(null);
 
   const { addNotification } = useNotifications()
   const { itemDefinitions, loadoutColorDefinitions, loadoutIconDefinitions } = useDefinitions()
@@ -41,8 +43,9 @@ const Loadouts = ({
     refresh,
     characterEquipment,
     setCharacterEquipment,
-    setCharacterInventory
-    
+    setCharacterInventory,
+    moveItem,
+    equipLoadoutLocally
   } = useProfile()
 
   useEffect(() => {
@@ -91,7 +94,9 @@ const Loadouts = ({
           // Si l'item est sur un autre perso
           if (itemInstance.transferStatus === 0) {
             await transferItem(token as string, user.membershipType, itemInstance.itemHash, loadoutItem.itemInstanceId, itemCharId, true);
+            moveItem(itemInstance.itemHash, loadoutItem.itemInstanceId, itemCharId, "vault", 1);
             await transferItem(token as string, user.membershipType, itemInstance.itemHash, loadoutItem.itemInstanceId, characterId, false);
+            moveItem(itemInstance.itemHash, loadoutItem.itemInstanceId, "vault", characterId, 1);
             setEquipedItemIds(prev => [...prev, loadoutItem.itemInstanceId]);
           } else if (itemInstance.transferStatus === 1) {
             // Non transférable, il faudra le déséquiper
@@ -100,6 +105,7 @@ const Loadouts = ({
         } else {
           // L'item n'est pas sur un perso (peut-être dans le coffre)
           await transferItem(token as string, user.membershipType, itemInstance.itemHash, loadoutItem.itemInstanceId, characterId, false);
+          moveItem(itemInstance.itemHash, loadoutItem.itemInstanceId, "vault", characterId, 1);
           setEquipedItemIds(prev => [...prev, loadoutItem.itemInstanceId]);
         }
       } else {
@@ -108,7 +114,7 @@ const Loadouts = ({
     }
 
     // Déséquipement si besoin
-    const characters: Record<string, {items: Item[];}> = {};
+    const characters: Record<string, { items: Item[]; }> = {};
     for (let index = 0; index < itemToDesequip.length; index++) {
       const { item, characterId: itemCharId } = itemToDesequip[index];
       if (!characters[itemCharId]) {
@@ -133,36 +139,22 @@ const Loadouts = ({
       if (validItem) {
         await equipItem(token as string, user.membershipType, itemCharId, validItem.itemInstanceId);
         await transferItem(token as string, user.membershipType, item.itemHash, item.itemInstanceId, itemCharId, true);
+        moveItem(item.itemHash, item.itemInstanceId, itemCharId, "vault", 1);
         await transferItem(token as string, user.membershipType, item.itemHash, item.itemInstanceId, characterId, false);
+        moveItem(item.itemHash, item.itemInstanceId, "vault", characterId, 1);
         setEquipedItemIds(prev => [...prev, item.itemInstanceId]);
       }
     }
 
     await equipLoadout(token as string, user.membershipType, characterId, index);
-    // Mise à jour locale immédiate de l'équipement
-    setCharacterEquipment(
-      characterId,
-      l.items.map(i => {
-        const found = itemMap[i.itemInstanceId];
-        return found
-          ? found.item
-          : {
-              itemInstanceId: i.itemInstanceId,
-              itemHash: 0,
-              bucketHash: 0,
-              overrideStyleItemHash: 0,
-              location: 0,
-              quantity: 1,
-              state: 0,
-              transferStatus: 0
-            };
-      })
-    );
-    // Met à jour l'inventaire local pour retirer les items équipés
-    const currentInventory = characterInventories[characterId]?.items || [];
-    const equippedIds = new Set(l.items.map(i => i.itemInstanceId));
-    const filteredInventory = currentInventory.filter(item => !equippedIds.has(item.itemInstanceId));
-    setCharacterInventory(characterId, filteredInventory);
+
+    // Use the new centralized local equip function
+    const loadoutItems = l.items
+      .map(i => itemMap[i.itemInstanceId]?.item)
+      .filter((item): item is Item => item !== undefined);
+
+    equipLoadoutLocally(characterId, loadoutItems);
+
     const icon = loadoutIconDefinitions[l.iconHash];
     addNotification("Succesfully equiped your loadout!", "", "success", "https://www.bungie.net" + icon.iconImagePath, 5000);
     setOnCooldown(() => false);
@@ -174,7 +166,7 @@ const Loadouts = ({
     e.stopPropagation();
     setIsContextMenuOpen(isContextMenuOpen === index ? null : index);
   };
-  
+
   // Function to show clear confirmation
   const handleClearConfirm = (index: number) => {
     setLoadoutToDelete(index);
@@ -185,7 +177,7 @@ const Loadouts = ({
   // Function to clear a loadout
   const handleClearLoadout = async () => {
     if (loadoutToDelete === null) return;
-    
+
     try {
       await clearLoadout(
         token as string,
@@ -193,13 +185,13 @@ const Loadouts = ({
         characterId,
         loadoutToDelete
       );
-      
+
       // Show success notification
-      const icon = characterLoadouts[characterId].loadouts[loadoutToDelete].iconHash && loadoutIconDefinitions[characterLoadouts[characterId].loadouts[loadoutToDelete].iconHash] ? 
+      const icon = characterLoadouts[characterId].loadouts[loadoutToDelete].iconHash && loadoutIconDefinitions[characterLoadouts[characterId].loadouts[loadoutToDelete].iconHash] ?
         `https://www.bungie.net${loadoutIconDefinitions[characterLoadouts[characterId].loadouts[loadoutToDelete].iconHash].iconImagePath}` : "";
-      
+
       addNotification("Loadout cleared", "", "success", icon, 5000);
-      
+
       // Refresh character data
       await refresh();
     } catch (error: any) {
@@ -222,13 +214,13 @@ const Loadouts = ({
             clickedInsideMenu = true;
           }
         });
-        
+
         if (!clickedInsideMenu) {
           setIsContextMenuOpen(null);
         }
       }
     };
-    
+
     document.addEventListener('click', handleClickOutside);
     return () => {
       document.removeEventListener('click', handleClickOutside);
@@ -248,23 +240,23 @@ const Loadouts = ({
                 {equipingLoadout.items.map((i, idx) => {
                   // Cherche l'item complet dans characterInventories ET characterEquipment
                   const allInventoryItems = Object.values(characterInventories).flatMap(inv => inv.items);
-                  const allEquipmentItems = Object.values(characterEquipment).flatMap((eq: {items: Item[]}) => eq.items);
+                  const allEquipmentItems = Object.values(characterEquipment).flatMap((eq: { items: Item[] }) => eq.items);
                   const allItems = [...allInventoryItems, ...allEquipmentItems];
                   const fullItem = allItems.find(it => it.itemInstanceId === i.itemInstanceId);
                   const def = fullItem ? itemDefinitions[fullItem.itemHash] : undefined;
                   const isEquipped = equipedItemIds.includes(i.itemInstanceId);
                   return (
-                    <div key={i.itemInstanceId || idx} className={`relative flex items-center justify-center ${isEquipped ? 'border-2 border-green-500' : ''}`} style={{width: 56, height: 56}}>
+                    <div key={i.itemInstanceId || idx} className={`relative flex items-center justify-center ${isEquipped ? 'border-2 border-green-500' : ''}`} style={{ width: 56, height: 56 }}>
                       {def?.displayProperties?.icon && (
                         <img
                           src={`https://www.bungie.net${def.displayProperties.icon}`}
                           alt={def.displayProperties.name}
                           className={`w-14 h-14 ${isEquipped ? '' : 'brightness-50'}`}
-                          style={{objectFit: 'contain'}}
+                          style={{ objectFit: 'contain' }}
                         />
                       )}
                       {isEquipped && (
-                        <span className="absolute right-0 bottom-0 flex items-center justify-center" style={{width: 20, height: 14, pointerEvents: 'none'}}>
+                        <span className="absolute right-0 bottom-0 flex items-center justify-center" style={{ width: 20, height: 14, pointerEvents: 'none' }}>
                           <svg className="w-5 h-3.5 text-white drop-shadow" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                           </svg>
@@ -277,7 +269,7 @@ const Loadouts = ({
             )}
           </div>
         )}
-        <div className={`grid grid-cols-2 grid-rows-6 gap-1 p-4 fixed left-5 top-1/2 transform -translate-y-1/2 ${onCooldown ? 'grayscale' : ''}`}> 
+        <div className={`grid grid-cols-2 grid-rows-6 gap-1 p-4 fixed left-5 top-1/2 transform -translate-y-1/2 ${onCooldown ? 'grayscale' : ''}`}>
           {elements &&
             elements.map((element: any, index: number) => (
               <div
@@ -318,9 +310,9 @@ const Loadouts = ({
                             width={48}
                             style={{ position: "absolute", top: 0, left: 0 }}
                           />
-                          
+
                           {isContextMenuOpen === index && (
-                            <div 
+                            <div
                               className="loadout-context-menu absolute top-[-8px] left-full ml-2 z-20 bg-[#1a1a2e] border border-[#7e57c2] rounded-md shadow-lg overflow-hidden min-w-40 animate-fade-in"
                               onClick={(e) => e.stopPropagation()}
                               style={{
@@ -332,7 +324,7 @@ const Loadouts = ({
                                 Loadout Options
                               </div>
                               <div className="py-1">
-                                <button 
+                                <button
                                   className="flex items-center w-full text-left px-3 py-2 text-sm text-white hover:bg-[#3a3a50] transition-colors"
                                   onClick={() => handleEquip(index)}
                                 >
@@ -342,7 +334,21 @@ const Loadouts = ({
                                   Equip
                                 </button>
                                 <div className="border-t border-gray-700 my-1"></div>
-                                <button 
+                                <button
+                                  className="flex items-center w-full text-left px-3 py-2 text-sm text-blue-400 hover:bg-[#3a3a50] transition-colors"
+                                  onClick={() => {
+                                    setViewingLoadoutIndex(index);
+                                    setIsContextMenuOpen(null);
+                                  }}
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                  </svg>
+                                  View
+                                </button>
+                                <div className="border-t border-gray-700 my-1"></div>
+                                <button
                                   className="flex items-center w-full text-left px-3 py-2 text-sm text-red-400 hover:bg-[#3a3a50] transition-colors"
                                   onClick={() => handleClearConfirm(index)}
                                 >
@@ -356,11 +362,8 @@ const Loadouts = ({
                           )}
                         </>
                       ) : (
-                        <div 
-                          className="relative cursor-pointer bg-[#5a5a5a] bg-opacity-45 hover:bg-opacity-30" 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                          }}
+                        <div
+                          className="relative cursor-not-allowed bg-[#5a5a5a] bg-opacity-45 hover:bg-opacity-30"
                         >
                           <img
                             src={"./new_loadout.svg"}
@@ -394,12 +397,12 @@ const Loadouts = ({
                 </svg>
               </button>
             </div>
-            
+
             <div className="mb-6">
               <p className="text-gray-300 mb-4">
                 Are you sure you want to clear this loadout? This will remove all items from this loadout.
               </p>
-              
+
               <div className="flex items-center justify-center mb-4">
                 {characterLoadouts[characterId].loadouts[loadoutToDelete].colorHash && (
                   <div className="relative size-[64px]">
@@ -422,7 +425,7 @@ const Loadouts = ({
                 )}
               </div>
             </div>
-            
+
             <div className="flex justify-end gap-2">
               <button
                 onClick={() => setShowDeleteConfirm(false)}
@@ -440,6 +443,13 @@ const Loadouts = ({
           </div>
         </div>
       )}
+
+      <LoadoutViewerModal
+        open={viewingLoadoutIndex !== null}
+        onClose={() => setViewingLoadoutIndex(null)}
+        loadout={viewingLoadoutIndex !== null ? characterLoadouts[characterId].loadouts[viewingLoadoutIndex] : null}
+        characterId={characterId}
+      />
     </>
   );
 };

@@ -21,7 +21,7 @@ import { useDebug } from "../debug/DebugProvider";
 import DestinyIcon from "../destiny-ui/DestinyIcon";
 import SearchBar from "../inputs/SearchBar";
 import { useItemTooltip } from "@/lib/hooks/useItemTooltip";
-import CharacterHeader from "@/app/components/character/CharacterHeader";
+import CharacterHeader from "./header/CharacterHeader";
 
 interface CharacterViewProps {
   characterId: string;
@@ -78,8 +78,9 @@ const CharacterView: React.FC<CharacterViewProps> = ({
   const [characterTitle, setCharacterTitle] = useState<string>("");
   const [isVaultOpen, setIsVaultOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false)
-  const { addNotification } = useNotifications();
+  const { addNotification, updateNotification } = useNotifications();
   const [isVimMenuOpen, setIsVimMenuOpen] = useState(false);
+  const [isEmblemSelectorOpen, setIsEmblemSelectorOpen] = useState(false);
   const [currentLocale, setCurrentLocale] = useState<string>("en");
   const vimMenuRef = useRef<HTMLDivElement>(null);
 
@@ -98,9 +99,12 @@ const CharacterView: React.FC<CharacterViewProps> = ({
     itemComponents,
     profileCurrencies,
     refresh,
+    moveItem,
+    equipItemLocally,
+    transferEquippedItem
   } = useProfile();
 
-  const { hideTooltip} = useItemTooltip();
+  const { hideTooltip } = useItemTooltip();
 
   // Toggle equipment section open/closed
   const toggleEquipmentSection = useCallback(
@@ -126,36 +130,7 @@ const CharacterView: React.FC<CharacterViewProps> = ({
       ornamentItem: any,
       hash: number
     ) => {
-      setEquipment((prev) => {
-        const currentEquipment = prev[section].current;
-        const newInventory = prev[section].inventory.filter(
-          (p) => p.itemInstanceId !== itemInstanceId
-        );
-
-        if (currentEquipment) {
-          newInventory.push(currentEquipment);
-        }
-
-        return {
-          ...prev,
-          [section]: {
-            ...prev[section],
-            current: {
-              item,
-              itemInstanceId: itemInstanceId,
-              ornamentItem,
-              perks: itemComponents.perks[itemInstanceId],
-              stats: itemComponents.stats[itemInstanceId],
-              state,
-              hash
-            },
-            inventory: newInventory,
-          },
-        };
-      });
-
-      // Return a resolved promise to match the expected type
-      return Promise.resolve();
+      equipItemLocally(characterId, itemInstanceId);
     },
     []
   );
@@ -170,19 +145,34 @@ const CharacterView: React.FC<CharacterViewProps> = ({
         data = data.replace("st:", "");
         const args = data.split(":");
 
+        const notificationId = addNotification(
+          "Transferring item...",
+          itemDefinitions[args[0]].displayProperties.name,
+          "info",
+          "",
+          3000,
+          true
+        );
+
         try {
           if (args.length > 2) {
             // Item is being transferred from another character
             // args[0] = itemHash, args[1] = itemInstanceId, args[2] = sourceCharacterId
-            await safeTransferItem(
+            const replacementItem = await safeTransferItem(
               token as string,
               user.membershipType,
               Number.parseInt(args[0]),
               args[1],
               args[2],
               characterId,
-              user.membershipId
+              user.membershipId,
+              itemDefinitions
             );
+            if (replacementItem) {
+              transferEquippedItem(Number.parseInt(args[0]), args[1], args[2], characterId, replacementItem.itemInstanceId);
+            } else {
+              moveItem(Number.parseInt(args[0]), args[1], args[2], characterId, 1);
+            }
           } else {
             // Item is being transferred from vault to character
             await transferItem(
@@ -193,24 +183,32 @@ const CharacterView: React.FC<CharacterViewProps> = ({
               characterId,
               false
             );
+            moveItem(Number.parseInt(args[0]), args[1], "vault", characterId, 1);
           }
-          await refresh();
+          // await refresh();
+          updateNotification(
+            notificationId,
+            "Item transferred",
+            itemDefinitions[args[0]].displayProperties.name,
+            "success",
+            `https://www.bungie.net${itemDefinitions[args[0]]?.displayProperties?.icon || ""}`,
+            5000,
+            false
+          );
         } catch (err: any) {
-          addNotification(
-            `Error while transferring ${
-              itemDefinitions[args[0]].displayProperties?.name || "item"
-            }!`,
+          updateNotification(
+            notificationId,
+            `Error while transferring ${itemDefinitions[args[0]].displayProperties?.name || "item"}!`,
             err.message,
             "error",
-            `https://www.bungie.net${
-              itemDefinitions[args[0]]?.displayProperties?.icon || ""
-            }`,
-            5000
+            `https://www.bungie.net${itemDefinitions[args[0]]?.displayProperties?.icon || ""}`,
+            5000,
+            false
           );
         }
       }
     },
-    [characterId, addNotification, refresh]
+    [characterId, addNotification, updateNotification, refresh]
   );
 
   // Handle vault drop
@@ -221,31 +219,55 @@ const CharacterView: React.FC<CharacterViewProps> = ({
       const hash = infos[0];
       const itemInstanceId = infos[1];
 
+      const notificationId = addNotification(
+        "Transferring to vault...",
+        itemDefinitions[hash].displayProperties.name,
+        "info",
+        "",
+        3000,
+        true
+      );
+
       try {
         // Transfer to vault
-        await safeTransferItem(
+        const replacementItem = await safeTransferItem(
           token as string,
           user.membershipType,
           Number.parseInt(hash),
           itemInstanceId,
           characterId,
           "vault",
-          user.membershipId
+          user.membershipId,
+          itemDefinitions
         );
-        await refresh();
+        if (replacementItem) {
+          transferEquippedItem(Number.parseInt(hash), itemInstanceId, characterId, "vault", replacementItem.itemInstanceId);
+        } else {
+          moveItem(Number.parseInt(hash), itemInstanceId, characterId, "vault", 1);
+        }
+        // await refresh();
+        updateNotification(
+          notificationId,
+          "Item transferred to vault",
+          itemDefinitions[hash].displayProperties.name,
+          "success",
+          `https://www.bungie.net${itemDefinitions[hash]?.displayProperties?.icon || ""}`,
+          5000,
+          false
+        );
       } catch (err: any) {
-        addNotification(
+        updateNotification(
+          notificationId,
           `Error while transferring to vault!`,
           err.message,
           "error",
-          `https://www.bungie.net${
-            itemDefinitions[hash]?.displayProperties?.icon || ""
-          }`,
-          5000
+          `https://www.bungie.net${itemDefinitions[hash]?.displayProperties?.icon || ""}`,
+          5000,
+          false
         );
       }
     },
-    [characterId, addNotification, refresh]
+    [characterId, addNotification, updateNotification, refresh]
   );
 
   // Handle drag over
@@ -331,7 +353,7 @@ const CharacterView: React.FC<CharacterViewProps> = ({
       }
     });
 
-  
+
     // Process inventory items
     characterInventories[characterId].items.forEach((item) => {
       if (item.itemInstanceId && item.location === 1) {
@@ -340,7 +362,7 @@ const CharacterView: React.FC<CharacterViewProps> = ({
 
         if (i.equippingBlock) {
           const slotHash = i.equippingBlock.equipmentSlotTypeHash;
-          const inventoryItem :InventoryItem = {
+          const inventoryItem: InventoryItem = {
             item: i,
             itemInstanceId: item.itemInstanceId,
             ornamentItem,
@@ -450,7 +472,7 @@ const CharacterView: React.FC<CharacterViewProps> = ({
         const titleText =
           record.titleInfo.titlesByGenderHash[genderHash] ||
           record.titleInfo.titlesByGenderHash[
-            Object.keys(record.titleInfo.titlesByGenderHash)[0]
+          Object.keys(record.titleInfo.titlesByGenderHash)[0]
           ];
 
         setCharacterTitle(titleText || "");
@@ -458,12 +480,11 @@ const CharacterView: React.FC<CharacterViewProps> = ({
     }
 
     const intervalId = setInterval(() => {
-      console.log(Date.now() - lastUpdate)
-      if(Date.now() - lastUpdate >= 3600 * 1000){ 
+      if (Date.now() - lastUpdate >= 3600 * 1000) {
         refreshUserToken()
       }
       refresh();
-    }, 60000);
+    }, 3 * 60 * 1000);
 
     return () => clearInterval(intervalId);
   }, [initializeData, characters, characterId, recordsDefinitions, lastUpdate, refreshUserToken, refresh]);
@@ -498,23 +519,23 @@ const CharacterView: React.FC<CharacterViewProps> = ({
     document.addEventListener("mousedown", handleClickOutside);
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        if(isVaultOpen){
+        if (isVaultOpen) {
           setIsVaultOpen(false)
-        } else if(searchOpen){
+        } else if (searchOpen) {
           setSearchOpen(false)
         } else {
           hideTooltip();
           changeCharacter(undefined)
         }
       }
-      if(e.key === "z" && !isVaultOpen && !searchOpen){
+      if (e.key === "z" && !isVaultOpen && !searchOpen) {
         setIsVaultOpen(true)
         hideTooltip();
       }
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
-      if(e.key === "s" && !searchOpen && !isVaultOpen){
+      if (e.key === "s" && !searchOpen && !isVaultOpen) {
         setSearchOpen(true)
         hideTooltip();
       }
@@ -553,14 +574,14 @@ const CharacterView: React.FC<CharacterViewProps> = ({
             onEquip={
               isWeapon
                 ? async (item, itemInstanceId, state, hash, ornamentItem) =>
-                    await handleEquip(
-                      section,
-                      item,
-                      itemInstanceId,
-                      state,
-                      hash,
-                      ornamentItem
-                    )
+                  await handleEquip(
+                    section,
+                    item,
+                    itemInstanceId,
+                    state,
+                    hash,
+                    ornamentItem
+                  )
                 : undefined
             }
             characterId={characterId}
@@ -580,14 +601,19 @@ const CharacterView: React.FC<CharacterViewProps> = ({
     },
     [equipment, toggleEquipmentSection, handleEquip]
   );
- 
+
   return (
     <div className="mx-auto" onDrop={handleDrop} onDragOver={handleDragOver}>
       <div className="flex flex-row gap-2 items-center fixed right-[15px] top-[80px] z-[50] hover:shadow-lg">
         {currenciesData?.length > 0 && <Currencies currencies={currenciesData} />}
       </div>
 
-      <CharacterHeader characterId={characterId} changeCharacter={changeCharacter} toggleSearch={() => setSearchOpen(!searchOpen)} onOpenSettings={onOpenSettings} />
+      <CharacterHeader
+        characterId={characterId}
+        changeCharacter={changeCharacter}
+        toggleSearch={() => setSearchOpen(!searchOpen)}
+        onOpenSettings={onOpenSettings}
+      />
 
       {/* Display Engrams at the top center fixed position */}
       <div className="fixed bottom-[100px] right-1/2 translate-x-1/2 flex justify-center z-50">
@@ -659,7 +685,7 @@ const CharacterView: React.FC<CharacterViewProps> = ({
         refresh={refresh}
       />
 
-      <SearchBar open={searchOpen} currentCharacterId={characterId} onClose={() => setSearchOpen(false)}/>
+      <SearchBar open={searchOpen} currentCharacterId={characterId} onClose={() => setSearchOpen(false)} />
 
       {/* Add bottom margin to prevent footer overlap */}
       <div className="pb-16"></div>
@@ -678,21 +704,21 @@ const CharacterView: React.FC<CharacterViewProps> = ({
             onDragOver={handleDragOver}
             onClick={() => setIsVaultOpen(!isVaultOpen)}
           >
-            <DestinyIcon icon=""/>
-            Vault 
+            <DestinyIcon icon="" />
+            Vault
           </button>
           <button
             className="flex flex-row items-center gap-2 p-2 hover:shadow-lg hover:bg-gray-300/10 transition-all duration-300"
             onClick={() => setSearchOpen(!searchOpen)}
           >
-            <DestinyIcon icon=""/>
+            <DestinyIcon icon="" />
             Search
           </button>
           <button
             className="flex flex-row items-center gap-2 p-2 hover:shadow-lg hover:bg-gray-300/10 transition-all duration-300"
             onClick={() => changeCharacter(undefined)}
           >
-            <DestinyIcon icon=""/>
+            <DestinyIcon icon="" />
             Back
           </button>
         </div>

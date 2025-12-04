@@ -1,15 +1,14 @@
 "use client";
 
+import "./loading.css";
 import { getGlobalAlerts } from "@/lib/bungie";
 import { useEffect, useState } from "react";
 import CharacterSelector from "./CharacterSelector";
 import CharacterView from "@/app/components/character/CharacterView";
-import "./loading.css";
 import { useDebug } from "@/app/components/debug/DebugProvider";
 import { useDefinitions } from "@/lib/hooks/useDefinitions";
 import { useProfile } from "@/lib/hooks/useProfile";
 import { useItemTooltip } from "@/lib/hooks/useItemTooltip";
-import DestinyCheckBox from "./destiny-ui/DestinyCheckbox";
 import LoadingStatus from "./LoadingStatus";
 import SettingsModal from "./SettingsModal";
 
@@ -27,14 +26,15 @@ const AppView = () => {
 
   const [alerts, setAlerts] = useState<Alert[]>([]);
 
-  const {debugMode, handleDebugModeChange} = useDebug()
+  const { debugMode, handleDebugModeChange } = useDebug()
 
   const { loadingDefinitions } = useDefinitions()
-  const { loadingProfile, user } = useProfile()
+  const { loadingProfile, user, profile } = useProfile()
   const { keepOpen, setKeepOpen } = useItemTooltip()
   const [settingsOpen, setSettingsOpen] = useState(false);
+
   const init = async () => {
-    const alerts: any[] = await getGlobalAlerts();
+    const alerts: Alert[] = await getGlobalAlerts();
     setAlerts(alerts);
   };
 
@@ -61,16 +61,23 @@ const AppView = () => {
             ) : (
               <>
                 <div className="p-10">
-                  <h2>{user && "Welcome " + user.uniqueName}</h2>
-                  <br />
-                  <h4>Select Your Character</h4>
+                  <div className="flex flex-col items-center">
+                    <img src="./vanguard.svg" height={128} width={128} alt="Vanguard Item Manager logo" />
+                    <span className="text-white text-xl font-bold">
+                      Welcome {profile.userInfo?.displayName}
+                      <span className="text-cyan-300">
+                        #{profile.userInfo?.bungieGlobalDisplayNameCode}
+                      </span>
+                    </span>
+                    <h4>Select Your Character</h4>
+                  </div>
                 </div>
                 <div className="p-10">
-                    <CharacterSelector
-                      onSelectCharacter={(charId) => {
-                        setCurrentCharacter(charId);
-                      }}
-                    />
+                  <CharacterSelector
+                    onSelectCharacter={(charId) => {
+                      setCurrentCharacter(charId);
+                    }}
+                  />
                 </div>
               </>
             )}

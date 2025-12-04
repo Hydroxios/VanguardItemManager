@@ -15,13 +15,13 @@ const Postmaster: React.FC<PostmasterProps> = ({
   characterId,
   refresh,
 }) => {
-  const { addNotification } = useNotifications();
+  const { addNotification, updateNotification } = useNotifications();
   const [isCollapsed, setIsCollapsed] = useState(true);
   const [isCollectingAll, setIsCollectingAll] = useState(false);
 
   const { token } = useAuth()
   const { itemDefinitions } = useDefinitions()
-  const { user, characterInventories } = useProfile()
+  const { user, characterInventories, moveItem } = useProfile()
   const { showTooltip, tooltipState } = useItemTooltip()
 
   // Filter for postmaster items from the current character's inventory
@@ -37,6 +37,19 @@ const Postmaster: React.FC<PostmasterProps> = ({
 
   // Collect from postmaster to character inventory
   const collectItem = async (item: Item, needRefresh?: boolean) => {
+    const itemDef = itemDefinitions[item.itemHash];
+    const itemName = itemDef?.displayProperties?.name || "Item";
+    const itemIcon = itemDef?.displayProperties?.icon || "";
+
+    const notificationId = addNotification(
+      `Collecting ${itemName}...`,
+      "Pulling item from Postmaster",
+      "info",
+      `https://www.bungie.net${itemIcon}`,
+      3000,
+      true
+    );
+
     try {
 
       await pullFromPostmaster(
@@ -47,32 +60,41 @@ const Postmaster: React.FC<PostmasterProps> = ({
         item.itemInstanceId,
         item.quantity ?? 1
       )
-      const itemDef = itemDefinitions[item.itemHash];
-      const itemName = itemDef?.displayProperties?.name || "Item";
-      const itemIcon = itemDef?.displayProperties?.icon || "";
-      
-      addNotification(
+
+      // Update local state
+      if (itemDef) {
+        moveItem(
+          item.itemHash,
+          item.itemInstanceId,
+          characterId,
+          characterId,
+          item.quantity ?? 1,
+          { bucketHash: itemDef.inventory?.bucketTypeHash || 138197802 } // Default to general if unknown, but def should exist
+        );
+      }
+
+      updateNotification(
+        notificationId,
         `Collected ${itemName}`,
         "",
         "success",
         `https://www.bungie.net${itemIcon}`,
-        5000
+        5000,
+        false
       );
-      
-      if(needRefresh){
-        await refresh();
+
+      if (needRefresh) {
+        // await refresh();
       }
     } catch (err: any) {
-      const itemDef = itemDefinitions[item.itemHash];
-      const itemName = itemDef?.displayProperties?.name || "Item";
-      const itemIcon = itemDef?.displayProperties?.icon || "";
-      
-      addNotification(
+      updateNotification(
+        notificationId,
         `Error collecting ${itemName}`,
         err.message,
         "error",
         `https://www.bungie.net${itemIcon}`,
-        5000
+        5000,
+        false
       );
     }
   };
@@ -148,8 +170,8 @@ const Postmaster: React.FC<PostmasterProps> = ({
       >
         <div className="w-full h-full flex items-center justify-center opacity-20">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M3 6H21V18H3V6Z" stroke="#FFFFFF" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-            <path d="M3 6L12 12L21 6" stroke="#FFFFFF" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M3 6H21V18H3V6Z" stroke="#FFFFFF" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+            <path d="M3 6L12 12L21 6" stroke="#FFFFFF" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </div>
       </div>
@@ -176,12 +198,12 @@ const Postmaster: React.FC<PostmasterProps> = ({
 
   return (
     <div className={`w-fit hover:shadow-lg overflow-hidden p-[2px] transition-all duration-150`}>
-      <div 
+      <div
         className={`flex justify-between items-center p-1 cursor-pointer hover:backdrop-blur-sm hover:bg-gray-300/10 transition-all`}
         onClick={toggleCollapse}
       >
         <div className="flex items-center justify-center gap-2">
-          <img src={"./postmaster.png"} height={40} width={40}/>
+          <img src={"./postmaster.png"} height={40} width={40} />
           {!isCollapsed && (
             <h3 className="text-white text-xs uppercase tracking-wider flex items-center">
               Postmaster
@@ -208,7 +230,7 @@ const Postmaster: React.FC<PostmasterProps> = ({
             xmlns="http://www.w3.org/2000/svg"
           >
             {/* Arrow points right by default, rotates to point left on collapse */}
-            <path d="M9 5L16 12L9 19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M9 5L16 12L9 19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </div>
       </div>
@@ -222,7 +244,7 @@ const Postmaster: React.FC<PostmasterProps> = ({
           </div>
         </div>
       )}
-      
+
     </div>
   );
 };

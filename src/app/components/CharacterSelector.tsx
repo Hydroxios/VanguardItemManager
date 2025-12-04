@@ -17,7 +17,7 @@ const CharacterSelector = ({
   onSelectCharacter,
 }: CharacterSelectorProps) => {
 
-  
+
   const [selectedCharacter, setSelectedCharacter] = useState<string | null>(
     null
   );
@@ -25,40 +25,47 @@ const CharacterSelector = ({
   const { addNotification } = useNotifications()
   const { itemDefinitions, classDefinitions, raceDefinitions } = useDefinitions()
 
-  const {token} = useAuth()
-  const { user, refresh, characters } = useProfile()
+  const { token } = useAuth()
+  const { user, refresh, characters, moveItem, equipItemLocally, transferEquippedItem } = useProfile()
 
   const handleCharacterSelect = (characterId: string) => {
     setSelectedCharacter(characterId);
     onSelectCharacter(characterId);
   };
 
-  const handleDrop = useCallback(async (event :React.DragEvent, characterId :string) => {
+  const handleDrop = useCallback(async (event: React.DragEvent, characterId: string) => {
     event.preventDefault();
     let data = event.dataTransfer.getData("text/plain");
-    
+
     if (data.startsWith("st:")) {
       data = data.replace("st:", "");
       const args = data.split(":");
-      
+
       try {
         if (args.length > 2) {
           // Item is being transferred from another character
           // args[0] = itemHash, args[1] = itemInstanceId, args[2] = sourceCharacterId
-          await safeTransferItem(
-            token ?? "", 
-            user.membershipType, 
-            Number.parseInt(args[0]), 
-            args[1], 
-            args[2], 
-            characterId, 
-            user.membershipId
+          const replacementItem = await safeTransferItem(
+            token ?? "",
+            user.membershipType,
+            Number.parseInt(args[0]),
+            args[1],
+            args[2],
+            characterId,
+            user.membershipId,
+            itemDefinitions
           );
+          if (replacementItem) {
+            transferEquippedItem(Number.parseInt(args[0]), args[1], args[2], characterId, replacementItem.itemInstanceId);
+          } else {
+            moveItem(Number.parseInt(args[0]), args[1], args[2], characterId, 1);
+          }
         } else {
           // Item is being transferred from vault to character
           await transferItem(token ?? "", user.membershipType, Number.parseInt(args[0]), args[1], characterId, false);
+          moveItem(Number.parseInt(args[0]), args[1], "vault", characterId, 1);
         }
-        await refresh();
+        // await refresh();
         addNotification(
           `Transferred ${itemDefinitions[args[0]]?.displayProperties?.name || "item"}`,
           "Item moved to your character",
@@ -68,10 +75,10 @@ const CharacterSelector = ({
         );
       } catch (err: any) {
         addNotification(
-          `Error while transferring ${itemDefinitions[args[0]]?.displayProperties?.name || "item"}!`, 
-          err.message, 
-          "error", 
-          `https://www.bungie.net${itemDefinitions[args[0]]?.displayProperties?.icon || ""}`, 
+          `Error while transferring ${itemDefinitions[args[0]]?.displayProperties?.name || "item"}!`,
+          err.message,
+          "error",
+          `https://www.bungie.net${itemDefinitions[args[0]]?.displayProperties?.icon || ""}`,
           5000
         );
       }
@@ -88,7 +95,7 @@ const CharacterSelector = ({
       {Object.values(characters).map((character) => (
         <div
           key={character.characterId}
-          className="flex flex-row items-center w-[350px] h-[60px] bg-gray-800 cursor-pointer relative box-breathing hover:backdrop-blur-lg transition-all duration-300"
+          className="flex flex-row items-center w-[350px] h-[60px] bg-gray-800 cursor-pointer relative hover:backdrop-blur-lg transition-all duration-300 rounded-lg hover:transform hover:scale-105"
           onClick={() => handleCharacterSelect(character.characterId)}
           style={{
             backgroundImage: `url(https://www.bungie.net${itemDefinitions[character.emblemHash].secondaryIcon})`,

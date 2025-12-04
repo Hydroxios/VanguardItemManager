@@ -2,12 +2,13 @@ import { useDefinitions } from "@/lib/hooks/useDefinitions";
 import { useProfile } from "@/lib/hooks/useProfile";
 import { useEffect, useState, useRef } from "react";
 import HeaderButton from "./HeaderButton";
+import EmblemSelector from "./EmblemSelector";
 
 interface CharacterHeaderProps {
   characterId: string;
   changeCharacter: (characterId: string | undefined) => void;
   toggleSearch: () => void;
-  onOpenSettings: () => void; // add new prop
+  onOpenSettings: () => void;
 }
 
 const CharacterHeader = ({
@@ -21,16 +22,13 @@ const CharacterHeader = ({
     useProfile();
 
   const [emblemSpecial, setEmblemSpecial] = useState<string>(
-    `https://www.bungie.net${
-      itemDefinitions[characters[characterId].emblemHash].secondarySpecial
-    }`
+    `https://www.bungie.net${itemDefinitions[characters[characterId].emblemHash].secondarySpecial}`
   );
   const [emblemOverlay, setEmblemOverlay] = useState<string>(
-    `https://www.bungie.net${
-      itemDefinitions[characters[characterId].emblemHash].secondaryOverlay
-    }`
+    `https://www.bungie.net${itemDefinitions[characters[characterId].emblemHash].secondaryOverlay}`
   );
 
+  const [isEmblemSelectorOpen, setIsEmblemSelectorOpen] = useState(false);
   const [currentSeasonNumber, setCurrentSeasonNumber] = useState<number>(0);
   const [fadeOpacity, setFadeOpacity] = useState(1);
   const fadeTimeout = useRef<NodeJS.Timeout | null>(null);
@@ -39,14 +37,10 @@ const CharacterHeader = ({
 
   const setEmblem = () => {
     setEmblemSpecial(
-      `https://www.bungie.net${
-        itemDefinitions[characters[characterId].emblemHash].secondarySpecial
-      }`
+      `https://www.bungie.net${itemDefinitions[characters[characterId].emblemHash].secondarySpecial}`
     );
     setEmblemOverlay(
-      `https://www.bungie.net${
-        itemDefinitions[characters[characterId].emblemHash].secondaryOverlay
-      }`
+      `https://www.bungie.net${itemDefinitions[characters[characterId].emblemHash].secondaryOverlay}`
     );
   };
 
@@ -90,9 +84,17 @@ const CharacterHeader = ({
         <img
           src={emblemOverlay}
           alt="Emblem"
-          className="absolute left-[150px] top-[25px] w-20 h-20"
+          className="absolute left-[150px] top-[25px] w-20 h-20 cursor-pointer hover:scale-105 transition-all duration-500"
           style={{ transition: "opacity 0.5s ease-in-out", opacity: fadeOpacity }}
+          onClick={() => setIsEmblemSelectorOpen((prev) => !prev)}
         />
+        {isEmblemSelectorOpen && (
+          <EmblemSelector
+            isOpen={isEmblemSelectorOpen}
+            onClose={() => setIsEmblemSelectorOpen(false)}
+            characterId={characterId}
+          />
+        )}
         <div className="flex flex-col items-start justify-center absolute left-[240px] top-[20px]">
           <div className="w-2 h-[2px] bg-white" />
           <span className="text-white text-xl font-bold">
