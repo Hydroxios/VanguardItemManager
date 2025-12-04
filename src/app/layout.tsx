@@ -5,6 +5,7 @@ import "./globals.css";
 import { NotificationsProvider } from "./components/NotificationsProvider";
 import { DebugProvider } from "@/app/components/debug/DebugProvider";
 import { AuthProvider } from "@/lib/hooks/useAuth";
+import { Analytics } from "@vercel/analytics/next"
 
 const roboto = Roboto({ weight: "700", subsets: ["latin"] });
 
@@ -33,6 +34,7 @@ export default function RootLayout({
             </DebugProvider>
           </AuthProvider>
         </NotificationsProvider>
+        <Analytics />
       </body>
     </html>
   );
