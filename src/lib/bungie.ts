@@ -1,6 +1,6 @@
 import { Item } from './hooks/useProfile';
 
-const apiKey = process.env.NEXT_PUBLIC_BUNGIE_API_KEY || "";
+const apiKey = process.env.NODE_ENV === 'production' ? "401004d697cc44a8a8f76fdc47105211" : "56071839a5234888ae60e56b80d63141";
 
 let lastUpdate: any = undefined;
 
