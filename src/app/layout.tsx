@@ -6,7 +6,7 @@ import { NotificationsProvider } from "./components/NotificationsProvider";
 import { DebugProvider } from "@/app/components/debug/DebugProvider";
 import { AuthProvider } from "@/lib/hooks/useAuth";
 
-const roboto = Roboto({weight: "700", subsets: ["latin"]});
+const roboto = Roboto({ weight: "700", subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Vanguard Item Manager"
@@ -24,11 +24,12 @@ export default function RootLayout({
       </head>
       <body
         className={`${roboto.className} antialiased`}
+        role="main"
       >
         <NotificationsProvider>
           <AuthProvider>
             <DebugProvider>
-                {children}
+              {children}
             </DebugProvider>
           </AuthProvider>
         </NotificationsProvider>
