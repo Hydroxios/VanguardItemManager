@@ -1,9 +1,6 @@
 import { Item } from './hooks/useProfile';
 
 const apiKey = process.env.NODE_ENV === 'production' ? process.env.NEXT_PUBLIC_BUNGIE_API_KEY! : process.env.NEXT_PUBLIC_BUNGIE_API_KEY_DEV!;
-const clientId = process.env.NODE_ENV === 'production' ? process.env.NEXT_PUBLIC_BUNGIE_CLIENT_ID! : process.env.NEXT_PUBLIC_BUNGIE_CLIENT_ID_DEV!;
-const clientSecret = process.env.NODE_ENV === 'production' ? process.env.NEXT_PUBLIC_BUNGIE_CLIENT_SECRET! : process.env.NEXT_PUBLIC_BUNGIE_CLIENT_SECRET_DEV!;
-
 
 let lastUpdate: any = undefined;
 
