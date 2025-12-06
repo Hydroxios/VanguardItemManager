@@ -163,7 +163,7 @@ export const ProfileProvider = ({ children }: ProfileProviderProps) => {
         setCharacterLoadouts(profile.characterLoadouts.data)
         setCharacters(profile.characters.data)
 
-        let itemcomps: ItemComponents = {
+        const itemcomps: ItemComponents = {
             instances: profile.itemComponents.instances.data,
             perks: profile.itemComponents.perks.data,
             stats: profile.itemComponents.stats.data
@@ -198,10 +198,8 @@ export const ProfileProvider = ({ children }: ProfileProviderProps) => {
         });
     };
     const setProfileInventory = (items: Item[]) => {
-        setProfileInventoryState(prev => {
-            profileInventoryRef.current = items;
-            return items;
-        });
+        setProfileInventoryState(items)
+        profileInventoryRef.current = items;
     };
 
     const moveItem = (itemHash: number, itemInstanceId: string, fromId: string, toId: string, quantity: number, updates?: Partial<Item>) => {
@@ -216,7 +214,7 @@ export const ProfileProvider = ({ children }: ProfileProviderProps) => {
             if (index === -1) return { item: undefined, newItems: items };
 
             const item = { ...items[index] };
-            let newItems = [...items];
+            const newItems = [...items];
 
             // Handle stackable items
             if (item.quantity > qty) {
@@ -424,8 +422,8 @@ export const ProfileProvider = ({ children }: ProfileProviderProps) => {
 
         if (!inventory || !equipment) return;
 
-        let newInventoryItems = [...inventory.items];
-        let newEquipmentItems = [...equipment.items];
+        const newInventoryItems = [...inventory.items];
+        const newEquipmentItems = [...equipment.items];
         const updatedInstances: Record<string, ItemInstance> = {};
 
         loadoutItems.forEach(itemToEquip => {

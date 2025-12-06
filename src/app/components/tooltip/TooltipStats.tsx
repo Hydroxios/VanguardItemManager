@@ -26,8 +26,11 @@ const TooltipStats = ({
     const [handling, setHandling] = useState<any>();
     const [reloadSpeed, setReloadSpeed] = useState<any>();
     // Additional weapon stats
+    // eslint-disable-next-line
     const [aimAssistance, setAimAssistance] = useState<any>();
+    // eslint-disable-next-line
     const [zoom, setZoom] = useState<any>();
+    // eslint-disable-next-line
     const [recoilDirection, setRecoilDirection] = useState<any>();
     const [rpm, setRpm] = useState<any>();
     const [magazine, setMagazine] = useState<any>();
@@ -35,7 +38,9 @@ const TooltipStats = ({
     const [velocity, setVelocity] = useState<any>();
     const [chargeTime, setChargeTime] = useState<any>();
     const [drawTime, setDrawTime] = useState<any>();
+    // eslint-disable-next-line
     const [inventorySize, setInventorySize] = useState<any>();
+    // eslint-disable-next-line
     const [airborneEffectiveness, setAirborneEffectiveness] = useState<any>();
 
     //Armor stats

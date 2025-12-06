@@ -1,9 +1,9 @@
 "use client"
 
 import Item from "./Item"
-import { equipItem, safeTransferItem } from "@/lib/bungie"
+import { equipItem } from "@/lib/bungie"
 import { useNotifications } from "@/app/components/NotificationsProvider"
-import { ItemDefinition, useDefinitions } from "@/lib/hooks/useDefinitions"
+import { ItemDefinition } from "@/lib/hooks/useDefinitions"
 import useAuth from "@/lib/hooks/useAuth"
 import { useProfile } from "@/lib/hooks/useProfile"
 import { EquipmentItem } from "@/lib/types/destinyTypes"

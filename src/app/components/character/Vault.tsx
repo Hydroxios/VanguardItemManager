@@ -6,7 +6,7 @@ import Item from "./Item";
 import { useNotifications } from "@/app/components/NotificationsProvider";
 import { ItemDefinition, useDefinitions } from "@/lib/hooks/useDefinitions";
 import useAuth from "@/lib/hooks/useAuth";
-import { Item as ItemInstance, ItemPerks, ItemStats, Perk, useProfile } from "@/lib/hooks/useProfile";
+import { Item as ItemInstance, ItemPerks, ItemStats, useProfile } from "@/lib/hooks/useProfile";
 import { DamageType, getDamageType, getDamageTypeIcon, DAMAGE_TYPES_LIST } from "@/lib/helpers/damage-type";
 import Image from "next/image";
 

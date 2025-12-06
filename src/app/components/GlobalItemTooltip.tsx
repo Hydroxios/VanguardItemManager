@@ -40,7 +40,7 @@ const GlobalItemTooltip = () => {
     classDefinitions,
     itemConstantsDefinitions,
   } = useDefinitions();
-  const { itemComponents, characters, user, refresh, moveItem } = useProfile();
+  const { itemComponents, characters, user, moveItem } = useProfile();
   const { addNotification } = useNotifications();
   const { token } = useAuth();
 
@@ -172,7 +172,6 @@ const GlobalItemTooltip = () => {
           user={user}
           classDefinitions={classDefinitions}
           addNotification={addNotification}
-          refresh={refresh}
           drawTransfert={drawTransfert}
           armor={armor}
           moveItem={moveItem}

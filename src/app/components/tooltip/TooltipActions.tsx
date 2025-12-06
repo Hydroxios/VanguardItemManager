@@ -19,7 +19,6 @@ interface TooltipActionsProps {
         icon?: string,
         duration?: number
     ) => void;
-    refresh: () => void;
     drawTransfert: boolean;
     armor: boolean;
     moveItem: (itemHash: number, itemInstanceId: string, fromId: string, toId: string, quantity: number) => void;
@@ -35,13 +34,12 @@ const TooltipActions = ({
     user,
     classDefinitions,
     addNotification,
-    refresh,
     drawTransfert,
     armor,
     moveItem,
 }: TooltipActionsProps) => {
     const { itemDefinitions } = useDefinitions();
-    const { equipItemLocally, transferEquippedItem } = useProfile();
+    const { transferEquippedItem } = useProfile();
     if (!drawTransfert) return null;
 
     return (

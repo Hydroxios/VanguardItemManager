@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import Switch from "./inputs/Switch";
 import DestinyCheckBox from "./destiny-ui/DestinyCheckbox";
 
 interface SettingsModalProps {

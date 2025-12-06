@@ -1,6 +1,4 @@
 "use client";
-
-import { Character } from "@/lib/bungie";
 import React, { useCallback, useState } from "react";
 import { useNotifications } from "./NotificationsProvider";
 
@@ -17,7 +15,7 @@ const CharacterSelector = ({
   onSelectCharacter,
 }: CharacterSelectorProps) => {
 
-
+  // eslint-disable-next-line
   const [selectedCharacter, setSelectedCharacter] = useState<string | null>(
     null
   );
@@ -26,7 +24,7 @@ const CharacterSelector = ({
   const { itemDefinitions, classDefinitions, raceDefinitions } = useDefinitions()
 
   const { token } = useAuth()
-  const { user, refresh, characters, moveItem, equipItemLocally, transferEquippedItem } = useProfile()
+  const { user, characters, moveItem, transferEquippedItem } = useProfile()
 
   const handleCharacterSelect = (characterId: string) => {
     setSelectedCharacter(characterId);

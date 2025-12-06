@@ -4,7 +4,6 @@ import { safeTransferItem, transferItem } from "@/lib/bungie";
 import Item from "../character/Item";
 import {
   ItemDefinition,
-  ItemDefinitions,
   useDefinitions,
 } from "@/lib/hooks/useDefinitions";
 import { useProfile } from "@/lib/hooks/useProfile";
@@ -42,26 +41,16 @@ const SearchBar = ({ currentCharacterId, open, onClose }: { currentCharacterId?:
     itemComponents,
     profileInventory,
     moveItem,
-    refresh,
-    equipItemLocally,
     transferEquippedItem,
-    user, // Assuming 'user' should also be moved here for consolidation
+    user,
   } = useProfile();
 
   useEffect(() => handleSearch(search), [characters, characterEquipment, characterInventories, profileInventory]);
   const { token } = useAuth();
-  // The original instruction implied moving 'user' and adding 'refresh', 'characters', 'moveItem', 'equipItemLocally' to this line.
-  // However, 'characters' and 'moveItem' were already destructured from the first useProfile call.
-  // To avoid redeclaration errors and maintain syntactical correctness, 'refresh' and 'equipItemLocally'
-  // have been added to the existing useProfile destructuring, and 'user' has also been moved there.
-  // This ensures all necessary profile data is obtained from a single useProfile call.
-
-  // Notifications hook
   const { addNotification, updateNotification } = useNotifications();
 
   const handleSearch = (search: string) => {
     setSearch(search);
-    const res: SearchResult[] = [];
     if (search.length === 0) {
       setResults([]);
       return;
@@ -120,7 +109,7 @@ const SearchBar = ({ currentCharacterId, open, onClose }: { currentCharacterId?:
       }
     });
 
-    const filteredResults = allItems.filter(({ item, location, characterId }) => {
+    const filteredResults = allItems.filter(({ item }) => {
       const i: ItemDefinition = item.itemDef;
       const state = item.state;
       if (!i || !i.displayProperties || !i.displayProperties.name) return false;
@@ -412,7 +401,7 @@ const SearchBar = ({ currentCharacterId, open, onClose }: { currentCharacterId?:
                 <svg className="w-12 h-12 mb-3 opacity-20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                 </svg>
-                <p>No items found matching "{search}"</p>
+                <p>No items found matching &quot;{search}&quot;</p>
               </div>
             )
           )}

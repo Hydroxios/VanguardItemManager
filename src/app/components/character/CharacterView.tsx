@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo, useRef } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import Item from "./Item";
 import Currencies from "./Currencies";
 import Loadouts from "./Loadouts";
@@ -76,8 +76,9 @@ const CharacterView: React.FC<CharacterViewProps> = ({
   const [isVaultOpen, setIsVaultOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false)
   const { addNotification, updateNotification } = useNotifications();
+  // eslint-disable-next-line
   const [isVimMenuOpen, setIsVimMenuOpen] = useState(false);
-  const [isEmblemSelectorOpen, setIsEmblemSelectorOpen] = useState(false);
+  // eslint-disable-next-line
   const [currentLocale, setCurrentLocale] = useState<string>("en");
   const vimMenuRef = useRef<HTMLDivElement>(null);
 
@@ -120,12 +121,7 @@ const CharacterView: React.FC<CharacterViewProps> = ({
   // Handle equipping an item
   const handleEquip = useCallback(
     async (
-      section: string,
-      item: any,
       itemInstanceId: string,
-      state: any,
-      ornamentItem: any,
-      hash: number
     ) => {
       equipItemLocally(characterId, itemInstanceId);
     },
@@ -494,14 +490,6 @@ const CharacterView: React.FC<CharacterViewProps> = ({
     }
   }, []);
 
-  // Handle language change
-  const handleLanguageChange = (locale: string) => {
-    localStorage.setItem("locale", locale);
-    setCurrentLocale(locale);
-    setIsVimMenuOpen(false);
-    window.location.reload();
-  };
-
   // Close menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -570,14 +558,9 @@ const CharacterView: React.FC<CharacterViewProps> = ({
             armors={!isWeapon}
             onEquip={
               isWeapon
-                ? async (item, itemInstanceId, state, hash, ornamentItem) =>
+                ? async (itemInstanceId) =>
                   await handleEquip(
-                    section,
-                    item,
-                    itemInstanceId,
-                    state,
-                    hash,
-                    ornamentItem
+                    itemInstanceId
                   )
                 : undefined
             }
@@ -670,7 +653,6 @@ const CharacterView: React.FC<CharacterViewProps> = ({
       <div className="fixed right-0 top-[150px] pr-4 z-40">
         <Postmaster
           characterId={characterId}
-          refresh={refresh}
         />
       </div>
 

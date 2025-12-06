@@ -1,5 +1,5 @@
 import { useDefinitions } from "@/lib/hooks/useDefinitions";
-import { Item, ItemComponents, useProfile } from "@/lib/hooks/useProfile";
+import { Item, useProfile } from "@/lib/hooks/useProfile";
 import Image from "next/image";
 import React, { useEffect, useState } from "react";
 

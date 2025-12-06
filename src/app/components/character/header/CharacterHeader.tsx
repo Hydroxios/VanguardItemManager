@@ -19,7 +19,7 @@ const CharacterHeader = ({
   onOpenSettings,
 }: CharacterHeaderProps) => {
   const { itemDefinitions, seasonDefinitions } = useDefinitions();
-  const { characters, characterInventories, profile, refresh, refreshing } =
+  const { characters, profile, refresh, refreshing } =
     useProfile();
 
   const [emblemSpecial, setEmblemSpecial] = useState<string>(
