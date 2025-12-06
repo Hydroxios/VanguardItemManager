@@ -68,18 +68,12 @@ const bungie = async (url: string, init: BungieFetchData) => {
 }
 
 export const refreshToken = async (refreshToken: string) => {
-    const response = await fetch(`${baseUrl}/App/OAuth/token/`, {
+    const response = await fetch(`/api/token/`, {
         method: "POST",
         headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-            "User-Agent": "HximApp/1.0 AppId/45124 (+https://hxitemmanager.web.app;hydroxios@gmail.com)"
+            "Content-Type": "application/json",
         },
-        body: new URLSearchParams({
-            client_id: clientId,
-            client_secret: clientSecret,
-            grant_type: "refresh_token",
-            refresh_token: refreshToken,
-        }),
+        body: JSON.stringify({ refresh_token: refreshToken }),
     });
 
     const data = await response.json();

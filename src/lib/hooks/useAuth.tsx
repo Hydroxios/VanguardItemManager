@@ -51,7 +51,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const lu = new Date(
         Number(localStorage.getItem("lastUpdate"))
       ).getTime();
-      
+
       if (now - lu > 3600 * 1000) {
         // Token is older than 1 hour, refresh it
         refreshUserToken();
@@ -64,7 +64,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // No lastUpdate timestamp, just set the token as is
       setToken(storedToken);
     }
-    
+
     setIsTokenLoading(false);
   }, [refreshUserToken]);
 
