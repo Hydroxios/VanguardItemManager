@@ -1,6 +1,7 @@
 import { safeTransferItem, transferItem } from "@/lib/bungie";
 import { ItemDefinition, useDefinitions } from "@/lib/hooks/useDefinitions";
 import { useProfile } from "@/lib/hooks/useProfile";
+import Image from "next/image";
 
 interface TooltipActionsProps {
     item: ItemDefinition;
@@ -34,13 +35,13 @@ const TooltipActions = ({
     user,
     classDefinitions,
     addNotification,
-
+    refresh,
     drawTransfert,
     armor,
     moveItem,
 }: TooltipActionsProps) => {
     const { itemDefinitions } = useDefinitions();
-    const { transferEquippedItem } = useProfile();
+    const { equipItemLocally, transferEquippedItem } = useProfile();
     if (!drawTransfert) return null;
 
     return (
@@ -104,7 +105,7 @@ const TooltipActions = ({
                                 // moveItem(item.hash, itemInstanceId!, characterId, c.characterId, 1);
                             }}
                         >
-                            <img
+                            <Image
                                 src={`${c.classHash}.svg`}
                                 height={32}
                                 width={32}
@@ -143,7 +144,7 @@ const TooltipActions = ({
                         // moveItem(item.hash, itemInstanceId!, characterId, "vault", 1);
                     }}
                 >
-                    <img src="vault2.svg" height={32} width={32} alt="Vault" />
+                    <Image src="vault2.svg" height={32} width={32} alt="Vault" />
                 </button>
                 {!armor && (
                     <button
@@ -152,7 +153,7 @@ const TooltipActions = ({
                             item && window.open(`https://d2foundry.gg/w/${item.hash}`)
                         }
                     >
-                        <img
+                        <Image
                             src="https://d2foundry.gg/_next/image?url=%2Fassets%2Ffoundry_logo_pride.png&w=32&q=75"
                             className="rounded-lg"
                             height={32}

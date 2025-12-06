@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, createContext, useContext, ReactNode, useEffect } from 'react';
-import { ItemDefinition } from './useDefinitions';
+import { ClassDefinitions, ItemDefinition, PerksDefinitions, StatsDefinitions } from './useDefinitions';
 
 interface TooltipState {
   item: ItemDefinition | undefined;

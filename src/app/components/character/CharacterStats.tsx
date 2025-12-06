@@ -1,13 +1,14 @@
 "use client"
 
 import { useDefinitions } from "@/lib/hooks/useDefinitions"
+import Image from "next/image"
 import { useEffect, useRef, useState } from "react"
 
 interface CharacterStatsProps {
-    stats: Record<string, number>
+	stats: Record<string, number>
 }
 
-const CharacterStats = ({stats}:CharacterStatsProps) => {
+const CharacterStats = ({ stats }: CharacterStatsProps) => {
 
 	const [mobility, setMobility] = useState<number>(0)
 	const [resilience, setResilience] = useState<number>(0)
@@ -32,11 +33,11 @@ const CharacterStats = ({stats}:CharacterStatsProps) => {
 	const rafIntelligence = useRef<number | null>(null)
 	const rafStrength = useRef<number | null>(null)
 
-    const { statsDefinitions } = useDefinitions()
+	const { statsDefinitions } = useDefinitions()
 
 	useEffect(() => {
 		Object.keys(stats).forEach((s) => {
-			switch(s){
+			switch (s) {
 				case "2996146975": setMobility(stats[s]); break;
 				case "392767087": setResilience(stats[s]); break;
 				case "1943323491": setRecovery(stats[s]); break;
@@ -92,40 +93,40 @@ const CharacterStats = ({stats}:CharacterStatsProps) => {
 		}
 	}, [])
 
-    return (
+	return (
 		<div className="flex flex-col gap-2 stats">
-            <div className="flex flex-row items-center gap-2">
-			<img src={`https://www.bungie.net/${statsDefinitions[392767087].displayProperties.icon}`} height={24} width={24}/>
-				<progress key={"resilience"} value={aResilience} max={200}/>
+			<div className="flex flex-row items-center gap-2">
+				<Image src={`https://www.bungie.net/${statsDefinitions[392767087].displayProperties.icon}`} height={24} width={24} alt="resilience" />
+				<progress key={"resilience"} value={aResilience} max={200} />
 				{aResilience}
-            </div>
-            <div className="flex flex-row items-center gap-2">
-			<img src={`https://www.bungie.net/${statsDefinitions[4244567218].displayProperties.icon}`} height={24} width={24}/>
-				<progress key={"strength"} value={aStrength} max={200}/>
+			</div>
+			<div className="flex flex-row items-center gap-2">
+				<Image src={`https://www.bungie.net/${statsDefinitions[4244567218].displayProperties.icon}`} height={24} width={24} alt="strength" />
+				<progress key={"strength"} value={aStrength} max={200} />
 				{aStrength}
-            </div>
-            <div className="flex flex-row items-center gap-2">
-			<img src={`https://www.bungie.net/${statsDefinitions[1735777505].displayProperties.icon}`} height={24} width={24}/>
-				<progress key={"discipline"} value={aDiscipline} max={200}/>
+			</div>
+			<div className="flex flex-row items-center gap-2">
+				<Image src={`https://www.bungie.net/${statsDefinitions[1735777505].displayProperties.icon}`} height={24} width={24} alt="discipline" />
+				<progress key={"discipline"} value={aDiscipline} max={200} />
 				{aDiscipline}
-            </div>
-            <div className="flex flex-row items-center gap-2">
-			<img src={`https://www.bungie.net/${statsDefinitions[144602215].displayProperties.icon}`} height={24} width={24}/>
-				<progress key={"intelligence"} value={aIntelligence} max={200}/>
+			</div>
+			<div className="flex flex-row items-center gap-2">
+				<Image src={`https://www.bungie.net/${statsDefinitions[144602215].displayProperties.icon}`} height={24} width={24} alt="intelligence" />
+				<progress key={"intelligence"} value={aIntelligence} max={200} />
 				{aIntelligence}
-            </div>
-            <div className="flex flex-row items-center gap-2">
-			<img src={`https://www.bungie.net/${statsDefinitions[1943323491].displayProperties.icon}`} height={24} width={24}/>
-				<progress key={"recovery"} value={aRecovery} max={200}/>
+			</div>
+			<div className="flex flex-row items-center gap-2">
+				<Image src={`https://www.bungie.net/${statsDefinitions[1943323491].displayProperties.icon}`} height={24} width={24} alt="recovery" />
+				<progress key={"recovery"} value={aRecovery} max={200} />
 				{aRecovery}
-            </div>
-            <div className="flex flex-row items-center gap-2">
-                <img src={`https://www.bungie.net/${statsDefinitions[2996146975].displayProperties.icon}`} height={24} width={24}/>
-				<progress key={"mobility"} value={aMobility} max={200}/>
+			</div>
+			<div className="flex flex-row items-center gap-2">
+				<Image alt="mobility" src={`https://www.bungie.net/${statsDefinitions[2996146975].displayProperties.icon}`} height={24} width={24} />
+				<progress key={"mobility"} value={aMobility} max={200} />
 				{aMobility}
-            </div>
-        </div>
-    )
+			</div>
+		</div>
+	)
 }
 
 export default CharacterStats;

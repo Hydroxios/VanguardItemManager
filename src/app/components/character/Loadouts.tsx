@@ -3,8 +3,10 @@
 import {
   equipItem,
   equipLoadout,
+  getItem,
   transferItem,
   clearLoadout,
+  ItemResponse
 } from "@/lib/bungie";
 import { useEffect, useState } from "react";
 import { useNotifications } from "@/app/components/NotificationsProvider";
@@ -12,6 +14,7 @@ import { useDefinitions } from "@/lib/hooks/useDefinitions";
 import useAuth from "@/lib/hooks/useAuth";
 import { Item, Loadout, useProfile } from "@/lib/hooks/useProfile";
 import LoadoutViewerModal from "./LoadoutViewerModal";
+import Image from "next/image";
 
 interface LoadoutsProps {
   characterId: string;
@@ -34,11 +37,14 @@ const Loadouts = ({
 
   const { token } = useAuth()
   const {
+
     user,
     characterLoadouts,
     characterInventories,
     refresh,
     characterEquipment,
+    setCharacterEquipment,
+    setCharacterInventory,
     moveItem,
     equipLoadoutLocally
   } = useProfile()
@@ -243,9 +249,11 @@ const Loadouts = ({
                   return (
                     <div key={i.itemInstanceId || idx} className={`relative flex items-center justify-center ${isEquipped ? 'border-2 border-green-500' : ''}`} style={{ width: 56, height: 56 }}>
                       {def?.displayProperties?.icon && (
-                        <img
+                        <Image
                           src={`https://www.bungie.net${def.displayProperties.icon}`}
                           alt={def.displayProperties.name}
+                          height={56}
+                          width={56}
                           className={`w-14 h-14 ${isEquipped ? '' : 'brightness-50'}`}
                           style={{ objectFit: 'contain' }}
                         />
@@ -291,16 +299,18 @@ const Loadouts = ({
                   ) : (
                     <div style={{ position: "relative" }}>
                       {element.color && (
-                        <img
-                          src={"https://bungie.net" + element.color}
+                        <Image
+                          alt="loadout color"
+                          src={"https://www.bungie.net" + element.color}
                           height={48}
                           width={48}
                         />
                       )}
                       {element.icon ? (
                         <>
-                          <img
-                            src={"https://bungie.net" + element.icon}
+                          <Image
+                            alt="loadout icon"
+                            src={"https://www.bungie.net" + element.icon}
                             height={48}
                             width={48}
                             style={{ position: "absolute", top: 0, left: 0 }}
@@ -360,7 +370,8 @@ const Loadouts = ({
                         <div
                           className="relative cursor-not-allowed bg-[#5a5a5a] bg-opacity-45 hover:bg-opacity-30"
                         >
-                          <img
+                          <Image
+                            alt="new loadout"
                             src={"./new_loadout.svg"}
                             height={48}
                             width={48}
@@ -401,15 +412,15 @@ const Loadouts = ({
               <div className="flex items-center justify-center mb-4">
                 {characterLoadouts[characterId].loadouts[loadoutToDelete].colorHash && (
                   <div className="relative size-[64px]">
-                    <img
-                      src={`https://bungie.net${loadoutColorDefinitions[characterLoadouts[characterId].loadouts[loadoutToDelete].colorHash].colorImagePath}`}
+                    <Image
+                      src={`https://www.bungie.net${loadoutColorDefinitions[characterLoadouts[characterId].loadouts[loadoutToDelete].colorHash].colorImagePath}`}
                       height={64}
                       width={64}
                       alt="Loadout background"
                     />
                     {characterLoadouts[characterId].loadouts[loadoutToDelete].iconHash && (
-                      <img
-                        src={`https://bungie.net${loadoutIconDefinitions[characterLoadouts[characterId].loadouts[loadoutToDelete].iconHash].iconImagePath}`}
+                      <Image
+                        src={`https://www.bungie.net${loadoutIconDefinitions[characterLoadouts[characterId].loadouts[loadoutToDelete].iconHash].iconImagePath}`}
                         height={64}
                         width={64}
                         style={{ position: "absolute", top: 0, left: 0 }}

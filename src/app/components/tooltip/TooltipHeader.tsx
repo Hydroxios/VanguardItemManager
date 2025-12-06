@@ -1,4 +1,5 @@
 import { ItemDefinition } from "@/lib/hooks/useDefinitions";
+import Image from "next/image";
 
 interface TooltipHeaderProps {
     item: ItemDefinition;
@@ -50,21 +51,27 @@ const TooltipHeader = ({
                         </div>
                     </div>
                     {item.isFeaturedItem && item.iconWatermarkShelved ? (
-                        <img
-                            src={`https://bungie.net${item.iconWatermarkShelved}`}
+                        <Image
+                            src={`https://www.bungie.net${item.iconWatermarkShelved}`}
                             className="absolute top-[-2px] right-[-70px]"
+                            height={64}
+                            width={64}
+                            alt="Icon watermark shelved"
                         />
                     ) : item.iconWatermark ? (
-                        <img
-                            src={`https://bungie.net${item.iconWatermark}`}
+                        <Image
+                            src={`https://www.bungie.net${item.iconWatermark}`}
                             className="absolute top-[-2px] right-[-70px]"
+                            height={64}
+                            width={64}
+                            alt="Icon watermark"
                         />
                     ) : null}
                     {itemInstanceId &&
                         itemComponents.instances[itemInstanceId] &&
                         itemComponents.instances[itemInstanceId!].gearTier > 0 ? (
-                        <img
-                            src={`https://bungie.net${itemConstantsDefinitions["1"].gearTierOverlayImagePaths[
+                        <Image
+                            src={`https://www.bungie.net${itemConstantsDefinitions["1"].gearTierOverlayImagePaths[
                                 Math.max(
                                     0,
                                     itemComponents.instances[itemInstanceId!].gearTier - 1
@@ -74,6 +81,7 @@ const TooltipHeader = ({
                             height={64}
                             width={64}
                             className="absolute right-[-43px] top-[10px]"
+                            alt="Gear tier"
                         />
                     ) : (
                         ""

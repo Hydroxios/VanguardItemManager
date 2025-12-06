@@ -1,3 +1,5 @@
+import Image from "next/image";
+
 interface CurrenciesProps {
   currencies: any[];
 }
@@ -11,10 +13,11 @@ const Currencies = ({ currencies }: CurrenciesProps) => {
       <div className="flex gap-2 justify-center">
         {currencies.map((c) => (
           <div key={c.item.hash} className="flex flex-row gap-1 items-center">
-            <img
+            <Image
               height={24}
               width={24}
               src={"https://www.bungie.net" + c.item.displayProperties.icon}
+              alt={c.item.displayProperties.name}
             />
             <p>{c.quantity.toLocaleString()}</p>
           </div>

@@ -1,5 +1,6 @@
 "use client"
 
+import Image from "next/image";
 import React, { createContext, useContext, useState, useCallback, ReactNode } from "react";
 
 type Notification = {
@@ -66,7 +67,7 @@ export const NotificationsProvider: React.FC<{ children: ReactNode }> = ({ child
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white p-4"></div>
                 ) : (
                   notif.icon && (
-                    <img src={notif.icon} height={32} width={32} />
+                    <Image src={notif.icon} height={32} width={32} alt="Notification icon" />
                   )
                 )}
               </div>

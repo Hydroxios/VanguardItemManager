@@ -2,6 +2,8 @@ import { Item } from './hooks/useProfile';
 
 const apiKey = process.env.NODE_ENV === 'production' ? process.env.NEXT_PUBLIC_BUNGIE_API_KEY! : process.env.NEXT_PUBLIC_BUNGIE_API_KEY_DEV!;
 
+let lastUpdate: any = undefined;
+
 export interface BungieUser {
     uniqueName: string
     membershipId: string
@@ -76,7 +78,7 @@ export const refreshToken = async (refreshToken: string) => {
         localStorage.setItem("token", data.access_token);
         localStorage.setItem("rtoken", data.refresh_token);
         localStorage.setItem("lastUpdate", Date.now().toString());
-
+        lastUpdate = Date.now()
         return data.access_token as string;
     } else {
         console.error("Failed to refresh access token:", data);

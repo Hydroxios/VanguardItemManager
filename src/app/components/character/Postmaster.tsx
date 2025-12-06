@@ -1,19 +1,20 @@
 import React, { useState } from "react";
-import { pullFromPostmaster } from "@/lib/bungie";
+import { pullFromPostmaster, transferItem } from "@/lib/bungie";
 import { useNotifications } from "@/app/components/NotificationsProvider";
 import { useDefinitions } from "@/lib/hooks/useDefinitions";
 import { Item, useProfile } from "@/lib/hooks/useProfile";
 import useAuth from "@/lib/hooks/useAuth";
-
+import { useItemTooltip } from "@/lib/hooks/useItemTooltip";
+import Image from "next/image";
 
 interface PostmasterProps {
   characterId: string;
-
+  refresh: () => Promise<void>;
 }
 
 const Postmaster: React.FC<PostmasterProps> = ({
   characterId,
-
+  refresh,
 }) => {
   const { addNotification, updateNotification } = useNotifications();
   const [isCollapsed, setIsCollapsed] = useState(true);
@@ -22,6 +23,7 @@ const Postmaster: React.FC<PostmasterProps> = ({
   const { token } = useAuth()
   const { itemDefinitions } = useDefinitions()
   const { user, characterInventories, moveItem } = useProfile()
+  const { showTooltip, tooltipState } = useItemTooltip()
 
   // Filter for postmaster items from the current character's inventory
   const postmasterItems = characterInventories[characterId]?.items.filter(
@@ -143,7 +145,9 @@ const Postmaster: React.FC<PostmasterProps> = ({
         <div className={`absolute inset-0 border border-${rarityColor} opacity-70`}></div>
         <div className="w-full h-full flex items-center justify-center">
           {itemDefinition?.displayProperties?.icon && (
-            <img
+            <Image
+              height={56}
+              width={56}
               src={`https://www.bungie.net${itemDefinition.displayProperties.icon}`}
               alt={itemDefinition.displayProperties.name || "Item"}
               className="w-10 h-10 object-contain"
@@ -202,7 +206,7 @@ const Postmaster: React.FC<PostmasterProps> = ({
         onClick={toggleCollapse}
       >
         <div className="flex items-center justify-center gap-2">
-          <img src={"./postmaster.png"} height={40} width={40} />
+          <Image alt="postmaster" src={"/postmaster.png"} height={40} width={40} />
           {!isCollapsed && (
             <h3 className="text-white text-xs uppercase tracking-wider flex items-center">
               Postmaster

@@ -32,5 +32,5 @@ export const getDamageType = (type: number): string => {
 export const getDamageTypeIcon = (type: number): string => {
     const name = getDamageType(type).toLowerCase();
     const extension = type === DamageType.Strand ? "png" : "svg";
-    return `${name}.${extension}`;
+    return `/${name}.${extension}`;
 };

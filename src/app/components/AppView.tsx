@@ -11,6 +11,7 @@ import { useItemTooltip } from "@/lib/hooks/useItemTooltip";
 import LoadingStatus from "./LoadingStatus";
 import SettingsModal from "./SettingsModal";
 import { Alert } from "@/lib/types";
+import Image from "next/image";
 
 const AppView = () => {
   const [currentCharacter, setCurrentCharacter] = useState<string | undefined>();
@@ -53,7 +54,7 @@ const AppView = () => {
               <>
                 <div className="p-10">
                   <div className="flex flex-col items-center">
-                    <img src="./vanguard.svg" height={128} width={128} alt="Vanguard Item Manager logo" />
+                    <Image src="./vanguard.svg" height={128} width={128} alt="Vanguard Item Manager logo" />
                     <span className="text-white text-xl font-bold">
                       Welcome {profile.userInfo?.displayName}
                       <span className="text-cyan-300">

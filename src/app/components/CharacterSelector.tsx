@@ -1,7 +1,7 @@
 "use client";
 
-
-import React, { useCallback } from "react";
+import { Character } from "@/lib/bungie";
+import React, { useCallback, useState } from "react";
 import { useNotifications } from "./NotificationsProvider";
 
 import { safeTransferItem, transferItem } from "@/lib/bungie";
@@ -18,15 +18,20 @@ const CharacterSelector = ({
 }: CharacterSelectorProps) => {
 
 
-
+  const [selectedCharacter, setSelectedCharacter] = useState<string | null>(
+    null
+  );
 
   const { addNotification } = useNotifications()
   const { itemDefinitions, classDefinitions, raceDefinitions } = useDefinitions()
 
   const { token } = useAuth()
-  const { user, characters, moveItem, transferEquippedItem } = useProfile()
+  const { user, refresh, characters, moveItem, equipItemLocally, transferEquippedItem } = useProfile()
 
-
+  const handleCharacterSelect = (characterId: string) => {
+    setSelectedCharacter(characterId);
+    onSelectCharacter(characterId);
+  };
 
   const handleDrop = useCallback(async (event: React.DragEvent, characterId: string) => {
     event.preventDefault();
@@ -91,7 +96,7 @@ const CharacterSelector = ({
         <div
           key={character.characterId}
           className="flex flex-row items-center w-[350px] h-[60px] bg-gray-800 cursor-pointer relative hover:backdrop-blur-lg transition-all duration-300 rounded-lg hover:transform hover:scale-105"
-          onClick={() => onSelectCharacter(character.characterId)}
+          onClick={() => handleCharacterSelect(character.characterId)}
           style={{
             backgroundImage: `url(https://www.bungie.net${itemDefinitions[character.emblemHash].secondaryIcon})`,
             backgroundSize: 'cover',
@@ -100,7 +105,7 @@ const CharacterSelector = ({
           onDragOver={handleDragOver}
           onDrop={(e) => handleDrop(e, character.characterId)}
         >
-          {/* Remove the img tag as the emblem is now a background */}
+          {/* Remove the Image tag as the emblem is now a background */}
           <div className="text-left p-1 ml-[60px]">
             <p>{classDefinitions[character.classHash].displayProperties.name}</p>
             <p>{raceDefinitions[character.raceHash].displayProperties.name}</p>

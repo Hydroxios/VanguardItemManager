@@ -7,6 +7,7 @@ import { useDefinitions } from "@/lib/hooks/useDefinitions";
 import { safeTransferItem, transferItem } from "@/lib/bungie";
 import { useNotifications } from "@/app/components/NotificationsProvider";
 import useAuth from "@/lib/hooks/useAuth";
+import Image from "next/image";
 
 interface ItemContextMenuProps {
     itemHash: number;
@@ -143,8 +144,10 @@ const ItemContextMenu = ({
                             className="flex items-center w-full text-left px-3 py-2 text-sm text-white hover:bg-[#3a3a50] transition-colors"
                             onClick={() => handleTransfer(c.characterId)}
                         >
-                            <img
+                            <Image
                                 src={`/${c.classHash}.svg`} // Use class icon
+                                height={20}
+                                width={20}
                                 className="h-5 w-5 mr-2"
                                 alt={classDefinitions[c.classHash].displayProperties.name}
                             />
@@ -159,7 +162,13 @@ const ItemContextMenu = ({
                             className="flex items-center w-full text-left px-3 py-2 text-sm text-white hover:bg-[#3a3a50] transition-colors"
                             onClick={() => handleTransfer("vault")}
                         >
-                            <img src="/vault2.svg" className="h-5 w-5 mr-2" alt="Vault" />
+                            <Image
+                                src="/vault2.svg"
+                                height={20}
+                                width={20}
+                                className="h-5 w-5 mr-2"
+                                alt="Vault"
+                            />
                             Vault
                         </button>
                     </>

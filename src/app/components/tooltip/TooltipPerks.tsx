@@ -1,4 +1,5 @@
 import { ItemDefinition } from "@/lib/hooks/useDefinitions";
+import Image from "next/image";
 
 type ItemType = "weapon" | "armor" | "subclass";
 
@@ -33,10 +34,11 @@ const TooltipPerks = ({
                     key={"frame"}
                     className="flex flex-row items-center gap-4 bg-gray-500 bg-opacity-25 w-full p-2"
                 >
-                    <img
+                    <Image
                         src={`https://www.bungie.net${frame.iconPath}`}
                         height={32}
                         width={32}
+                        alt="Perk frame"
                     />
                     <div className="flex flex-col text-left">
                         <div>{perksDefinitions[frame.perkHash].displayProperties.name}</div>
@@ -55,11 +57,12 @@ const TooltipPerks = ({
                         <div key={idx}>
                             {p && (
                                 <div className="rounded rounded-full bg-sky-500 p-1">
-                                    <img
+                                    <Image
                                         src={`https://www.bungie.net${perksDefinitions[p.perkHash].displayProperties.icon
                                             }`}
                                         height={32}
                                         width={32}
+                                        alt="Perk"
                                     />
                                 </div>
                             )}
@@ -67,18 +70,20 @@ const TooltipPerks = ({
                     ))}
                     {originTrait && (
                         <div className="rounded rounded-full bg-sky-500 p-1">
-                            <img
+                            <Image
                                 src={`https://www.bungie.net${originTrait.iconPath}`}
                                 height={32}
                                 width={32}
+                                alt="Origin trait"
                             />
                         </div>
                     )}
                     {mod && (
-                        <img
+                        <Image
                             src={`https://www.bungie.net${mod.iconPath}`}
                             height={32}
                             width={40}
+                            alt="Mod"
                         />
                     )}
                 </div>
@@ -110,7 +115,7 @@ const TooltipPerks = ({
                                             key={idx}
                                             className="flex flex-row items-center gap-2 mb-2"
                                         >
-                                            <img
+                                            <Image
                                                 src={`https://www.bungie.net${p.iconPath}`}
                                                 height={32}
                                                 width={32}

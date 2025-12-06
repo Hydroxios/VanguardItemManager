@@ -1,9 +1,9 @@
 "use client"
 
 import Item from "./Item"
-import { equipItem } from "@/lib/bungie"
+import { equipItem, safeTransferItem } from "@/lib/bungie"
 import { useNotifications } from "@/app/components/NotificationsProvider"
-import { ItemDefinition } from "@/lib/hooks/useDefinitions"
+import { ItemDefinition, useDefinitions } from "@/lib/hooks/useDefinitions"
 import useAuth from "@/lib/hooks/useAuth"
 import { useProfile } from "@/lib/hooks/useProfile"
 import { EquipmentItem } from "@/lib/types/destinyTypes"
@@ -49,7 +49,7 @@ const InventoryItems = ({
             {open ? (
                 <div className="relative">
                     {items.map((item, index) => (
-                        <div key={index} className="absolute" style={{ top: `${Math.floor(index / 3) * 65} px`, right: `${(!right ? (((index % 3) * 65) + (right ? -65 * 4 : 0) - (right ? 5 : 0)) : -128 - 6 - (index % 3 * 65))} px`, height: "64px", width: "64px", padding: "0px", zIndex: 10 }}>
+                        <div key={index} className="absolute" style={{ top: `${Math.floor(index / 3) * 65}px`, right: `${(!right ? (((index % 3) * 65) + (right ? -65 * 4 : 0) - (right ? 5 : 0)) : -128 - 6 - (index % 3 * 65))}px`, height: "64px", width: "64px", padding: "0px", zIndex: 10 }}>
                             <Item
                                 itemHash={item.hash}
                                 itemInstanceId={item.itemInstanceId}
@@ -83,8 +83,8 @@ const InventoryItems = ({
 
                         return (
                             <div key={index} className="absolute" style={{
-                                top: `${topPosition} px`,
-                                right: `${rightPosition} px`,
+                                top: `${topPosition}px`,
+                                right: `${rightPosition}px`,
                                 height: "10px",
                                 width: "10px",
                                 backgroundColor: "#777777",

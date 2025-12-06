@@ -6,8 +6,9 @@ import Item from "./Item";
 import { useNotifications } from "@/app/components/NotificationsProvider";
 import { ItemDefinition, useDefinitions } from "@/lib/hooks/useDefinitions";
 import useAuth from "@/lib/hooks/useAuth";
-import { Item as ItemInstance, ItemPerks, ItemStats, useProfile } from "@/lib/hooks/useProfile";
+import { Item as ItemInstance, ItemPerks, ItemStats, Perk, useProfile } from "@/lib/hooks/useProfile";
 import { DamageType, getDamageType, getDamageTypeIcon, DAMAGE_TYPES_LIST } from "@/lib/helpers/damage-type";
+import Image from "next/image";
 
 interface VaultProps {
   isOpen: boolean;
@@ -420,7 +421,7 @@ const Vault: React.FC<VaultProps> = ({
       <div className="flex justify-between items-center border-b border-white/5 p-3 select-none">
         <div className="flex items-center gap-3 ml-2">
           <div className="p-1.5 bg-purple-500/10 rounded-lg border border-purple-500/20">
-            <img src="./vault.svg" className="h-5 w-5 opacity-80" alt="Vault" />
+            <Image src="./vault.svg" className="h-5 w-5 opacity-80" alt="Vault" height={20} width={20} />
           </div>
           <h2 className="text-lg font-semibold text-white tracking-wide">Vault</h2>
         </div>
@@ -508,7 +509,9 @@ const Vault: React.FC<VaultProps> = ({
                 }}
               >
                 {elementFilter !== 'all' && (
-                  <img
+                  <Image
+                    height={16}
+                    width={16}
                     src={getDamageTypeIcon(elementFilter)}
                     className="h-4 w-4"
                     alt={getDamageType(elementFilter)}
@@ -547,10 +550,12 @@ const Vault: React.FC<VaultProps> = ({
                         setIsElementDropdownOpen(false);
                       }}
                     >
-                      <img
+                      <Image
                         src={getDamageTypeIcon(type)}
                         className="h-4 w-4 mr-2"
                         alt={getDamageType(type)}
+                        height={16}
+                        width={16}
                       />
                       {getDamageType(type)}
                     </button>

@@ -1,5 +1,6 @@
 import { useDefinitions } from "@/lib/hooks/useDefinitions";
-import { Item, useProfile } from "@/lib/hooks/useProfile";
+import { Item, ItemComponents, useProfile } from "@/lib/hooks/useProfile";
+import Image from "next/image";
 import React, { useEffect, useState } from "react";
 
 const MAX_ENGRAMS = 10;
@@ -116,9 +117,11 @@ const Engrams: React.FC<EngramsProps> = ({
           style={{ animationDelay: `${index * 80}ms` }}
         >
           {itemDefinition?.displayProperties?.icon && (
-            <img
+            <Image
               src={`https://www.bungie.net${itemDefinition.displayProperties.icon}`}
               alt={itemDefinition.displayProperties.name || "Engram"}
+              height={24}
+              width={24}
               className="w-10 h-10 object-contain shadow-xl"
             />
           )}

@@ -3,6 +3,7 @@ import { useProfile } from "@/lib/hooks/useProfile";
 import { useEffect, useState, useRef } from "react";
 import HeaderButton from "./HeaderButton";
 import EmblemSelector from "./EmblemSelector";
+import Image from "next/image";
 
 interface CharacterHeaderProps {
   characterId: string;
@@ -18,7 +19,7 @@ const CharacterHeader = ({
   onOpenSettings,
 }: CharacterHeaderProps) => {
   const { itemDefinitions, seasonDefinitions } = useDefinitions();
-  const { characters, profile, refresh, refreshing } =
+  const { characters, characterInventories, profile, refresh, refreshing } =
     useProfile();
 
   const [emblemSpecial, setEmblemSpecial] = useState<string>(
@@ -81,7 +82,9 @@ const CharacterHeader = ({
       }}
     >
       <div className="w-full flex flex-row items-center justify-center">
-        <img
+        <Image
+          height={50}
+          width={50}
           src={emblemOverlay}
           alt="Emblem"
           className="absolute left-[150px] top-[25px] w-20 h-20 cursor-pointer hover:scale-105 transition-all duration-500"
@@ -124,10 +127,12 @@ const CharacterHeader = ({
               }}
               width={50}
             >
-              <img
+              <Image
                 src={`${characters[c].classHash}.svg`}
                 alt="Emblem"
                 className="w-6 h-6"
+                height={24}
+                width={24}
               />
             </HeaderButton>
           ))}
