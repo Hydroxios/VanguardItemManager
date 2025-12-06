@@ -2,6 +2,7 @@ import { safeTransferItem, transferItem } from "@/lib/bungie";
 import { ItemDefinition, useDefinitions } from "@/lib/hooks/useDefinitions";
 import { useProfile } from "@/lib/hooks/useProfile";
 import Image from "next/image";
+import { useNotifications } from "../NotificationsProvider";
 
 interface TooltipActionsProps {
     item: ItemDefinition;
@@ -12,13 +13,6 @@ interface TooltipActionsProps {
     token: string | null;
     user: any;
     classDefinitions: any;
-    addNotification: (
-        title: string,
-        message: string,
-        type: "success" | "error" | "info" | "warning",
-        icon?: string,
-        duration?: number
-    ) => void;
     drawTransfert: boolean;
     armor: boolean;
     moveItem: (itemHash: number, itemInstanceId: string, fromId: string, toId: string, quantity: number) => void;
@@ -33,13 +27,15 @@ const TooltipActions = ({
     token,
     user,
     classDefinitions,
-    addNotification,
     drawTransfert,
     armor,
     moveItem,
 }: TooltipActionsProps) => {
     const { itemDefinitions } = useDefinitions();
     const { transferEquippedItem } = useProfile();
+
+    const { addNotification, updateNotification } = useNotifications()
+
     if (!drawTransfert) return null;
 
     return (
@@ -55,6 +51,14 @@ const TooltipActions = ({
                             key={c.characterId}
                             className="hover:opacity-80 transition-opacity"
                             onClick={async () => {
+                                const notificationId = addNotification(
+                                    "Transferring item...",
+                                    item.displayProperties.name,
+                                    "info",
+                                    "",
+                                    5000,
+                                    true
+                                );
                                 if (itemComponents.instances[itemInstanceId!].isEquipped) {
                                     const replacementItem = await safeTransferItem(
                                         token as string,
@@ -91,7 +95,8 @@ const TooltipActions = ({
                                     moveItem(item.hash, itemInstanceId!, characterId, c.characterId, 1);
                                 }
 
-                                addNotification(
+                                updateNotification(
+                                    notificationId,
                                     "Item transfered to your " +
                                     classDefinitions[c.classHash].displayProperties.name,
                                     item.displayProperties.name,
@@ -116,6 +121,14 @@ const TooltipActions = ({
                 <button
                     className="hover:opacity-80 transition-opacity"
                     onClick={async () => {
+                        const notificationId = addNotification(
+                            "Transferring item...",
+                            item.displayProperties.name,
+                            "info",
+                            "",
+                            5000,
+                            true
+                        );
                         const replacementItem = await safeTransferItem(
                             token as string,
                             user.membershipType,
@@ -131,7 +144,8 @@ const TooltipActions = ({
                         } else {
                             moveItem(item.hash, itemInstanceId!, characterId, "vault", 1);
                         }
-                        addNotification(
+                        updateNotification(
+                            notificationId,
                             "Item transfered to your vault",
                             item.displayProperties.name,
                             "success",
