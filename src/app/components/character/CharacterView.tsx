@@ -616,7 +616,7 @@ const CharacterView: React.FC<CharacterViewProps> = ({
       />
 
       {/* Display Engrams at the top center fixed position */}
-      <div className="fixed bottom-[100px] right-1/2 translate-x-1/2 flex justify-center z-50">
+      <div className="fixed bottom-[10%] right-1/2 translate-x-1/2 flex justify-center z-50">
         <div className="px-6 py-3">
           <Engrams characterId={characterId} />
         </div>
