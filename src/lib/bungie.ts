@@ -102,7 +102,7 @@ export const getCurrentUser = async (token: string) => {
 }
 
 export const getProfile = async (token: string, membershipId: string, membershipType: number) => {
-    const profile = await bungie(`/Destiny2/${membershipType}/Profile/${membershipId}?components=100,102,103,104,200,201,202,205,206,300,302,304,307,308,310,1300`, { token })
+    const profile = await bungie(`/Destiny2/${membershipType}/Profile/${membershipId}/?components=100,102,103,104,200,201,202,205,206,300,302,304,307,308,310,1300`, { token })
     return profile
 }
 
@@ -119,7 +119,7 @@ export const getGlobalAlerts = async () => {
 }
 
 export const getCharacter = async (token: string, membershipId: string, membershipType: number, characterId: string) => {
-    const res = await fetch(`${baseUrl}/Destiny2/${membershipType}/Profile/${membershipId}/Character/${characterId}?components=103,201,205`, {
+    const res = await fetch(`${baseUrl}/Destiny2/${membershipType}/Profile/${membershipId}/Character/${characterId}/?components=103,201,205`, {
         headers: {
             Authorization: "Bearer " + token,
             "X-Api-Key": apiKey,
@@ -142,7 +142,7 @@ export const getCharacterInventory = async (token: string, membershipId: string,
 
 export const getItem = async (token: string, membershipType: number, membershipId: string, itemInstanceId: string, components: string) => {
     try {
-        const res = await fetch(`${baseUrl}/Destiny2/${membershipType}/Profile/${membershipId}/Item/${itemInstanceId}?components=${components}`, {
+        const res = await fetch(`${baseUrl}/Destiny2/${membershipType}/Profile/${membershipId}/Item/${itemInstanceId}/?components=${components}`, {
             headers: {
                 Authorization: "Bearer " + token,
                 "X-API-Key": apiKey
