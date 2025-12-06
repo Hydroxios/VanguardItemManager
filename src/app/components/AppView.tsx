@@ -21,10 +21,10 @@ const AppView = () => {
 
   const { debugMode, handleDebugModeChange } = useDebug()
 
-  const { token, lastUpdate, refreshUserToken } = useAuth();
+  const { lastUpdate, refreshUserToken } = useAuth();
 
   const { loadingDefinitions } = useDefinitions()
-  const { loadingProfile, profile, refresh } = useProfile()
+  const { loadingProfile, profile, lastRefresh, refresh } = useProfile()
   const { keepOpen, setKeepOpen } = useItemTooltip()
   const [settingsOpen, setSettingsOpen] = useState(false);
 
@@ -38,6 +38,9 @@ const AppView = () => {
     const intervalId = setInterval(() => {
       if (Date.now() - lastUpdate >= 3600 * 1000) {
         refreshUserToken()
+      }
+      if (lastRefresh && Date.now() - lastRefresh < 3 * 60 * 1000) {
+        return;
       }
       refresh();
     }, 3 * 60 * 1000);

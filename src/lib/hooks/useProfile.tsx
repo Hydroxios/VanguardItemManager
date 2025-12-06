@@ -93,6 +93,7 @@ export interface Profile {
     profile: ProfileData
     profileCurrencies: Currency[]
     profileInventory: Item[]
+    lastRefresh?: number;
     setCharacterEquipment: (characterId: string, items: Item[]) => void;
     setCharacterInventory: (characterId: string, items: Item[]) => void;
     setProfileInventory: (items: Item[]) => void;
@@ -125,6 +126,8 @@ export const ProfileProvider = ({ children }: ProfileProviderProps) => {
     const [profileData, setProfileData] = useState<ProfileData>({ userInfo: undefined, characterIds: [], currentGuardianRank: 0, currentSeasonHash: 0 })
     const [profileCurrencies, setProfileCurrencies] = useState<Currency[]>([])
     const [profileInventory, setProfileInventoryState] = useState<Item[]>([])
+
+    const [lastRefresh, setLastRefresh] = useState<number>()
 
     // Refs to hold the latest state for atomic operations
     const characterEquipmentRef = useRef(characterEquipment);
@@ -177,6 +180,8 @@ export const ProfileProvider = ({ children }: ProfileProviderProps) => {
         if (loading) {
             setLoading(false)
         }
+
+        setLastRefresh(Date.now())
     }
 
     useEffect(() => {
@@ -497,6 +502,7 @@ export const ProfileProvider = ({ children }: ProfileProviderProps) => {
         profile: profileData,
         profileCurrencies,
         profileInventory,
+        lastRefresh,
         setCharacterEquipment,
         setCharacterInventory,
         setProfileInventory,
@@ -505,7 +511,7 @@ export const ProfileProvider = ({ children }: ProfileProviderProps) => {
         equipItemLocally,
         transferEquippedItem,
         equipLoadoutLocally
-    }), [loading, user, refreshing, characterEquipment, characterInventories, characterLoadouts, characters, itemComponents, profileData, profileCurrencies, profileInventory]);
+    }), [loading, user, refreshing, characterEquipment, characterInventories, characterLoadouts, characters, itemComponents, profileData, profileCurrencies, profileInventory, lastRefresh]);
 
     return (
         <ProfileContext.Provider value={contextValue}>
