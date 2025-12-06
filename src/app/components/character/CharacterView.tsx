@@ -470,6 +470,8 @@ const CharacterView: React.FC<CharacterViewProps> = ({
 
         setCharacterTitle(titleText || "");
       }
+    } else {
+      setCharacterTitle("");
     }
 
   }, [initializeData, characters, characterId, recordsDefinitions, lastUpdate, refreshUserToken, refresh]);
