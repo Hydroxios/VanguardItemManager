@@ -34,13 +34,13 @@ const TooltipActions = ({
     user,
     classDefinitions,
     addNotification,
-    refresh,
+
     drawTransfert,
     armor,
     moveItem,
 }: TooltipActionsProps) => {
     const { itemDefinitions } = useDefinitions();
-    const { equipItemLocally, transferEquippedItem } = useProfile();
+    const { transferEquippedItem } = useProfile();
     if (!drawTransfert) return null;
 
     return (

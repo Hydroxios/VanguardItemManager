@@ -1,19 +1,19 @@
 import React, { useState } from "react";
-import { pullFromPostmaster, transferItem } from "@/lib/bungie";
+import { pullFromPostmaster } from "@/lib/bungie";
 import { useNotifications } from "@/app/components/NotificationsProvider";
 import { useDefinitions } from "@/lib/hooks/useDefinitions";
 import { Item, useProfile } from "@/lib/hooks/useProfile";
 import useAuth from "@/lib/hooks/useAuth";
-import { useItemTooltip } from "@/lib/hooks/useItemTooltip";
+
 
 interface PostmasterProps {
   characterId: string;
-  refresh: () => Promise<void>;
+
 }
 
 const Postmaster: React.FC<PostmasterProps> = ({
   characterId,
-  refresh,
+
 }) => {
   const { addNotification, updateNotification } = useNotifications();
   const [isCollapsed, setIsCollapsed] = useState(true);
@@ -22,7 +22,6 @@ const Postmaster: React.FC<PostmasterProps> = ({
   const { token } = useAuth()
   const { itemDefinitions } = useDefinitions()
   const { user, characterInventories, moveItem } = useProfile()
-  const { showTooltip, tooltipState } = useItemTooltip()
 
   // Filter for postmaster items from the current character's inventory
   const postmasterItems = characterInventories[characterId]?.items.filter(

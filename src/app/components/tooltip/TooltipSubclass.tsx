@@ -6,7 +6,7 @@ interface TooltipSubclassProps {
     itemInstanceId?: string;
 }
 
-const TooltipSubclass = ({ item, itemInstanceId }: TooltipSubclassProps) => {
+const TooltipSubclass = ({ itemInstanceId }: TooltipSubclassProps) => {
 
     const { itemComponents, } = useProfile();
     const { perksDefinitions, itemDefinitions } = useDefinitions();

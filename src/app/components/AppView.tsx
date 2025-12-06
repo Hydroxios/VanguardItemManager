@@ -20,7 +20,7 @@ const AppView = () => {
   const { debugMode, handleDebugModeChange } = useDebug()
 
   const { loadingDefinitions } = useDefinitions()
-  const { loadingProfile, user, profile } = useProfile()
+  const { loadingProfile, profile } = useProfile()
   const { keepOpen, setKeepOpen } = useItemTooltip()
   const [settingsOpen, setSettingsOpen] = useState(false);
 

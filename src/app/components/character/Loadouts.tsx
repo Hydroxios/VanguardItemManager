@@ -3,10 +3,8 @@
 import {
   equipItem,
   equipLoadout,
-  getItem,
   transferItem,
   clearLoadout,
-  ItemResponse
 } from "@/lib/bungie";
 import { useEffect, useState } from "react";
 import { useNotifications } from "@/app/components/NotificationsProvider";
@@ -36,14 +34,11 @@ const Loadouts = ({
 
   const { token } = useAuth()
   const {
-
     user,
     characterLoadouts,
     characterInventories,
     refresh,
     characterEquipment,
-    setCharacterEquipment,
-    setCharacterInventory,
     moveItem,
     equipLoadoutLocally
   } = useProfile()

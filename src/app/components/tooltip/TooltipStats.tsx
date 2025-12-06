@@ -25,17 +25,14 @@ const TooltipStats = ({
     const [handling, setHandling] = useState<any>();
     const [reloadSpeed, setReloadSpeed] = useState<any>();
     // Additional weapon stats
-    const [aimAssistance, setAimAssistance] = useState<any>();
-    const [zoom, setZoom] = useState<any>();
-    const [recoilDirection, setRecoilDirection] = useState<any>();
+
     const [rpm, setRpm] = useState<any>();
     const [magazine, setMagazine] = useState<any>();
     const [blastRadius, setBlastRadius] = useState<any>();
     const [velocity, setVelocity] = useState<any>();
     const [chargeTime, setChargeTime] = useState<any>();
     const [drawTime, setDrawTime] = useState<any>();
-    const [inventorySize, setInventorySize] = useState<any>();
-    const [airborneEffectiveness, setAirborneEffectiveness] = useState<any>();
+
 
     //Armor stats
     const [mobility, setMobility] = useState<any>();
@@ -59,13 +56,7 @@ const TooltipStats = ({
             );
 
             // Additional weapon stats - using known Destiny 2 stat hash IDs
-            setAimAssistance(
-                () => itemComponents.stats[itemInstanceId].stats[1345609583]
-            );
-            setZoom(() => itemComponents.stats[itemInstanceId].stats[3555269338]);
-            setRecoilDirection(
-                () => itemComponents.stats[itemInstanceId].stats[2715839340]
-            );
+
             setRpm(() => itemComponents.stats[itemInstanceId].stats[4284893193]);
             setMagazine(() => itemComponents.stats[itemInstanceId].stats[3871231066]);
             setBlastRadius(
@@ -76,12 +67,7 @@ const TooltipStats = ({
                 () => itemComponents.stats[itemInstanceId].stats[2961396640]
             );
             setDrawTime(() => itemComponents.stats[itemInstanceId].stats[447667954]);
-            setInventorySize(
-                () => itemComponents.stats[itemInstanceId].stats[1931675084]
-            );
-            setAirborneEffectiveness(
-                () => itemComponents.stats[itemInstanceId].stats[2714457168]
-            );
+
         }
         if (armor) {
             setMobility(() => itemComponents.stats[itemInstanceId].stats[2996146975]);

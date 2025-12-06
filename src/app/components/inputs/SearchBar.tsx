@@ -4,7 +4,6 @@ import { safeTransferItem, transferItem } from "@/lib/bungie";
 import Item from "../character/Item";
 import {
   ItemDefinition,
-  ItemDefinitions,
   useDefinitions,
 } from "@/lib/hooks/useDefinitions";
 import { useProfile } from "@/lib/hooks/useProfile";
@@ -34,17 +33,15 @@ const SearchBar = ({ currentCharacterId, open, onClose }: { currentCharacterId?:
   const [isFocused, setIsFocused] = useState(false); // State to track if the search bar is focused
 
   const { itemDefinitions, classDefinitions, perksDefinitions } = useDefinitions();
-  const { // Destructure profile data
+  const {
     characters,
     characterEquipment,
     characterInventories,
     itemComponents,
     profileInventory,
     moveItem,
-    refresh,
-    equipItemLocally,
     transferEquippedItem,
-    user, // Assuming 'user' should also be moved here for consolidation
+    user,
   } = useProfile();
 
   useEffect(() => handleSearch(search), [characters, characterEquipment, characterInventories, profileInventory]);
@@ -60,7 +57,6 @@ const SearchBar = ({ currentCharacterId, open, onClose }: { currentCharacterId?:
 
   const handleSearch = (search: string) => {
     setSearch(search);
-    const res: SearchResult[] = [];
     if (search.length === 0) {
       setResults([]);
       return;
@@ -119,7 +115,7 @@ const SearchBar = ({ currentCharacterId, open, onClose }: { currentCharacterId?:
       }
     });
 
-    const filteredResults = allItems.filter(({ item, location, characterId }) => {
+    const filteredResults = allItems.filter(({ item }) => {
       const i: ItemDefinition = item.itemDef;
       const state = item.state;
       if (!i || !i.displayProperties || !i.displayProperties.name) return false;

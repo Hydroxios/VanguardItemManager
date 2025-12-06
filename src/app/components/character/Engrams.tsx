@@ -1,5 +1,5 @@
 import { useDefinitions } from "@/lib/hooks/useDefinitions";
-import { Item, ItemComponents, useProfile } from "@/lib/hooks/useProfile";
+import { Item, useProfile } from "@/lib/hooks/useProfile";
 import React, { useEffect, useState } from "react";
 
 const MAX_ENGRAMS = 10;
@@ -14,7 +14,7 @@ const Engrams: React.FC<EngramsProps> = ({
 
   const [engrams, setEngrams] = useState<Item[]>([])
 
-  const {itemDefinitions} = useDefinitions()
+  const { itemDefinitions } = useDefinitions()
 
   const { characterInventories } = useProfile()
 
@@ -35,7 +35,7 @@ const Engrams: React.FC<EngramsProps> = ({
     }));
 
   }, [characterInventories, characterId]);
-  
+
   // Render an empty engram slot
   const renderEmptySlot = (index: number) => {
     return (

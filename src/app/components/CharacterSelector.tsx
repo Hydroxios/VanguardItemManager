@@ -1,7 +1,7 @@
 "use client";
 
-import { Character } from "@/lib/bungie";
-import React, { useCallback, useState } from "react";
+
+import React, { useCallback } from "react";
 import { useNotifications } from "./NotificationsProvider";
 
 import { safeTransferItem, transferItem } from "@/lib/bungie";
@@ -18,20 +18,15 @@ const CharacterSelector = ({
 }: CharacterSelectorProps) => {
 
 
-  const [selectedCharacter, setSelectedCharacter] = useState<string | null>(
-    null
-  );
+
 
   const { addNotification } = useNotifications()
   const { itemDefinitions, classDefinitions, raceDefinitions } = useDefinitions()
 
   const { token } = useAuth()
-  const { user, refresh, characters, moveItem, equipItemLocally, transferEquippedItem } = useProfile()
+  const { user, characters, moveItem, transferEquippedItem } = useProfile()
 
-  const handleCharacterSelect = (characterId: string) => {
-    setSelectedCharacter(characterId);
-    onSelectCharacter(characterId);
-  };
+
 
   const handleDrop = useCallback(async (event: React.DragEvent, characterId: string) => {
     event.preventDefault();
@@ -96,7 +91,7 @@ const CharacterSelector = ({
         <div
           key={character.characterId}
           className="flex flex-row items-center w-[350px] h-[60px] bg-gray-800 cursor-pointer relative hover:backdrop-blur-lg transition-all duration-300 rounded-lg hover:transform hover:scale-105"
-          onClick={() => handleCharacterSelect(character.characterId)}
+          onClick={() => onSelectCharacter(character.characterId)}
           style={{
             backgroundImage: `url(https://www.bungie.net${itemDefinitions[character.emblemHash].secondaryIcon})`,
             backgroundSize: 'cover',

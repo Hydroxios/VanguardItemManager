@@ -1,8 +1,6 @@
 import { createContext, ReactNode, useContext, useEffect, useState, useMemo } from "react";
 import { getDefinitions } from "../bungie";
 import { DisplayPropertiesDefinition } from "../types";
-import { it } from "node:test";
-
 
 export interface ItemDefinition {
     displayProperties: DisplayPropertiesDefinition
