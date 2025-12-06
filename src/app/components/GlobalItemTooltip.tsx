@@ -7,7 +7,6 @@ import DebugInfos from "@/app/components/debug/DebugInfos";
 import { ItemDefinition, useDefinitions } from "@/lib/hooks/useDefinitions";
 import { useProfile } from "@/lib/hooks/useProfile";
 import useAuth from "@/lib/hooks/useAuth";
-import { useNotifications } from "./NotificationsProvider";
 import TooltipHeader from "./tooltip/TooltipHeader";
 import TooltipStats from "./tooltip/TooltipStats";
 import TooltipPerks from "./tooltip/TooltipPerks";
@@ -41,7 +40,6 @@ const GlobalItemTooltip = () => {
     itemConstantsDefinitions,
   } = useDefinitions();
   const { itemComponents, characters, user, moveItem } = useProfile();
-  const { addNotification } = useNotifications();
   const { token } = useAuth();
 
   // Check if an item is a material
