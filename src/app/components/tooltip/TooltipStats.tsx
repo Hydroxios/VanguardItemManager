@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import WeaponStat from "../WeaponStat";
 import { ItemDefinition } from "@/lib/hooks/useDefinitions";
+import { getDamageTypeIcon } from "@/lib/helpers/damage-type";
 
 interface TooltipStatsProps {
     item: ItemDefinition;
@@ -43,8 +44,6 @@ const TooltipStats = ({
     const [discipline, setDiscipline] = useState<any>();
     const [intellect, setIntellect] = useState<any>();
     const [strength, setStrength] = useState<any>();
-
-    const [damageIcon, setDamageIcon] = useState("./kinetic.svg");
 
     useEffect(() => {
         if (!itemInstanceId) return;
@@ -96,28 +95,6 @@ const TooltipStats = ({
             setIntellect(() => itemComponents.stats[itemInstanceId].stats[144602215]);
             setStrength(() => itemComponents.stats[itemInstanceId].stats[4244567218]);
         }
-        if (item) {
-            switch (item.defaultDamageType) {
-                case 7:
-                    setDamageIcon("./strand.png");
-                    break;
-                case 6:
-                    setDamageIcon("./stasis.svg");
-                    break;
-                case 4:
-                    setDamageIcon("./void.svg");
-                    break;
-                case 3:
-                    setDamageIcon("./solar.svg");
-                    break;
-                case 2:
-                    setDamageIcon("./arc.svg");
-                    break;
-                case 1:
-                    setDamageIcon("./kinetic.svg");
-                    break;
-            }
-        }
     }, [armor, item, itemInstanceId, itemComponents]);
 
     const renderAmmoType = () => {
@@ -154,7 +131,7 @@ const TooltipStats = ({
                     <div className="flex flex-row items-center gap-2">
                         {!armor && (
                             <img
-                                src={damageIcon}
+                                src={getDamageTypeIcon(item.defaultDamageType)}
                                 height={48}
                                 width={48}
                                 alt="Damage type"

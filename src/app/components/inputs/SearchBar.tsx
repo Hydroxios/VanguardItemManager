@@ -13,6 +13,7 @@ import { useAuth } from "@/lib/hooks/useAuth";
 import { ItemPerks, ItemStats } from "@/lib/hooks/useProfile";
 import { Perk } from "@/lib/hooks/useProfile";
 import { useNotifications } from "../NotificationsProvider";
+import { getDamageTypeIcon } from "@/lib/helpers/damage-type";
 
 interface SearchResult {
   item: ItemDefinition;
@@ -56,19 +57,6 @@ const SearchBar = ({ currentCharacterId, open, onClose }: { currentCharacterId?:
 
   // Notifications hook
   const { addNotification, updateNotification } = useNotifications();
-
-  // Helper function to get damage type icon
-  const getDamageTypeIcon = (damageType: number): string => {
-    const damageIcons: Record<number, string> = {
-      7: "./strand.png",
-      6: "./stasis.svg",
-      4: "./void.svg",
-      3: "./solar.svg",
-      2: "./arc.svg",
-      1: "./kinetic.svg",
-    };
-    return damageIcons[damageType] || "./kinetic.svg";
-  };
 
   const handleSearch = (search: string) => {
     setSearch(search);

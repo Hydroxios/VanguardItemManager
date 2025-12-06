@@ -7,6 +7,7 @@ import { useNotifications } from "@/app/components/NotificationsProvider";
 import { ItemDefinition, useDefinitions } from "@/lib/hooks/useDefinitions";
 import useAuth from "@/lib/hooks/useAuth";
 import { Item as ItemInstance, ItemPerks, ItemStats, Perk, useProfile } from "@/lib/hooks/useProfile";
+import { DamageType, getDamageType, getDamageTypeIcon, DAMAGE_TYPES_LIST } from "@/lib/helpers/damage-type";
 
 interface VaultProps {
   isOpen: boolean;
@@ -32,25 +33,7 @@ const ITEM_TYPES = {
   MISC: [] // Will contain everything else
 };
 
-// Define element types mapping
-const ELEMENT_TYPES = {
-  kinetic: 1,
-  arc: 2,
-  solar: 3,
-  void: 4,
-  stasis: 6,
-  strand: 7
-};
 
-// Element icon paths
-const ELEMENT_ICONS = {
-  kinetic: "kinetic.svg",
-  arc: "arc.svg",
-  solar: "solar.svg",
-  void: "void.svg",
-  stasis: "stasis.svg",
-  strand: "strand.png"
-};
 
 interface ProcessedItem {
   item: ItemDefinition,
@@ -75,7 +58,7 @@ const Vault: React.FC<VaultProps> = ({
 
   const [activeTab, setActiveTab] = useState<'weapons' | 'armor' | 'misc'>('weapons');
   const [weaponTypeFilter, setWeaponTypeFilter] = useState<string>('all');
-  const [elementFilter, setElementFilter] = useState<string>('all');
+  const [elementFilter, setElementFilter] = useState<DamageType | 'all'>('all');
   const [weaponTypes, setWeaponTypes] = useState<{ [key: string]: string }>({});
   const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState<boolean>(false);
   const [isElementDropdownOpen, setIsElementDropdownOpen] = useState<boolean>(false);
@@ -232,9 +215,8 @@ const Vault: React.FC<VaultProps> = ({
       }
       // Apply element filter
       if (elementFilter !== 'all') {
-        const elementTypeValue = ELEMENT_TYPES[elementFilter as keyof typeof ELEMENT_TYPES];
         itemsToFilter = itemsToFilter.filter(item =>
-          item.item.defaultDamageType === elementTypeValue
+          item.item.defaultDamageType === elementFilter
         );
       }
     }
@@ -527,13 +509,13 @@ const Vault: React.FC<VaultProps> = ({
               >
                 {elementFilter !== 'all' && (
                   <img
-                    src={ELEMENT_ICONS[elementFilter as keyof typeof ELEMENT_ICONS]}
+                    src={getDamageTypeIcon(elementFilter)}
                     className="h-4 w-4"
-                    alt={elementFilter}
+                    alt={getDamageType(elementFilter)}
                   />
                 )}
                 <span className="text-gray-500">Element:</span>
-                <span className="font-medium">{elementFilter === 'all' ? 'All' : elementFilter.charAt(0).toUpperCase() + elementFilter.slice(1)}</span>
+                <span className="font-medium">{elementFilter === 'all' ? 'All' : getDamageType(elementFilter)}</span>
                 <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 text-gray-500 transition-transform ${isElementDropdownOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
@@ -553,24 +535,24 @@ const Vault: React.FC<VaultProps> = ({
                   >
                     All
                   </button>
-                  {Object.keys(ELEMENT_TYPES).map((element) => (
+                  {DAMAGE_TYPES_LIST.map((type) => (
                     <button
-                      key={element}
-                      className={`flex items-center w-full text-left px-4 py-2 text-sm transition-colors ${elementFilter === element
+                      key={type}
+                      className={`flex items-center w-full text-left px-4 py-2 text-sm transition-colors ${elementFilter === type
                         ? 'bg-purple-500/10 text-purple-300'
                         : 'text-gray-400 hover:bg-white/5 hover:text-white'
                         }`}
                       onClick={() => {
-                        setElementFilter(element);
+                        setElementFilter(type);
                         setIsElementDropdownOpen(false);
                       }}
                     >
                       <img
-                        src={ELEMENT_ICONS[element as keyof typeof ELEMENT_ICONS]}
+                        src={getDamageTypeIcon(type)}
                         className="h-4 w-4 mr-2"
-                        alt={element}
+                        alt={getDamageType(type)}
                       />
-                      {element.charAt(0).toUpperCase() + element.slice(1)}
+                      {getDamageType(type)}
                     </button>
                   ))}
                 </div>
