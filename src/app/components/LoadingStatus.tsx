@@ -14,7 +14,7 @@ const StatusItem = ({ label, loading }: StatusItemProps) => {
     <div className="flex flex-row items-center justify-between px-4 py-2 w-72">
       <span className="text-gray-200 text-sm">{label}</span>
       {loading ? (
-        <Image src="/loader.gif" width={20} height={20} alt="Loading" className="w-10 h-10" />
+        <Image src="/loader.gif" width={20} height={20} alt="Loading" className="w-10 h-10" unoptimized />
       ) : (
         <Image src="/success.png" width={20} height={20} alt="Ready" className="w-10 h-10" />
       )}
