@@ -5,8 +5,12 @@ const POST = async (req: NextRequest) => {
     const clientId = process.env.NODE_ENV === 'production' ? process.env.BUNGIE_CLIENT_ID! : process.env.BUNGIE_CLIENT_ID_DEV!;
     const clientSecret = process.env.NODE_ENV === 'production' ? process.env.BUNGIE_CLIENT_SECRET! : process.env.BUNGIE_CLIENT_SECRET_DEV!;
 
-    if (!clientId || !clientSecret) {
-        return NextResponse.json({ error: "Missing client id or client secret" }, { status: 500 });
+    if (!clientId) {
+        return NextResponse.json({ error: "Missing client id" }, { status: 500 });
+    }
+
+    if (!clientSecret) {
+        return NextResponse.json({ error: "Missing client secret" }, { status: 500 });
     }
 
     const body = await req.json();
