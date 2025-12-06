@@ -53,7 +53,7 @@ const TooltipHeader = ({
                     {item.isFeaturedItem && item.iconWatermarkShelved ? (
                         <Image
                             src={`https://www.bungie.net${item.iconWatermarkShelved}`}
-                            className="absolute top-[-2px] right-[-70px]"
+                            className="absolute top-[-1px] right-[-42px]"
                             height={64}
                             width={64}
                             alt="Icon watermark shelved"
@@ -61,7 +61,7 @@ const TooltipHeader = ({
                     ) : item.iconWatermark ? (
                         <Image
                             src={`https://www.bungie.net${item.iconWatermark}`}
-                            className="absolute top-[-2px] right-[-70px]"
+                            className="absolute top-0 right-[-56px]"
                             height={64}
                             width={64}
                             alt="Icon watermark"
@@ -76,11 +76,10 @@ const TooltipHeader = ({
                                     0,
                                     itemComponents.instances[itemInstanceId!].gearTier - 1
                                 )
-                            ]
-                                }`}
+                            ]}`}
                             height={64}
                             width={64}
-                            className="absolute right-[-43px] top-[10px]"
+                            className="absolute right-[-42px] top-[5px]"
                             alt="Gear tier"
                         />
                     ) : (
