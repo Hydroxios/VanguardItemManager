@@ -14,6 +14,7 @@ import { ItemPerks, ItemStats } from "@/lib/hooks/useProfile";
 import { Perk } from "@/lib/hooks/useProfile";
 import { useNotifications } from "../NotificationsProvider";
 import { getDamageTypeIcon } from "@/lib/helpers/damage-type";
+import Image from "next/image";
 
 interface SearchResult {
   item: ItemDefinition;
@@ -381,6 +382,8 @@ const SearchBar = ({ currentCharacterId, open, onClose }: { currentCharacterId?:
                               src={getDamageTypeIcon(result.item.defaultDamageType)}
                               alt="Damage type"
                               className="w-6 h-6"
+                              height={24}
+                              width={24}
                             />
                           ) : null}
                           <h3 className="text-white font-semibold text-lg truncate group-hover:text-purple-300 transition-colors">
