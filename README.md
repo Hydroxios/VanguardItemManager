@@ -18,7 +18,7 @@ Vanguard Item Manager is a custom inventory management application for Destiny p
 
 ## 📸 Screenshots
 
-- ![Main Inventory View](public/screenshot.webp)
+- ![Main Inventory View](public/screenshot.png)
 
 ---
 
