@@ -624,9 +624,9 @@ const CharacterView: React.FC<CharacterViewProps> = ({
       </div>
 
       {characterTitle && (
-        <div className="text-center mt-6 mb-4 relative max-w-[350px] mx-auto">
+        <div className="absolute bottom-[-2%] right-1/2 translate-x-1/2 text-center mt-6 mb-4 max-w-[350px] mx-auto">
           <div
-            className="py-1 px-10 relative "
+            className="py-1 px-10"
             style={{
               background:
                 "linear-gradient(to right, rgba(104, 53, 155, 0.05), rgba(104, 53, 155, 0.65), rgba(104, 53, 155, 0.05))",
