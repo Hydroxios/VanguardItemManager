@@ -1,6 +1,9 @@
 import { Item } from './hooks/useProfile';
 
-const apiKey = process.env.NODE_ENV === 'production' ? "401004d697cc44a8a8f76fdc47105211" : "56071839a5234888ae60e56b80d63141";
+const apiKey = process.env.NODE_ENV === 'production' ? process.env.NEXT_PUBLIC_BUNGIE_API_KEY! : process.env.NEXT_PUBLIC_BUNGIE_API_KEY_DEV!;
+const clientId = process.env.NODE_ENV === 'production' ? process.env.NEXT_PUBLIC_BUNGIE_CLIENT_ID! : process.env.NEXT_PUBLIC_BUNGIE_CLIENT_ID_DEV!;
+const clientSecret = process.env.NODE_ENV === 'production' ? process.env.NEXT_PUBLIC_BUNGIE_CLIENT_SECRET! : process.env.NEXT_PUBLIC_BUNGIE_CLIENT_SECRET_DEV!;
+
 
 let lastUpdate: any = undefined;
 
@@ -72,8 +75,8 @@ export const refreshToken = async (refreshToken: string) => {
             "User-Agent": "HximApp/1.0 AppId/45124 (+https://hxitemmanager.web.app;hydroxios@gmail.com)"
         },
         body: new URLSearchParams({
-            client_id: process.env.NODE_ENV === "production" ? "46066" : "45124",
-            client_secret: process.env.NODE_ENV === "production" ? "MkdPd6spUjiFiPbCKac3ZdMlT0pdDV7ErAZ-9eEfUg8" : "HSNNQvKDJuZZvzmswHAy66ZeS9y3c..tZ6U8keEb.v4",
+            client_id: clientId,
+            client_secret: clientSecret,
             grant_type: "refresh_token",
             refresh_token: refreshToken,
         }),
