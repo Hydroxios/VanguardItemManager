@@ -171,7 +171,6 @@ const GlobalItemTooltip = () => {
           token={token}
           user={user}
           classDefinitions={classDefinitions}
-          addNotification={addNotification}
           drawTransfert={drawTransfert}
           armor={armor}
           moveItem={moveItem}
