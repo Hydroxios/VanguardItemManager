@@ -10,15 +10,7 @@ import { useProfile } from "@/lib/hooks/useProfile";
 import { useItemTooltip } from "@/lib/hooks/useItemTooltip";
 import LoadingStatus from "./LoadingStatus";
 import SettingsModal from "./SettingsModal";
-
-interface Alert {
-  AlertKey: string
-  AlertHtml: string
-  AlertTimestamp: Date
-  AlertLink: string
-  AlertLevel: number
-  AlertType: number
-}
+import { Alert } from "@/lib/types";
 
 const AppView = () => {
   const [currentCharacter, setCurrentCharacter] = useState<string | undefined>();
