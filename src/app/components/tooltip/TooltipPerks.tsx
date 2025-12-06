@@ -32,7 +32,7 @@ const TooltipPerks = ({
             <div className="flex flex-col w-full">
                 <div
                     key={"frame"}
-                    className="flex flex-row items-center gap-4 bg-gray-500 bg-opacity-25 w-full p-2"
+                    className="flex flex-row items-center gap-4 bg-zinc-950 bg-opacity-25 w-full p-2"
                 >
                     <Image
                         src={`https://www.bungie.net${frame.iconPath}`}
@@ -58,8 +58,7 @@ const TooltipPerks = ({
                             {p && (
                                 <div className="rounded rounded-full bg-sky-500 p-1">
                                     <Image
-                                        src={`https://www.bungie.net${perksDefinitions[p.perkHash].displayProperties.icon
-                                            }`}
+                                        src={`https://www.bungie.net${perksDefinitions[p.perkHash].displayProperties.icon}`}
                                         height={32}
                                         width={32}
                                         alt="Perk"
@@ -81,7 +80,7 @@ const TooltipPerks = ({
                     {mod && (
                         <Image
                             src={`https://www.bungie.net${mod.iconPath}`}
-                            height={32}
+                            height={40}
                             width={40}
                             alt="Mod"
                         />

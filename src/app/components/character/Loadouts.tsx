@@ -363,7 +363,7 @@ const Loadouts = ({
                         </>
                       ) : (
                         <div
-                          className="relative cursor-not-allowed bg-[#5a5a5a] bg-opacity-45 hover:bg-opacity-30"
+                          className="relative cursor-not-allowed bg-zinc-700/40 hover:bg-zinc-700/70"
                         >
                           <Image
                             alt="new loadout"
