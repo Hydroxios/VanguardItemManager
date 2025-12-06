@@ -1,6 +1,5 @@
 "use client";
 
-import "./loading.css";
 import { getGlobalAlerts } from "@/lib/bungie";
 import { useEffect, useState } from "react";
 import CharacterSelector from "./CharacterSelector";
