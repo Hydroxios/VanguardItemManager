@@ -12,6 +12,7 @@ import LoadingStatus from "./LoadingStatus";
 import SettingsModal from "./SettingsModal";
 import { Alert } from "@/lib/types";
 import Image from "next/image";
+import { useAuth } from "@/lib/hooks/useAuth";
 
 const AppView = () => {
   const [currentCharacter, setCurrentCharacter] = useState<string | undefined>();
@@ -20,8 +21,10 @@ const AppView = () => {
 
   const { debugMode, handleDebugModeChange } = useDebug()
 
+  const { token, lastUpdate, refreshUserToken } = useAuth();
+
   const { loadingDefinitions } = useDefinitions()
-  const { loadingProfile, profile } = useProfile()
+  const { loadingProfile, profile, refresh } = useProfile()
   const { keepOpen, setKeepOpen } = useItemTooltip()
   const [settingsOpen, setSettingsOpen] = useState(false);
 
@@ -32,6 +35,14 @@ const AppView = () => {
 
   useEffect(() => {
     init();
+    const intervalId = setInterval(() => {
+      if (Date.now() - lastUpdate >= 3600 * 1000) {
+        refreshUserToken()
+      }
+      refresh();
+    }, 3 * 60 * 1000);
+
+    return () => clearInterval(intervalId);
   }, []);
 
   return (

@@ -472,14 +472,6 @@ const CharacterView: React.FC<CharacterViewProps> = ({
       }
     }
 
-    const intervalId = setInterval(() => {
-      if (Date.now() - lastUpdate >= 3600 * 1000) {
-        refreshUserToken()
-      }
-      refresh();
-    }, 3 * 60 * 1000);
-
-    return () => clearInterval(intervalId);
   }, [initializeData, characters, characterId, recordsDefinitions, lastUpdate, refreshUserToken, refresh]);
 
   // Load current locale from localStorage
