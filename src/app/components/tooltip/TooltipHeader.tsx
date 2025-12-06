@@ -61,7 +61,7 @@ const TooltipHeader = ({
                     ) : item.iconWatermark ? (
                         <Image
                             src={`https://www.bungie.net${item.iconWatermark}`}
-                            className="absolute top-0 right-[-56px]"
+                            className="absolute top-0 right-[-42px]"
                             height={64}
                             width={64}
                             alt="Icon watermark"
