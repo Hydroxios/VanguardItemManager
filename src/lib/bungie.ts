@@ -63,7 +63,7 @@ const bungie = async (url: string, init: BungieFetchData) => {
 }
 
 export const refreshToken = async (refreshToken: string) => {
-    const response = await fetch(`/api/token/`, {
+    const response = await fetch(`/api/token`, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
