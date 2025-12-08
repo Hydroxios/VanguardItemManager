@@ -35,6 +35,9 @@ const AppView = () => {
 
   useEffect(() => {
     init();
+  }, []);
+
+  useEffect(() => {
     const intervalId = setInterval(() => {
       if (Date.now() - lastUpdate >= 3600 * 1000) {
         refreshUserToken()
@@ -46,7 +49,7 @@ const AppView = () => {
     }, 3 * 60 * 1000);
 
     return () => clearInterval(intervalId);
-  }, []);
+  }, [lastUpdate, lastRefresh, refreshUserToken, refresh]);
 
   return (
     <div>
