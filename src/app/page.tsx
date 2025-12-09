@@ -20,7 +20,7 @@ export default function Home() {
           <p>A Custom Destiny Item Manager !</p>
           <div>
             <a
-              className="w-[350px] rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
+              className="w-[350px] rounded-full transition-colors flex items-center justify-center bg-[#ededed] text-black gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
               href={
                 "https://www.bungie.net/en/OAuth/Authorize?client_id=" +
                 (process.env.NODE_ENV === "production" ? "46066" : "45124") +
