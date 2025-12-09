@@ -96,7 +96,7 @@ const AppView = () => {
       {/* SettingsModal (new, see implementation) */}
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} debugMode={debugMode} handleDebugModeChange={handleDebugModeChange} keepOpen={keepOpen} setKeepOpen={setKeepOpen} />
       {alerts.length > 0 && (
-        <footer className="p-2 bg-black bg-opacity-50 backdrop-blur-lg text-white w-full text-center mt-2 border-t-2 border-red-500 absolute bottom-10 right-0 shadow-lg" style={{ backdropFilter: 'blur(12px)' }}>
+        <footer className="p-2 bg-black/50 backdrop-blur-lg text-white w-full text-center mt-2 border-t-2 border-red-500 absolute bottom-10 right-0 shadow-lg" style={{ backdropFilter: 'blur(12px)' }}>
           <ul>
             {alerts.map((alert, index) => (
               <li key={index}>
