@@ -244,7 +244,8 @@ const SearchBar = ({ currentCharacterId, open, onClose }: { currentCharacterId?:
         false
       );
       moveItem(result.item.hash, result.itemInstanceId, "vault", currentCharacterId, 1);
-      addNotification(
+      updateNotification(
+        notificationId,
         "Item transfered from your vault",
         result.item.displayProperties.name,
         "success",
