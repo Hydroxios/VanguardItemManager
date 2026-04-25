@@ -1,6 +1,6 @@
 import { useDefinitions } from "@/lib/hooks/useDefinitions";
 import { useProfile } from "@/lib/hooks/useProfile";
-import { useEffect, useState, useRef } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import HeaderButton from "./HeaderButton";
 import EmblemSelector from "./EmblemSelector";
 import Image from "next/image";
@@ -36,7 +36,9 @@ const CharacterHeader = ({
 
   const [isFirstRender, setIsFirstRender] = useState(true);
 
-  const setEmblem = () => {
+  const currentEmblemHash = characters[characterId].emblemHash;
+
+  const setEmblem = useCallback(() => {
     const emblem = itemDefinitions[characters[characterId].emblemHash];
     if (!emblem) return;
     setEmblemSpecial(
@@ -45,9 +47,9 @@ const CharacterHeader = ({
     setEmblemOverlay(
       `https://www.bungie.net${emblem.secondaryOverlay}`
     );
-  };
+  }, [characterId, characters, itemDefinitions]);
 
-  const handleCharacterChangeFade = () => {
+  const handleCharacterChangeFade = useCallback(() => {
     if (isFirstRender) {
       setIsFirstRender(false);
       return;
@@ -59,16 +61,24 @@ const CharacterHeader = ({
       setEmblem(); // Mets à jour l'emblème
       setFadeOpacity(1); // Fade in
     }, 200); // Durée du fade out (ms)
-  };
+  }, [isFirstRender, setEmblem]);
 
   useEffect(() => {
     setEmblem();
     setCurrentSeasonNumber(seasonDefinitions[profile.currentSeasonHash]?.seasonNumber ?? 0);
-  }, [characterId, characters, itemDefinitions, profile.currentSeasonHash, seasonDefinitions]);
+  }, [characterId, characters, itemDefinitions, profile.currentSeasonHash, seasonDefinitions, setEmblem]);
 
   useEffect(() => {
     handleCharacterChangeFade();
-  }, [characterId, characters[characterId].emblemHash]);
+  }, [characterId, currentEmblemHash, handleCharacterChangeFade]);
+
+  useEffect(() => {
+    return () => {
+      if (fadeTimeout.current) {
+        clearTimeout(fadeTimeout.current);
+      }
+    };
+  }, []);
 
   return (
     <div
@@ -123,7 +133,9 @@ const CharacterHeader = ({
               key={c}
               active={c === characterId}
               onClick={() => {
-                c !== characterId && changeCharacter(c);
+                if (c !== characterId) {
+                  changeCharacter(c);
+                }
               }}
               width={50}
             >

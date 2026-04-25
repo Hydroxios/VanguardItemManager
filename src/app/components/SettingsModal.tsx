@@ -23,12 +23,12 @@ const LANGUAGES = [
 ];
 
 const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose, debugMode, handleDebugModeChange, keepOpen, setKeepOpen }) => {
-  if (!open) return null;
-
-  // Read from storage at render time
-  const systemLocale = (typeof window !== 'undefined' && localStorage.getItem("locale")) || "en";
-  const [selectedLocale, setSelectedLocale] = useState(systemLocale);
+  const [selectedLocale, setSelectedLocale] = useState(() => {
+    return (typeof window !== 'undefined' && localStorage.getItem("locale")) || "en";
+  });
   const [isLanguageOpen, setIsLanguageOpen] = useState(false);
+
+  if (!open) return null;
 
   const handleLogout = () => {
     localStorage.removeItem("token");
