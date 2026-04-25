@@ -174,14 +174,14 @@ const TooltipPerks = ({
                                     return (
                                         <div
                                             key={idx}
-                                            className="flex flex-row items-center gap-2 mb-2"
+                                            className="flex flex-row items-start gap-2 mb-2 w-full min-w-0"
                                         >
                                             {renderPerkIcon(p, "Perk")}
-                                            <div className="flex flex-col items-start text-left">
+                                            <div className="flex min-w-0 flex-1 flex-col items-start text-left">
                                                 <span className="text-sm font-semibold text-gray-200">
                                                     {perkDef.displayProperties.name || "Perk"}
                                                 </span>
-                                                <span className="text-xs text-gray-400 max-w-[350px]">
+                                                <span className="max-w-full break-words text-xs text-gray-400">
                                                     {perkDef.displayProperties.description ?? ""}
                                                 </span>
                                             </div>

@@ -36,6 +36,7 @@ const GlobalItemTooltip = () => {
   const {
     statsDefinitions,
     perksDefinitions,
+    objectiveDefinitions,
     classDefinitions,
     itemConstantsDefinitions,
   } = useDefinitions();
@@ -107,8 +108,8 @@ const GlobalItemTooltip = () => {
       style={{
         top: adjustedPosition.y,
         left: adjustedPosition.x,
-        minWidth: "350px",
-        maxWidth: "min(720px, calc(100vw - 20px))",
+        width: "min(400px, calc(100vw - 20px))",
+  minWidth: "min(350px, calc(100vw - 20px))",
       }}
       onMouseLeave={() => {
         if (!keepOpen) {
@@ -121,6 +122,7 @@ const GlobalItemTooltip = () => {
         itemInstanceId={itemInstanceId}
         itemComponents={itemComponents}
         itemConstantsDefinitions={itemConstantsDefinitions}
+        objectiveDefinitions={objectiveDefinitions}
         state={state}
       />
 

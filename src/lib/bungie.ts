@@ -102,7 +102,7 @@ export const getCurrentUser = async (token: string) => {
 }
 
 export const getProfile = async (token: string, membershipId: string, membershipType: number) => {
-    const profile = await bungie(`/Destiny2/${membershipType}/Profile/${membershipId}/?components=100,102,103,104,200,201,202,205,206,300,302,304,305,307,308,310,1300`, { token })
+    const profile = await bungie(`/Destiny2/${membershipType}/Profile/${membershipId}/?components=100,102,103,104,200,201,202,205,206,300,301,302,304,305,307,308,309,310,1300`, { token })
     return profile
 }
 
@@ -111,6 +111,7 @@ export type DestinyDefinitionTableName =
     | "DestinyClassDefinition"
     | "DestinyStatDefinition"
     | "DestinySandboxPerkDefinition"
+    | "DestinyObjectiveDefinition"
     | "DestinyRecordDefinition"
     | "DestinyLoadoutColorDefinition"
     | "DestinyLoadoutIconDefinition"

@@ -84,11 +84,29 @@ export interface ItemSockets {
     sockets: ItemSocket[]
 }
 
+export interface ItemObjective {
+    objectiveHash: number
+    progress?: number
+    completionValue?: number
+    complete?: boolean
+    visible?: boolean
+}
+
+export interface ItemObjectives {
+    objectives: ItemObjective[]
+}
+
+export interface ItemPlugObjectives {
+    objectivesPerPlug: Record<string, ItemObjective[]>
+}
+
 export interface ItemComponents {
     instances: Record<string, ItemInstance>
     perks: Record<string, ItemPerks>
     sockets: Record<string, ItemSockets>
     stats: Record<string, ItemStats>
+    objectives: Record<string, ItemObjectives>
+    plugObjectives: Record<string, ItemPlugObjectives>
 }
 
 export interface Profile {
@@ -132,7 +150,7 @@ export const ProfileProvider = ({ children }: ProfileProviderProps) => {
     const [characterLoadouts, setCharacterLoadouts] = useState<Record<string, { loadouts: Loadout[] }>>({})
     const [characters, setCharacters] = useState<Record<string, Character>>({})
 
-    const [itemComponents, setItemComponents] = useState<ItemComponents>({ instances: {}, perks: {}, sockets: {}, stats: {} })
+    const [itemComponents, setItemComponents] = useState<ItemComponents>({ instances: {}, perks: {}, sockets: {}, stats: {}, objectives: {}, plugObjectives: {} })
 
     const [profileData, setProfileData] = useState<ProfileData>({ userInfo: undefined, characterIds: [], currentGuardianRank: 0, currentSeasonHash: 0 })
     const [profileCurrencies, setProfileCurrencies] = useState<Currency[]>([])
@@ -181,7 +199,9 @@ export const ProfileProvider = ({ children }: ProfileProviderProps) => {
             instances: profile.itemComponents.instances.data,
             perks: profile.itemComponents.perks.data,
             sockets: profile.itemComponents.sockets?.data ?? {},
-            stats: profile.itemComponents.stats.data
+            stats: profile.itemComponents.stats.data,
+            objectives: profile.itemComponents.objectives?.data ?? {},
+            plugObjectives: profile.itemComponents.plugObjectives?.data ?? {}
         }
         setItemComponents(itemcomps)
 

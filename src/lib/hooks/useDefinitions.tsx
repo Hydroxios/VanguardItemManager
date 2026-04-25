@@ -53,6 +53,13 @@ export interface PerkDefinition {
     hash: number
 }
 
+export interface ObjectiveDefinition {
+    displayProperties: DisplayPropertiesDefinition
+    progressDescription?: string
+    completionValue?: number
+    hash: number
+}
+
 export interface RecordDefinition {
     displayProperties: DisplayPropertiesDefinition
     titleInfo: {
@@ -101,6 +108,7 @@ export type ItemDefinitions = Record<string, ItemDefinition>
 export type ClassDefinitions = Record<string, ClassDefinition>
 export type StatsDefinitions = Record<string, StatsDefinition>
 export type PerksDefinitions = Record<string, PerkDefinition>
+export type ObjectiveDefinitions = Record<string, ObjectiveDefinition>
 export type RecordsDefinitions = Record<string, RecordDefinition>
 export type LoadoutColorDefinitions = Record<string, LoadoutColorDefinition>
 export type LoadoutIconDefinitions = Record<string, LoadoutIconDefinition>
@@ -114,6 +122,7 @@ interface DefinitionsAggregate {
     DestinyClassDefinition?: ClassDefinitions
     DestinyStatDefinition?: StatsDefinitions
     DestinySandboxPerkDefinition?: PerksDefinitions
+    DestinyObjectiveDefinition?: ObjectiveDefinitions
     DestinyRecordDefinition?: RecordsDefinitions
     DestinyLoadoutColorDefinition?: LoadoutColorDefinitions
     DestinyLoadoutIconDefinition?: LoadoutIconDefinitions
@@ -132,6 +141,7 @@ interface Definitions {
     classDefinitions: ClassDefinitions
     statsDefinitions: StatsDefinitions
     perksDefinitions: PerksDefinitions
+    objectiveDefinitions: ObjectiveDefinitions
     recordsDefinitions: RecordsDefinitions;
     loadoutColorDefinitions: LoadoutColorDefinitions
     loadoutIconDefinitions: LoadoutIconDefinitions
@@ -148,6 +158,7 @@ const initialDefinitionsLoaded: DefinitionLoadState = {
     DestinyClassDefinition: false,
     DestinyStatDefinition: false,
     DestinySandboxPerkDefinition: false,
+    DestinyObjectiveDefinition: false,
     DestinyRecordDefinition: false,
     DestinyLoadoutColorDefinition: false,
     DestinyLoadoutIconDefinition: false,
@@ -165,6 +176,7 @@ export const DefinitionsProvider = ({ children }: { children: ReactNode }) => {
     const [classDefinitions, setClassDefinitions] = useState<ClassDefinitions>({})
     const [statsDefinitions, setStatsDefinitions] = useState<StatsDefinitions>({})
     const [perksDefinitions, setPerksDefinitions] = useState<PerksDefinitions>({})
+    const [objectiveDefinitions, setObjectiveDefinitions] = useState<ObjectiveDefinitions>({})
     const [recordsDefinitions, setRecordsDefinitions] = useState<RecordsDefinitions>({})
     const [loadoutColorDefinitions, setLoadoutColorDefinitions] = useState<LoadoutColorDefinitions>({})
     const [loadoutIconDefinitions, setLoadoutIconDefinitions] = useState<LoadoutIconDefinitions>({})
@@ -192,6 +204,7 @@ export const DefinitionsProvider = ({ children }: { children: ReactNode }) => {
             setClassDefinitions(db.DestinyClassDefinition ?? {})
             setStatsDefinitions(db.DestinyStatDefinition ?? {})
             setPerksDefinitions(db.DestinySandboxPerkDefinition ?? {})
+            setObjectiveDefinitions(db.DestinyObjectiveDefinition ?? {})
             setRecordsDefinitions(db.DestinyRecordDefinition ?? {})
             setLoadoutColorDefinitions(db.DestinyLoadoutColorDefinition ?? {})
             setLoadoutIconDefinitions(db.DestinyLoadoutIconDefinition ?? {})
@@ -217,6 +230,7 @@ export const DefinitionsProvider = ({ children }: { children: ReactNode }) => {
                 void Promise.allSettled([
                     loadTable<StatsDefinitions>("DestinyStatDefinition", setStatsDefinitions),
                     loadTable<PerksDefinitions>("DestinySandboxPerkDefinition", setPerksDefinitions),
+                    loadTable<ObjectiveDefinitions>("DestinyObjectiveDefinition", setObjectiveDefinitions),
                     loadTable<RecordsDefinitions>("DestinyRecordDefinition", setRecordsDefinitions),
                     loadTable<LoadoutColorDefinitions>("DestinyLoadoutColorDefinition", setLoadoutColorDefinitions),
                     loadTable<LoadoutIconDefinitions>("DestinyLoadoutIconDefinition", setLoadoutIconDefinitions),
@@ -246,6 +260,7 @@ export const DefinitionsProvider = ({ children }: { children: ReactNode }) => {
         classDefinitions,
         statsDefinitions,
         perksDefinitions,
+        objectiveDefinitions,
         recordsDefinitions,
         loadoutColorDefinitions,
         loadoutIconDefinitions,
@@ -253,7 +268,7 @@ export const DefinitionsProvider = ({ children }: { children: ReactNode }) => {
         bucketDefinitions,
         itemConstantsDefinitions,
         seasonDefinitions
-    }), [loading, definitionsLoaded, itemDefinitions, classDefinitions, statsDefinitions, perksDefinitions, recordsDefinitions, loadoutColorDefinitions, loadoutIconDefinitions, raceDefinitions, bucketDefinitions, itemConstantsDefinitions, seasonDefinitions]);
+    }), [loading, definitionsLoaded, itemDefinitions, classDefinitions, statsDefinitions, perksDefinitions, objectiveDefinitions, recordsDefinitions, loadoutColorDefinitions, loadoutIconDefinitions, raceDefinitions, bucketDefinitions, itemConstantsDefinitions, seasonDefinitions]);
 
     return (
         <DefinitionsContext.Provider
