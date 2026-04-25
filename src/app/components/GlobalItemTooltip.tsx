@@ -109,7 +109,7 @@ const GlobalItemTooltip = () => {
         top: adjustedPosition.y,
         left: adjustedPosition.x,
         width: "min(400px, calc(100vw - 20px))",
-  minWidth: "min(350px, calc(100vw - 20px))",
+        minWidth: "min(350px, calc(100vw - 20px))",
       }}
       onMouseLeave={() => {
         if (!keepOpen) {
