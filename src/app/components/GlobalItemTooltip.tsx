@@ -108,7 +108,7 @@ const GlobalItemTooltip = () => {
         top: adjustedPosition.y,
         left: adjustedPosition.x,
         minWidth: "350px",
-        maxWidth: "calc(100vh - 20px)",
+        maxWidth: "min(720px, calc(100vw - 20px))",
       }}
       onMouseLeave={() => {
         if (!keepOpen) {
@@ -126,7 +126,7 @@ const GlobalItemTooltip = () => {
 
       <div className="flex flex-col" style={{ width: "100%" }}>
         {materialItem || item.itemType === 16 ? (
-          <div className="p-4 text-gray-200">
+          <div className={`p-4 text-gray-200 ${item.itemType === 16 ? "text-center" : ""}`}>
             {item.displayProperties.description}
           </div>
         ) : (
@@ -155,7 +155,7 @@ const GlobalItemTooltip = () => {
           itemInstanceId={itemInstanceId}
         />
       )}
-      <div className="border-t w-full border-gray-500 py-2 max-w-[400px]">
+      <div className={`border-t w-full border-gray-500 py-2 ${item.itemType === 16 ? "max-w-none px-6 text-center" : "max-w-[400px]"}`}>
         {item.flavorText}
       </div>
 

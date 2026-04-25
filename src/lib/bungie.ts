@@ -102,7 +102,7 @@ export const getCurrentUser = async (token: string) => {
 }
 
 export const getProfile = async (token: string, membershipId: string, membershipType: number) => {
-    const profile = await bungie(`/Destiny2/${membershipType}/Profile/${membershipId}/?components=100,102,103,104,200,201,202,205,206,300,302,304,307,308,310,1300`, { token })
+    const profile = await bungie(`/Destiny2/${membershipType}/Profile/${membershipId}/?components=100,102,103,104,200,201,202,205,206,300,302,304,305,307,308,310,1300`, { token })
     return profile
 }
 

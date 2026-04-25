@@ -74,9 +74,20 @@ export interface ItemPerks {
     perks: Perk[]
 }
 
+export interface ItemSocket {
+    plugHash?: number
+    isEnabled?: boolean
+    isVisible?: boolean
+}
+
+export interface ItemSockets {
+    sockets: ItemSocket[]
+}
+
 export interface ItemComponents {
     instances: Record<string, ItemInstance>
     perks: Record<string, ItemPerks>
+    sockets: Record<string, ItemSockets>
     stats: Record<string, ItemStats>
 }
 
@@ -121,7 +132,7 @@ export const ProfileProvider = ({ children }: ProfileProviderProps) => {
     const [characterLoadouts, setCharacterLoadouts] = useState<Record<string, { loadouts: Loadout[] }>>({})
     const [characters, setCharacters] = useState<Record<string, Character>>({})
 
-    const [itemComponents, setItemComponents] = useState<ItemComponents>({ instances: {}, perks: {}, stats: {} })
+    const [itemComponents, setItemComponents] = useState<ItemComponents>({ instances: {}, perks: {}, sockets: {}, stats: {} })
 
     const [profileData, setProfileData] = useState<ProfileData>({ userInfo: undefined, characterIds: [], currentGuardianRank: 0, currentSeasonHash: 0 })
     const [profileCurrencies, setProfileCurrencies] = useState<Currency[]>([])
@@ -169,6 +180,7 @@ export const ProfileProvider = ({ children }: ProfileProviderProps) => {
         const itemcomps: ItemComponents = {
             instances: profile.itemComponents.instances.data,
             perks: profile.itemComponents.perks.data,
+            sockets: profile.itemComponents.sockets?.data ?? {},
             stats: profile.itemComponents.stats.data
         }
         setItemComponents(itemcomps)
