@@ -223,7 +223,7 @@ const Item = ({
                 draggable={false}
                 alt="Watermark"
               />
-              {itemComponents.instances[itemInstanceId] && itemComponents.instances[itemInstanceId].gearTier ? (
+              {itemComponents.instances[itemInstanceId] && itemComponents.instances[itemInstanceId].gearTier && itemConstantsDefinitions["1"] ? (
                 <Image
                   src={"https://www.bungie.net" + itemConstantsDefinitions["1"].gearTierOverlayImagePaths[Math.max(itemComponents.instances[itemInstanceId].gearTier - 1, 0)]}
                   height={size * 0.875} // Scale overlay relative to size (56/64 = 0.875)

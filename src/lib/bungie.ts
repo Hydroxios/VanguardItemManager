@@ -106,11 +106,54 @@ export const getProfile = async (token: string, membershipId: string, membership
     return profile
 }
 
+export type DestinyDefinitionTableName =
+    | "DestinyInventoryItemDefinition"
+    | "DestinyClassDefinition"
+    | "DestinyStatDefinition"
+    | "DestinySandboxPerkDefinition"
+    | "DestinyRecordDefinition"
+    | "DestinyLoadoutColorDefinition"
+    | "DestinyLoadoutIconDefinition"
+    | "DestinyRaceDefinition"
+    | "DestinyInventoryBucketDefinition"
+    | "DestinyInventoryItemConstantsDefinition"
+    | "DestinySeasonDefinition";
+
+interface DestinyManifest {
+    jsonWorldContentPaths: Record<string, string>;
+    jsonWorldComponentContentPaths: Record<string, Record<string, string>>;
+}
+
+let manifestPromise: Promise<DestinyManifest> | undefined;
+
+export const getManifest = async () => {
+    if (!manifestPromise) {
+        manifestPromise = bungie("/Destiny2/Manifest", {}) as Promise<DestinyManifest>;
+    }
+    return manifestPromise;
+}
+
+const getManifestPath = (paths: Record<string, string> | undefined, locale: string) => {
+    return paths?.[locale] ?? paths?.en ?? Object.values(paths ?? {})[0];
+}
+
 export const getDefinitions = async (locale?: string) => {
-    const manifests = await bungie("/Destiny2/Manifest", {})
-    const response = await fetch(`https://www.bungie.net${manifests.jsonWorldContentPaths[locale ?? "en"]}`);
+    const manifests = await getManifest()
+    const path = getManifestPath(manifests.jsonWorldContentPaths, locale ?? "en");
+    if (!path) throw new Error("Missing Destiny manifest aggregate path");
+    const response = await fetch(`https://www.bungie.net${path}`);
     const data = await response.json();
     return data;
+}
+
+export const getDefinitionTable = async <T = unknown>(tableName: DestinyDefinitionTableName, locale?: string): Promise<T> => {
+    const manifest = await getManifest();
+    const tablePaths = manifest.jsonWorldComponentContentPaths[locale ?? "en"] ?? manifest.jsonWorldComponentContentPaths.en;
+    const path = getManifestPath(tablePaths, tableName);
+    if (!path) throw new Error(`Missing Destiny manifest component path for ${tableName}`);
+    const response = await fetch(`https://www.bungie.net${path}`);
+    if (!response.ok) throw new Error(`Failed to load ${tableName}`);
+    return response.json();
 }
 
 export const getGlobalAlerts = async () => {

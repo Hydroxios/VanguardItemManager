@@ -183,7 +183,7 @@ const GlobalItemTooltip = () => {
             ...(itemComponents.stats[itemInstanceId!] ?? {}),
             item,
             perksDefinitions: [
-              itemComponents?.perks?.[itemInstanceId!].perks?.map(
+              itemComponents?.perks?.[itemInstanceId!]?.perks?.map(
                 (p: any) => perksDefinitions[p.perkHash]
               ),
             ],

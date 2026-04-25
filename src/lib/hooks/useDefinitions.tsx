@@ -1,5 +1,5 @@
 import { createContext, ReactNode, useContext, useEffect, useState, useMemo } from "react";
-import { getDefinitions } from "../bungie";
+import { DestinyDefinitionTableName, getDefinitions, getDefinitionTable } from "../bungie";
 import { DisplayPropertiesDefinition } from "../types";
 
 export interface ItemDefinition {
@@ -97,20 +97,37 @@ export interface SeasonDefinition {
     hash: number
 }
 
-export interface ItemDefinitions extends Record<string, ItemDefinition> { }
-export interface ClassDefinitions extends Record<string, ClassDefinition> { }
-export interface StatsDefinitions extends Record<string, StatsDefinition> { }
-export interface PerksDefinitions extends Record<string, PerkDefinition> { }
-export interface RecordsDefinitions extends Record<string, RecordDefinition> { }
-export interface LoadoutColorDefinitions extends Record<string, LoadoutColorDefinition> { }
-export interface LoadoutIconDefinitions extends Record<string, LoadoutIconDefinition> { }
-export interface RaceDefinitions extends Record<string, RaceDefinition> { }
-export interface BucketDefinitions extends Record<string, RaceDefinition> { }
-export interface ItemConstantsDefinitions extends Record<string, ItemConstantsDefinition> { }
-export interface SeasonDefinitions extends Record<string, SeasonDefinition> { }
+export type ItemDefinitions = Record<string, ItemDefinition>
+export type ClassDefinitions = Record<string, ClassDefinition>
+export type StatsDefinitions = Record<string, StatsDefinition>
+export type PerksDefinitions = Record<string, PerkDefinition>
+export type RecordsDefinitions = Record<string, RecordDefinition>
+export type LoadoutColorDefinitions = Record<string, LoadoutColorDefinition>
+export type LoadoutIconDefinitions = Record<string, LoadoutIconDefinition>
+export type RaceDefinitions = Record<string, RaceDefinition>
+export type BucketDefinitions = Record<string, BucketDefinition>
+export type ItemConstantsDefinitions = Record<string, ItemConstantsDefinition>
+export type SeasonDefinitions = Record<string, SeasonDefinition>
+
+interface DefinitionsAggregate {
+    DestinyInventoryItemDefinition?: ItemDefinitions
+    DestinyClassDefinition?: ClassDefinitions
+    DestinyStatDefinition?: StatsDefinitions
+    DestinySandboxPerkDefinition?: PerksDefinitions
+    DestinyRecordDefinition?: RecordsDefinitions
+    DestinyLoadoutColorDefinition?: LoadoutColorDefinitions
+    DestinyLoadoutIconDefinition?: LoadoutIconDefinitions
+    DestinyRaceDefinition?: RaceDefinitions
+    DestinyInventoryBucketDefinition?: BucketDefinitions
+    DestinyInventoryItemConstantsDefinition?: ItemConstantsDefinitions
+    DestinySeasonDefinition?: SeasonDefinitions
+}
+
+type DefinitionLoadState = Record<DestinyDefinitionTableName, boolean>
 
 interface Definitions {
     loadingDefinitions: boolean
+    definitionsLoaded: DefinitionLoadState
     itemDefinitions: ItemDefinitions
     classDefinitions: ClassDefinitions
     statsDefinitions: StatsDefinitions
@@ -126,9 +143,24 @@ interface Definitions {
 
 const DefinitionsContext = createContext<Definitions | undefined>(undefined)
 
+const initialDefinitionsLoaded: DefinitionLoadState = {
+    DestinyInventoryItemDefinition: false,
+    DestinyClassDefinition: false,
+    DestinyStatDefinition: false,
+    DestinySandboxPerkDefinition: false,
+    DestinyRecordDefinition: false,
+    DestinyLoadoutColorDefinition: false,
+    DestinyLoadoutIconDefinition: false,
+    DestinyRaceDefinition: false,
+    DestinyInventoryBucketDefinition: false,
+    DestinyInventoryItemConstantsDefinition: false,
+    DestinySeasonDefinition: false,
+}
+
 export const DefinitionsProvider = ({ children }: { children: ReactNode }) => {
 
     const [loading, setLoading] = useState(true)
+    const [definitionsLoaded, setDefinitionsLoaded] = useState<DefinitionLoadState>(initialDefinitionsLoaded)
     const [itemDefinitions, setItemDefinitions] = useState<ItemDefinitions>({})
     const [classDefinitions, setClassDefinitions] = useState<ClassDefinitions>({})
     const [statsDefinitions, setStatsDefinitions] = useState<StatsDefinitions>({})
@@ -137,31 +169,79 @@ export const DefinitionsProvider = ({ children }: { children: ReactNode }) => {
     const [loadoutColorDefinitions, setLoadoutColorDefinitions] = useState<LoadoutColorDefinitions>({})
     const [loadoutIconDefinitions, setLoadoutIconDefinitions] = useState<LoadoutIconDefinitions>({})
     const [raceDefinitions, setRaceDefinitions] = useState<RaceDefinitions>({})
-    const [bucketDefinitions, setBucketDefinitions] = useState<RaceDefinitions>({})
+    const [bucketDefinitions, setBucketDefinitions] = useState<BucketDefinitions>({})
     const [itemConstantsDefinitions, setItemConstantsDefinitions] = useState<ItemConstantsDefinitions>({})
     const [seasonDefinitions, setSeasonDefinitions] = useState<SeasonDefinitions>({})
     useEffect(() => {
+        let active = true;
+        const locale = localStorage.getItem("locale") ?? "en";
+
+        const markLoaded = (tableName: DestinyDefinitionTableName) => {
+            setDefinitionsLoaded((prev) => ({ ...prev, [tableName]: true }));
+        }
+
+        const loadTable = async <T,>(tableName: DestinyDefinitionTableName, setter: (data: T) => void) => {
+            const data = await getDefinitionTable<T>(tableName, locale);
+            if (!active) return;
+            setter(data);
+            markLoaded(tableName);
+        }
+
+        const setAggregateDefinitions = (db: DefinitionsAggregate) => {
+            setItemDefinitions(db.DestinyInventoryItemDefinition ?? {})
+            setClassDefinitions(db.DestinyClassDefinition ?? {})
+            setStatsDefinitions(db.DestinyStatDefinition ?? {})
+            setPerksDefinitions(db.DestinySandboxPerkDefinition ?? {})
+            setRecordsDefinitions(db.DestinyRecordDefinition ?? {})
+            setLoadoutColorDefinitions(db.DestinyLoadoutColorDefinition ?? {})
+            setLoadoutIconDefinitions(db.DestinyLoadoutIconDefinition ?? {})
+            setRaceDefinitions(db.DestinyRaceDefinition ?? {})
+            setBucketDefinitions(db.DestinyInventoryBucketDefinition ?? {})
+            setItemConstantsDefinitions(db.DestinyInventoryItemConstantsDefinition ?? {})
+            setSeasonDefinitions(db.DestinySeasonDefinition ?? {})
+            setDefinitionsLoaded(Object.fromEntries(
+                Object.keys(initialDefinitionsLoaded).map((key) => [key, true])
+            ) as DefinitionLoadState)
+        }
+
         const fetchDefinitions = async () => {
-            if (!loading) return;
-            const db = await getDefinitions(localStorage.getItem("locale") ?? "en")
-            setItemDefinitions(db.DestinyInventoryItemDefinition)
-            setClassDefinitions(db.DestinyClassDefinition)
-            setStatsDefinitions(db.DestinyStatDefinition)
-            setPerksDefinitions(db.DestinySandboxPerkDefinition)
-            setRecordsDefinitions(db.DestinyRecordDefinition)
-            setLoadoutColorDefinitions(db.DestinyLoadoutColorDefinition)
-            setLoadoutIconDefinitions(db.DestinyLoadoutIconDefinition)
-            setRaceDefinitions(db.DestinyRaceDefinition)
-            setBucketDefinitions(db.DestinyInventoryBucketDefinition)
-            setItemConstantsDefinitions(db.DestinyInventoryItemConstantsDefinition)
-            setSeasonDefinitions(db.DestinySeasonDefinition)
-            setLoading(false)
+            try {
+                await Promise.all([
+                    loadTable<ItemDefinitions>("DestinyInventoryItemDefinition", setItemDefinitions),
+                    loadTable<ClassDefinitions>("DestinyClassDefinition", setClassDefinitions),
+                    loadTable<RaceDefinitions>("DestinyRaceDefinition", setRaceDefinitions),
+                ]);
+                if (!active) return;
+                setLoading(false);
+
+                void Promise.allSettled([
+                    loadTable<StatsDefinitions>("DestinyStatDefinition", setStatsDefinitions),
+                    loadTable<PerksDefinitions>("DestinySandboxPerkDefinition", setPerksDefinitions),
+                    loadTable<RecordsDefinitions>("DestinyRecordDefinition", setRecordsDefinitions),
+                    loadTable<LoadoutColorDefinitions>("DestinyLoadoutColorDefinition", setLoadoutColorDefinitions),
+                    loadTable<LoadoutIconDefinitions>("DestinyLoadoutIconDefinition", setLoadoutIconDefinitions),
+                    loadTable<BucketDefinitions>("DestinyInventoryBucketDefinition", setBucketDefinitions),
+                    loadTable<ItemConstantsDefinitions>("DestinyInventoryItemConstantsDefinition", setItemConstantsDefinitions),
+                    loadTable<SeasonDefinitions>("DestinySeasonDefinition", setSeasonDefinitions),
+                ]);
+            } catch (error) {
+                console.error("Failed to load component definitions, falling back to aggregate manifest", error);
+                const db = await getDefinitions(locale);
+                if (!active) return;
+                setAggregateDefinitions(db);
+                setLoading(false);
+            }
         }
         fetchDefinitions()
+
+        return () => {
+            active = false;
+        }
     }, [])
 
     const contextValue = useMemo(() => ({
         loadingDefinitions: loading,
+        definitionsLoaded,
         itemDefinitions,
         classDefinitions,
         statsDefinitions,
@@ -173,7 +253,7 @@ export const DefinitionsProvider = ({ children }: { children: ReactNode }) => {
         bucketDefinitions,
         itemConstantsDefinitions,
         seasonDefinitions
-    }), [loading, itemDefinitions, classDefinitions, statsDefinitions, perksDefinitions, recordsDefinitions, loadoutColorDefinitions, loadoutIconDefinitions, raceDefinitions, bucketDefinitions, itemConstantsDefinitions]);
+    }), [loading, definitionsLoaded, itemDefinitions, classDefinitions, statsDefinitions, perksDefinitions, recordsDefinitions, loadoutColorDefinitions, loadoutIconDefinitions, raceDefinitions, bucketDefinitions, itemConstantsDefinitions, seasonDefinitions]);
 
     return (
         <DefinitionsContext.Provider

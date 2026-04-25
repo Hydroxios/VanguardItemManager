@@ -25,6 +25,8 @@ const TooltipPerks = ({
             (p: any) => p.isActive && p.visible
         );
         const frame = filteredPerks[0];
+        const frameDef = frame ? perksDefinitions[frame.perkHash] : undefined;
+        if (!frame || !frameDef) return null;
         const perks = [filteredPerks[1], filteredPerks[2]].filter((p) => p);
         const mod = filteredPerks.length > 4 ? filteredPerks[3] : undefined;
         const originTrait = filteredPerks[filteredPerks.length - 1];
@@ -41,10 +43,10 @@ const TooltipPerks = ({
                         alt="Perk frame"
                     />
                     <div className="flex flex-col text-left">
-                        <div>{perksDefinitions[frame.perkHash].displayProperties.name}</div>
+                        <div>{frameDef.displayProperties.name}</div>
                         {item.inventory.tierType === 6 && (
                             <div className="text-sm max-w-[300px]">
-                                {perksDefinitions[frame.perkHash].displayProperties.description}
+                                {frameDef.displayProperties.description}
                             </div>
                         )}
                     </div>
@@ -55,7 +57,7 @@ const TooltipPerks = ({
                 >
                     {perks.map((p: any, idx: number) => (
                         <div key={idx}>
-                            {p && (
+                            {p && perksDefinitions[p.perkHash] && (
                                 <div className="rounded rounded-full bg-sky-500 p-1">
                                     <Image
                                         src={`https://www.bungie.net${perksDefinitions[p.perkHash].displayProperties.icon}`}
@@ -109,6 +111,7 @@ const TooltipPerks = ({
                                 )
                                 .map((p: any, idx: number) => {
                                     const perkDef = perksDefinitions[p.perkHash];
+                                    if (!perkDef) return null;
                                     return (
                                         <div
                                             key={idx}

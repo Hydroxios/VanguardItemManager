@@ -37,11 +37,13 @@ const CharacterHeader = ({
   const [isFirstRender, setIsFirstRender] = useState(true);
 
   const setEmblem = () => {
+    const emblem = itemDefinitions[characters[characterId].emblemHash];
+    if (!emblem) return;
     setEmblemSpecial(
-      `https://www.bungie.net${itemDefinitions[characters[characterId].emblemHash].secondarySpecial}`
+      `https://www.bungie.net${emblem.secondarySpecial}`
     );
     setEmblemOverlay(
-      `https://www.bungie.net${itemDefinitions[characters[characterId].emblemHash].secondaryOverlay}`
+      `https://www.bungie.net${emblem.secondaryOverlay}`
     );
   };
 
@@ -61,10 +63,8 @@ const CharacterHeader = ({
 
   useEffect(() => {
     setEmblem();
-    setCurrentSeasonNumber(
-      seasonDefinitions[profile.currentSeasonHash].seasonNumber
-    );
-  }, []);
+    setCurrentSeasonNumber(seasonDefinitions[profile.currentSeasonHash]?.seasonNumber ?? 0);
+  }, [characterId, characters, itemDefinitions, profile.currentSeasonHash, seasonDefinitions]);
 
   useEffect(() => {
     handleCharacterChangeFade();

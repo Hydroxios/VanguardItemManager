@@ -83,6 +83,7 @@ const CharacterView: React.FC<CharacterViewProps> = ({
   const vimMenuRef = useRef<HTMLDivElement>(null);
 
   const {
+    definitionsLoaded,
     itemDefinitions,
     recordsDefinitions,
   } = useDefinitions();
@@ -599,9 +600,11 @@ const CharacterView: React.FC<CharacterViewProps> = ({
       {/* Add padding to account for fixed Engrams component */}
       <div className="pt-20"></div>
 
-      <Loadouts
-        characterId={characterId}
-      />
+      {definitionsLoaded.DestinyLoadoutColorDefinition && definitionsLoaded.DestinyLoadoutIconDefinition && (
+        <Loadouts
+          characterId={characterId}
+        />
+      )}
 
       <div className="flex justify-center items-center mt-4">
         <div className="flex flex-row gap-10 items-center">

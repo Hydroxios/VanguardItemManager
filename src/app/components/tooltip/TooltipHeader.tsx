@@ -69,7 +69,8 @@ const TooltipHeader = ({
                     ) : null}
                     {itemInstanceId &&
                         itemComponents.instances[itemInstanceId] &&
-                        itemComponents.instances[itemInstanceId!].gearTier > 0 ? (
+                        itemComponents.instances[itemInstanceId!].gearTier > 0 &&
+                        itemConstantsDefinitions["1"] ? (
                         <Image
                             src={`https://www.bungie.net${itemConstantsDefinitions["1"].gearTierOverlayImagePaths[
                                 Math.max(

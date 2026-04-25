@@ -103,6 +103,10 @@ const TooltipStats = ({
         }
     }, [armor, item, itemInstanceId, itemComponents]);
 
+    const statName = (stat: any, fallback: string) => {
+        return statsDefinitions[stat?.statHash]?.displayProperties?.name ?? fallback;
+    }
+
     const renderAmmoType = () => {
         if (!item) return null;
         const ammoType = item.equippingBlock.ammoType;
@@ -149,7 +153,7 @@ const TooltipStats = ({
                                 color: "white",
                             }}
                         >
-                            {itemInstanceId && itemComponents.instances[itemInstanceId].primaryStat.value}
+                            {itemInstanceId && itemComponents.instances[itemInstanceId]?.primaryStat?.value}
                         </div>
                         {!armor && (
                             <>
@@ -166,41 +170,35 @@ const TooltipStats = ({
                             <div className="py-2">
                                 {impact && (
                                     <WeaponStat
-                                        name={statsDefinitions[impact.statHash].displayProperties.name}
+                                        name={statName(impact, "Impact")}
                                         value={impact.value}
                                         bar={true}
                                     />
                                 )}
                                 {range && (
                                     <WeaponStat
-                                        name={statsDefinitions[range.statHash].displayProperties.name}
+                                        name={statName(range, "Range")}
                                         value={range.value}
                                         bar={true}
                                     />
                                 )}
                                 {stability && (
                                     <WeaponStat
-                                        name={
-                                            statsDefinitions[stability.statHash].displayProperties.name
-                                        }
+                                        name={statName(stability, "Stability")}
                                         value={stability.value}
                                         bar={true}
                                     />
                                 )}
                                 {handling && (
                                     <WeaponStat
-                                        name={
-                                            statsDefinitions[handling.statHash].displayProperties.name
-                                        }
+                                        name={statName(handling, "Handling")}
                                         value={handling.value}
                                         bar={true}
                                     />
                                 )}
                                 {reloadSpeed && (
                                     <WeaponStat
-                                        name={
-                                            statsDefinitions[reloadSpeed.statHash].displayProperties.name
-                                        }
+                                        name={statName(reloadSpeed, "Reload Speed")}
                                         value={reloadSpeed.value}
                                         bar={true}
                                     />
@@ -209,19 +207,14 @@ const TooltipStats = ({
                                     <div className="mb-1">
                                         {chargeTime && (
                                             <WeaponStat
-                                                name={
-                                                    statsDefinitions[chargeTime.statHash].displayProperties
-                                                        .name
-                                                }
+                                                name={statName(chargeTime, "Charge Time")}
                                                 value={chargeTime.value}
                                                 bar={true}
                                             />
                                         )}
                                         {drawTime && (
                                             <WeaponStat
-                                                name={
-                                                    statsDefinitions[drawTime.statHash].displayProperties.name
-                                                }
+                                                name={statName(drawTime, "Draw Time")}
                                                 value={drawTime.value}
                                                 bar={true}
                                             />
@@ -232,18 +225,14 @@ const TooltipStats = ({
                                 {/* Projectile-based stats */}
                                 {blastRadius && (
                                     <WeaponStat
-                                        name={
-                                            statsDefinitions[blastRadius.statHash].displayProperties.name
-                                        }
+                                        name={statName(blastRadius, "Blast Radius")}
                                         value={blastRadius.value}
                                         bar={true}
                                     />
                                 )}
                                 {velocity && (
                                     <WeaponStat
-                                        name={
-                                            statsDefinitions[velocity.statHash].displayProperties.name
-                                        }
+                                        name={statName(velocity, "Velocity")}
                                         value={velocity.value}
                                         bar={true}
                                     />
@@ -251,9 +240,7 @@ const TooltipStats = ({
                                 {rpm && <WeaponStat name={"RPM"} value={rpm.value} bar={false} />}
                                 {magazine && (
                                     <WeaponStat
-                                        name={
-                                            statsDefinitions[magazine.statHash].displayProperties.name
-                                        }
+                                        name={statName(magazine, "Magazine")}
                                         value={magazine.value}
                                         bar={false}
                                     />
