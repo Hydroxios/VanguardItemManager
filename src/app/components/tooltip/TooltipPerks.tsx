@@ -1,5 +1,8 @@
+"use client";
+
 import { ItemDefinition } from "@/lib/hooks/useDefinitions";
 import Image from "next/image";
+import { useState } from "react";
 
 type ItemType = "weapon" | "armor" | "subclass";
 
@@ -11,6 +14,23 @@ interface TooltipPerksProps {
     perksDefinitions: any;
 }
 
+interface PerkTooltipState {
+    name: string;
+    description: string;
+    x: number;
+    y: number;
+}
+
+const getPerkDisplayProperties = (perk: any, perksDefinitions: any) => {
+    const perkDef = perksDefinitions[perk.perkHash];
+
+    return {
+        name: perkDef?.displayProperties?.name || "Perk",
+        description: perkDef?.displayProperties?.description || "",
+        icon: perkDef?.displayProperties?.icon || perk.iconPath,
+    };
+};
+
 const TooltipPerks = ({
     itemType,
     item,
@@ -18,6 +38,64 @@ const TooltipPerks = ({
     itemComponents,
     perksDefinitions,
 }: TooltipPerksProps) => {
+    const [perkTooltip, setPerkTooltip] = useState<PerkTooltipState | null>(null);
+
+    const showPerkTooltip = (
+        event: React.MouseEvent<HTMLDivElement>,
+        perk: any
+    ) => {
+        const { name, description } = getPerkDisplayProperties(perk, perksDefinitions);
+
+        setPerkTooltip({
+            name,
+            description,
+            x: event.clientX + 14,
+            y: event.clientY + 14,
+        });
+    };
+
+    const movePerkTooltip = (event: React.MouseEvent<HTMLDivElement>) => {
+        setPerkTooltip((current) =>
+            current
+                ? {
+                    ...current,
+                    x: event.clientX + 14,
+                    y: event.clientY + 14,
+                }
+                : current
+        );
+    };
+
+    const hidePerkTooltip = () => {
+        setPerkTooltip(null);
+    };
+
+    const renderPerkIcon = (
+        perk: any,
+        alt: string,
+        size = 32,
+        className = "rounded-full bg-sky-500 p-1"
+    ) => {
+        const { name, icon } = getPerkDisplayProperties(perk, perksDefinitions);
+        if (!icon) return null;
+
+        return (
+            <div
+                className={`${className} cursor-help`}
+                onMouseEnter={(event) => showPerkTooltip(event, perk)}
+                onMouseMove={movePerkTooltip}
+                onMouseLeave={hidePerkTooltip}
+            >
+                <Image
+                    src={`https://www.bungie.net${icon}`}
+                    height={size}
+                    width={size}
+                    alt={name || alt}
+                />
+            </div>
+        );
+    };
+
     const renderWeaponPerks = () => {
         if (!item) return null;
         if (!itemInstanceId) return;
@@ -58,34 +136,15 @@ const TooltipPerks = ({
                     {perks.map((p: any, idx: number) => (
                         <div key={idx}>
                             {p && perksDefinitions[p.perkHash] && (
-                                <div className="rounded rounded-full bg-sky-500 p-1">
-                                    <Image
-                                        src={`https://www.bungie.net${perksDefinitions[p.perkHash].displayProperties.icon}`}
-                                        height={32}
-                                        width={32}
-                                        alt="Perk"
-                                    />
-                                </div>
+                                renderPerkIcon(p, "Perk")
                             )}
                         </div>
                     ))}
                     {originTrait && (
-                        <div className="rounded rounded-full bg-sky-500 p-1">
-                            <Image
-                                src={`https://www.bungie.net${originTrait.iconPath}`}
-                                height={32}
-                                width={32}
-                                alt="Origin trait"
-                            />
-                        </div>
+                        renderPerkIcon(originTrait, "Origin trait")
                     )}
                     {mod && (
-                        <Image
-                            src={`https://www.bungie.net${mod.iconPath}`}
-                            height={40}
-                            width={40}
-                            alt="Mod"
-                        />
+                        renderPerkIcon(mod, "Mod", 40, "cursor-help")
                     )}
                 </div>
             </div>
@@ -117,12 +176,7 @@ const TooltipPerks = ({
                                             key={idx}
                                             className="flex flex-row items-center gap-2 mb-2"
                                         >
-                                            <Image
-                                                src={`https://www.bungie.net${p.iconPath}`}
-                                                height={32}
-                                                width={32}
-                                                alt={perkDef.displayProperties.name ?? "Perk"}
-                                            />
+                                            {renderPerkIcon(p, "Perk")}
                                             <div className="flex flex-col items-start text-left">
                                                 <span className="text-sm font-semibold text-gray-200">
                                                     {perkDef.displayProperties.name || "Perk"}
@@ -135,6 +189,24 @@ const TooltipPerks = ({
                                     );
                                 })}
                     </div>
+                </div>
+            )}
+            {perkTooltip && (
+                <div
+                    className="fixed z-[1010] max-w-[300px] border border-white/25 bg-[#111318]/95 text-left shadow-[0_12px_30px_rgba(0,0,0,0.55)] pointer-events-none"
+                    style={{
+                        left: Math.max(8, Math.min(perkTooltip.x, window.innerWidth - 320)),
+                        top: Math.max(8, Math.min(perkTooltip.y, window.innerHeight - 140)),
+                    }}
+                >
+                    <div className="border-b border-white/15 bg-white/10 px-3 py-2 text-[13px] font-semibold uppercase tracking-wide text-white">
+                        {perkTooltip.name}
+                    </div>
+                    {perkTooltip.description && (
+                        <div className="px-3 py-2 text-xs leading-relaxed text-gray-300">
+                            {perkTooltip.description}
+                        </div>
+                    )}
                 </div>
             )}
         </>
