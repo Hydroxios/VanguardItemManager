@@ -325,6 +325,14 @@ const SearchBar = ({ currentCharacterId, open, onClose }: { currentCharacterId?:
                   <span className="block text-xs mt-0.5">featured, unfeatured, exotic</span>
                 </li>
               </ul>
+              <a
+                href="/docs/search"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-4 block border-t border-white/10 pt-3 text-right text-xs font-semibold text-purple-300 transition-colors hover:text-white"
+              >
+                View more
+              </a>
             </div>
           </div>
         </div>
