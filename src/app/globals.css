@@ -258,3 +258,7 @@ footer {
     left: 120%;
   }
 }
+
+button {
+  cursor: pointer;
+}
