@@ -10,11 +10,12 @@ import { useEffect, useMemo, useState } from "react";
 import { useNotifications } from "@/app/components/NotificationsProvider";
 import { useDefinitions } from "@/lib/hooks/useDefinitions";
 import useAuth from "@/lib/hooks/useAuth";
-import { Item, Loadout, useProfile } from "@/lib/hooks/useProfile";
+import { useProfile } from "@/lib/hooks/useProfile";
 import LoadoutViewerModal from "./LoadoutViewerModal";
 import Image from "next/image";
+import { Item, Loadout } from "@/lib/types";
+import { BUCKETS } from "@/lib/constants";
 
-const POSTMASTER_BUCKET_HASH = 215593132;
 
 interface LoadoutsProps {
   characterId: string;
@@ -127,7 +128,7 @@ const Loadouts = ({
         const itemDef = itemDefinitions[item.itemHash];
         const validItem = (characterInventories[itemCharId]?.items ?? []).find((i) => {
           // Les objets du postmaster ne peuvent pas être équipés
-          if (!i.itemInstanceId || i.bucketHash === POSTMASTER_BUCKET_HASH || i.itemHash === item.itemHash) return false;
+          if (!i.itemInstanceId || i.bucketHash === BUCKETS.POSTMASTER || i.itemHash === item.itemHash) return false;
           const itemObject = itemDefinitions[i.itemHash];
           return !!itemObject?.equippingBlock
             && itemObject.equippingBlock.equipmentSlotTypeHash === itemDef?.equippingBlock?.equipmentSlotTypeHash

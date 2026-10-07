@@ -1,31 +1,6 @@
-import { Item } from './hooks/useProfile';
+import { BungieUser, Item } from "@/lib/types";
 
 const apiKey = process.env.NODE_ENV === 'production' ? process.env.NEXT_PUBLIC_BUNGIE_API_KEY! : process.env.NEXT_PUBLIC_BUNGIE_API_KEY_DEV!;
-
-export interface BungieUser {
-    uniqueName: string
-    membershipId: string
-    membershipType: number
-}
-
-export interface UserInfo {
-    displayName: string
-    iconPath: string
-    crossSaveOverride: number
-    isPublic: boolean
-    bungieGlobalDisplayNameCode: number
-}
-
-export interface Character {
-    characterId: string;
-    emblemHash: number;
-    emblemPath: string;
-    light: number;
-    classType: number;
-    raceType: number
-    classHash: number
-    raceHash: number
-}
 
 export interface ItemResponse {
     characterId: string

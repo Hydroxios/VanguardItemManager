@@ -1,7 +1,8 @@
-import { ItemDefinition, ObjectiveDefinitions, useDefinitions } from "@/lib/hooks/useDefinitions";
+import { useDefinitions } from "@/lib/hooks/useDefinitions";
 import { getWeaponKillCounter } from "@/lib/helpers/kill-counter";
 import Image from "next/image";
 import { useMemo } from "react";
+import { ItemDefinition, ObjectiveDefinitions } from "@/lib/types";
 
 const numberFormat = new Intl.NumberFormat();
 

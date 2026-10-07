@@ -1,6 +1,7 @@
-import { ItemDefinition } from "@/lib/hooks/useDefinitions";
+
 import useTransferItem from "@/lib/hooks/useTransferItem";
 import Image from "next/image";
+import { ItemDefinition } from "@/lib/types";
 
 interface TooltipActionsProps {
     item: ItemDefinition;

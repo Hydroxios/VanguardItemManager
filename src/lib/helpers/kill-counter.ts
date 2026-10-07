@@ -1,5 +1,4 @@
-import { ItemDefinitions, ObjectiveDefinitions } from "@/lib/hooks/useDefinitions";
-import { ItemComponents, ItemObjective } from "@/lib/hooks/useProfile";
+import { ItemDefinitions, ObjectiveDefinitions, ItemComponents, ItemObjective } from "@/lib/types";
 
 // Kill tracker plugs (crucible, vanguard, ...) all live in this plug category, whatever the locale
 const KILL_TRACKER_PLUG_CATEGORY = "trackers";

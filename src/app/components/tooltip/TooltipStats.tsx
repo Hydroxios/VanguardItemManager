@@ -1,7 +1,8 @@
 import WeaponStat from "../WeaponStat";
-import { ItemDefinition } from "@/lib/hooks/useDefinitions";
 import { getDamageTypeIcon } from "@/lib/helpers/damage-type";
 import Image from "next/image";
+import { ItemDefinition } from "@/lib/types";
+import { ARMOR_STATS } from "@/lib/constants";
 
 interface TooltipStatsProps {
     item: ItemDefinition;
@@ -31,12 +32,12 @@ const TooltipStats = ({
     const velocity = stats?.[2523465841];
     const chargeTime = stats?.[2961396640];
     const drawTime = stats?.[447667954];
-    const mobility = stats?.[2996146975];
-    const resilience = stats?.[392767087];
-    const recovery = stats?.[1943323491];
-    const discipline = stats?.[1735777505];
-    const intellect = stats?.[144602215];
-    const strength = stats?.[4244567218];
+    const mobility = stats?.[ARMOR_STATS.MOBILITY];
+    const resilience = stats?.[ARMOR_STATS.RESILIENCE];
+    const recovery = stats?.[ARMOR_STATS.RECOVERY];
+    const discipline = stats?.[ARMOR_STATS.DISCIPLINE];
+    const intellect = stats?.[ARMOR_STATS.INTELLECT];
+    const strength = stats?.[ARMOR_STATS.STRENGTH];
 
     const statName = (stat: any, fallback: string) => {
         return statsDefinitions[stat?.statHash]?.displayProperties?.name ?? fallback;

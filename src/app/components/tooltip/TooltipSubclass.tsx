@@ -1,13 +1,10 @@
 "use client";
 
-import {
-    ItemDefinition,
-    PerkDefinition,
-    useDefinitions,
-} from "@/lib/hooks/useDefinitions";
-import { Perk, useProfile } from "@/lib/hooks/useProfile";
+import { useDefinitions } from "@/lib/hooks/useDefinitions";
+import { useProfile } from "@/lib/hooks/useProfile";
 import Image from "next/image";
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { ItemDefinition, PerkDefinition, Perk } from "@/lib/types";
 
 const BUNGIE_BASE_URL = "https://www.bungie.net";
 const SUBCLASS_ABILITY_CATEGORY_HASH = 1043342778;

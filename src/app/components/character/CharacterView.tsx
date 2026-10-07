@@ -10,50 +10,20 @@ import useTransferItem from "@/lib/hooks/useTransferItem";
 import Vault from "./Vault";
 import Engrams from "./Engrams";
 import Postmaster from "./Postmaster";
-import { ItemDefinition, useDefinitions } from "@/lib/hooks/useDefinitions";
-import { ItemPerks, ItemStats, useProfile } from "@/lib/hooks/useProfile";
+import { useDefinitions } from "@/lib/hooks/useDefinitions";
+import { useProfile } from "@/lib/hooks/useProfile";
 import useAuth from "@/lib/hooks/useAuth";
-import { EquipmentItem } from "@/lib/types/destinyTypes";
 import DestinyIcon from "../destiny-ui/DestinyIcon";
 import SearchBar from "../inputs/SearchBar";
 import { useItemTooltipActions } from "@/lib/hooks/useItemTooltip";
 import CharacterHeader from "./header/CharacterHeader";
+import { EquipmentItem, EquipmentSection } from "@/lib/types";
+import { CURRENCIES, EQUIPMENT_SLOTS } from "@/lib/constants";
 
 interface CharacterViewProps {
   characterId: string;
   changeCharacter: (characterId: string | undefined) => void;
   onOpenSettings: () => void;
-}
-
-const GLIMMER_HASH = 3159615086;
-const BRIGHT_DUST_HASH = 2817410917;
-
-// Equipment slot type hash constants
-const EQUIPMENT_SLOTS = {
-  PRIMARY: 1498876634,
-  ENERGETIC: 2465295065,
-  HEAVY: 953998645,
-  HELMET: 3448274439,
-  ARMS: 3551918588,
-  CHEST: 14239492,
-  LEGS: 20886954,
-  CLASS_ITEM: 1585787867,
-};
-
-interface InventoryItem {
-  item: ItemDefinition;
-  itemInstanceId: string;
-  ornamentItem: ItemDefinition;
-  perks: ItemPerks;
-  stats: ItemStats;
-  state: number;
-  hash: number;
-}
-
-interface EquipmentSection {
-  current: EquipmentItem | undefined;
-  inventory: EquipmentItem[];
-  isOpen: boolean;
 }
 
 const CharacterView: React.FC<CharacterViewProps> = ({
@@ -152,7 +122,7 @@ const CharacterView: React.FC<CharacterViewProps> = ({
   // Initialize equipment and currencies
   const initializeData = useCallback(() => {
     // Process currencies
-    const c = [GLIMMER_HASH, BRIGHT_DUST_HASH]
+    const c = [CURRENCIES.GLIMMER, CURRENCIES.BRIGHT_DUST]
       .map((hash) => profileCurrencies.find((currency) => currency.itemHash === hash))
       .filter((currency) => currency !== undefined)
       .map((currency) => ({
@@ -229,7 +199,7 @@ const CharacterView: React.FC<CharacterViewProps> = ({
 
         if (i.equippingBlock) {
           const slotHash = i.equippingBlock.equipmentSlotTypeHash;
-          const inventoryItem: InventoryItem = {
+          const inventoryItem: EquipmentItem = {
             item: i,
             itemInstanceId: item.itemInstanceId,
             ornamentItem,

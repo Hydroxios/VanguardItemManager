@@ -10,9 +10,9 @@ import { useProfile } from "@/lib/hooks/useProfile";
 import { useItemTooltip } from "@/lib/hooks/useItemTooltip";
 import LoadingStatus from "./LoadingStatus";
 import SettingsModal from "./SettingsModal";
-import { Alert } from "@/lib/types";
 import Image from "next/image";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { Alert } from "@/lib/types";
 
 // Bungie alerts are HTML snippets; show their text without rendering untrusted markup
 const htmlToText = (html: string) =>

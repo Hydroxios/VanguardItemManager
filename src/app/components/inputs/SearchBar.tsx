@@ -1,17 +1,13 @@
 "use client"
 
 import Item from "../character/Item";
-import {
-  ItemDefinition,
-  useDefinitions,
-} from "@/lib/hooks/useDefinitions";
+import { useDefinitions } from "@/lib/hooks/useDefinitions";
 import { useProfile } from "@/lib/hooks/useProfile";
 import { useEffect, useState } from "react";
 import useTransferItem from "@/lib/hooks/useTransferItem";
-import { ItemPerks, ItemStats } from "@/lib/hooks/useProfile";
-import { Perk } from "@/lib/hooks/useProfile";
 import { getDamageTypeIcon } from "@/lib/helpers/damage-type";
 import Image from "next/image";
+import { ItemDefinition, ItemPerks, ItemStats, Perk } from "@/lib/types";
 
 interface SearchResult {
   item: ItemDefinition;
