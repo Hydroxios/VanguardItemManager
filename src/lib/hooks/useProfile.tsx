@@ -3,6 +3,7 @@ import { getCurrentUser, getProfile } from "@/lib/bungie";
 import { BungieUser, Character, Currency, Item, ItemInstance, ItemComponents, ItemPlug, Loadout, PlugSets, ProfileData } from "@/lib/types";
 import { BUCKETS } from "@/lib/constants";
 import { moveItemInState } from "@/lib/helpers/inventory";
+import { ITEM_STATE } from "@/lib/search";
 
 
 export interface Profile {
@@ -30,6 +31,7 @@ export interface Profile {
     transferEquippedItem: (itemHash: number, itemInstanceId: string, fromId: string, toId: string, replacementItemInstanceId: string) => void;
     equipLoadoutLocally: (characterId: string, loadoutItems: Item[]) => void;
     updateLoadoutLocally: (characterId: string, loadoutIndex: number, loadout: Loadout) => void;
+    setItemLockedLocally: (itemInstanceId: string, locked: boolean) => void;
 }
 
 const ProfileContext = createContext<Profile | undefined>(undefined)
@@ -186,6 +188,26 @@ export const ProfileProvider = ({ children }: ProfileProviderProps) => {
                     [movedItem.itemInstanceId]: { ...prev.instances[movedItem.itemInstanceId], isEquipped: false }
                 }
             }));
+        }
+    }, [setCharacterEquipment, setCharacterInventory, setProfileInventory]);
+
+    const setItemLockedLocally = useCallback((itemInstanceId: string, locked: boolean) => {
+        const withLock = (items: Item[]) => {
+            const index = items.findIndex((i) => i.itemInstanceId === itemInstanceId);
+            if (index === -1) return undefined;
+            const updated = [...items];
+            updated[index] = { ...items[index], state: locked ? items[index].state | ITEM_STATE.LOCKED : items[index].state & ~ITEM_STATE.LOCKED };
+            return updated;
+        };
+        const vault = withLock(profileInventoryRef.current);
+        if (vault) return setProfileInventory(vault);
+        for (const [characterId, { items }] of Object.entries(characterInventoriesRef.current)) {
+            const inventory = withLock(items);
+            if (inventory) return setCharacterInventory(characterId, inventory);
+        }
+        for (const [characterId, { items }] of Object.entries(characterEquipmentRef.current)) {
+            const equipment = withLock(items);
+            if (equipment) return setCharacterEquipment(characterId, equipment);
         }
     }, [setCharacterEquipment, setCharacterInventory, setProfileInventory]);
 
@@ -401,9 +423,10 @@ export const ProfileProvider = ({ children }: ProfileProviderProps) => {
         equipItemLocally,
         transferEquippedItem,
         equipLoadoutLocally,
-        updateLoadoutLocally
+        updateLoadoutLocally,
+        setItemLockedLocally
     }), [loading, loadError, user, refreshing, refresh, characterEquipment, characterInventories, characterLoadouts, characters, itemComponents, plugSets, profileData, profileCurrencies, profileInventory, lastRefresh,
-        setCharacterEquipment, setCharacterInventory, setProfileInventory, moveItem, changeEmblem, equipItemLocally, transferEquippedItem, equipLoadoutLocally, updateLoadoutLocally]);
+        setCharacterEquipment, setCharacterInventory, setProfileInventory, moveItem, changeEmblem, equipItemLocally, transferEquippedItem, equipLoadoutLocally, updateLoadoutLocally, setItemLockedLocally]);
 
     return (
         <ProfileContext.Provider value={contextValue}>

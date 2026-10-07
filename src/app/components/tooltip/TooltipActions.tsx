@@ -1,5 +1,7 @@
 
 import useTransferItem from "@/lib/hooks/useTransferItem";
+import useItemLock from "@/lib/hooks/useItemLock";
+import { ARMOR_SLOTS, WEAPON_SLOTS } from "@/lib/constants";
 import Image from "next/image";
 import { Character, ClassDefinitions, ItemDefinition } from "@/lib/types";
 
@@ -23,6 +25,9 @@ const TooltipActions = ({
     armor,
 }: TooltipActionsProps) => {
     const { transfer, locateItem } = useTransferItem();
+    const { canLock, locked, pending, toggleLock } = useItemLock(itemInstanceId);
+    const slot = item.equippingBlock?.equipmentSlotTypeHash ?? 0;
+    const lockable = canLock && (WEAPON_SLOTS.includes(slot) || ARMOR_SLOTS.includes(slot));
 
     if (!drawTransfert) return null;
 
@@ -53,6 +58,20 @@ const TooltipActions = ({
                     ))}
             </div>
             <div className="flex flex-row gap-2">
+                {lockable && (
+                    <button
+                        className={`flex h-8 w-8 items-center justify-center rounded-lg transition-opacity hover:opacity-80 disabled:opacity-50 ${locked ? "text-white" : "text-gray-400"}`}
+                        onClick={toggleLock}
+                        disabled={pending}
+                        title={locked ? "Unlock" : "Lock"}
+                        aria-label={locked ? "Unlock" : "Lock"}
+                    >
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                            <rect x="4" y="11" width="16" height="10" rx="2" fill={locked ? "currentColor" : "none"} />
+                            <path d={locked ? "M8 11V7a4 4 0 0 1 8 0v4" : "M8 11V7a4 4 0 0 1 7.75-1.4"} />
+                        </svg>
+                    </button>
+                )}
                 {location !== "vault" && (
                     <button
                         className="hover:opacity-80 transition-opacity"

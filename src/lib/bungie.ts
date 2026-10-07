@@ -515,3 +515,17 @@ export const insertSocketPlugFree = async (
         auth: true
     })
 }
+
+/** Locks or unlocks an item. A vault item takes any of the player's characters as `characterId`. */
+export const setItemLockState = async (membershipType: number, characterId: string, itemInstanceId: string, locked: boolean) => {
+    await bungie(`/Destiny2/Actions/Items/SetLockState/`, {
+        method: "POST",
+        body: JSON.stringify({
+            state: locked,
+            itemId: itemInstanceId,
+            characterId: characterId,
+            membershipType: membershipType
+        }),
+        auth: true
+    })
+}
