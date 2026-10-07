@@ -314,6 +314,9 @@ const Loadouts = ({
                             width={48}
                             style={{ position: "absolute", top: 0, left: 0 }}
                           />
+                          <span className="absolute bottom-0 right-0.5 text-xs font-bold leading-none text-white pointer-events-none select-none [text-shadow:0_0_2px_#000,0_0_2px_#000]">
+                            {index + 1}
+                          </span>
 
                           {isContextMenuOpen === index && (
                             <div
