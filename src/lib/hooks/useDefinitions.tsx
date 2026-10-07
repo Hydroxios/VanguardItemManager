@@ -146,7 +146,7 @@ export const DefinitionsProvider = ({ children }: { children: ReactNode }) => {
             } catch (error) {
                 console.error("Failed to load component definitions, falling back to aggregate manifest", error);
                 try {
-                    const db = await getDefinitions(locale);
+                    const db = await getDefinitions<DefinitionsAggregate>(locale);
                     if (!active) return;
                     setAggregateDefinitions(db);
                     setLoading(false);

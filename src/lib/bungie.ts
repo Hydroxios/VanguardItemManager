@@ -1,4 +1,5 @@
 import { BungieUser, Item } from "@/lib/types";
+import { fetchManifestFile, pruneManifestCache } from "./manifest-cache";
 
 const apiKey = process.env.NODE_ENV === 'production' ? process.env.NEXT_PUBLIC_BUNGIE_API_KEY! : process.env.NEXT_PUBLIC_BUNGIE_API_KEY_DEV!;
 
@@ -113,6 +114,11 @@ export const getManifest = async () => {
         manifestPromise = bungie("/Destiny2/Manifest", {}) as Promise<DestinyManifest>;
         // Don't keep a failed request cached, so a later call can retry
         manifestPromise.catch(() => { manifestPromise = undefined; });
+        // Once the current version is known, cached copies of older versions can go
+        manifestPromise.then((manifest) => pruneManifestCache([
+            ...Object.values(manifest.jsonWorldContentPaths),
+            ...Object.values(manifest.jsonWorldComponentContentPaths).flatMap((tables) => Object.values(tables)),
+        ])).catch((error) => console.warn("Failed to prune the manifest cache", error));
     }
     return manifestPromise;
 }
@@ -121,13 +127,11 @@ const getManifestPath = (paths: Record<string, string> | undefined, locale: stri
     return paths?.[locale] ?? paths?.en ?? Object.values(paths ?? {})[0];
 }
 
-export const getDefinitions = async (locale?: string) => {
+export const getDefinitions = async <T = unknown>(locale?: string): Promise<T> => {
     const manifests = await getManifest()
     const path = getManifestPath(manifests.jsonWorldContentPaths, locale ?? "en");
     if (!path) throw new Error("Missing Destiny manifest aggregate path");
-    const response = await fetch(`https://www.bungie.net${path}`);
-    const data = await response.json();
-    return data;
+    return fetchManifestFile<T>(path);
 }
 
 export const getDefinitionTable = async <T = unknown>(tableName: DestinyDefinitionTableName, locale?: string): Promise<T> => {
@@ -135,9 +139,7 @@ export const getDefinitionTable = async <T = unknown>(tableName: DestinyDefiniti
     const tablePaths = manifest.jsonWorldComponentContentPaths[locale ?? "en"] ?? manifest.jsonWorldComponentContentPaths.en;
     const path = tablePaths?.[tableName];
     if (!path) throw new Error(`Missing Destiny manifest component path for ${tableName}`);
-    const response = await fetch(`https://www.bungie.net${path}`);
-    if (!response.ok) throw new Error(`Failed to load ${tableName}`);
-    return response.json();
+    return fetchManifestFile<T>(path);
 }
 
 export const getGlobalAlerts = async () => {
