@@ -21,6 +21,12 @@ export interface ItemInstance {
     primaryStat: { statHash: number, value: number }
     quality: number
     gearTier: number
+    /** Armor only */
+    energy?: {
+        energyCapacity: number
+        energyUsed: number
+        energyUnused: number
+    }
 }
 
 export interface LoadoutItem {
@@ -90,6 +96,24 @@ export interface ItemSockets {
     sockets: ItemSocket[]
 }
 
+/** A plug that can be inserted in a socket, from an item's reusable plugs or an unlocked plug set */
+export interface ItemPlug {
+    plugItemHash: number
+    canInsert: boolean
+    enabled: boolean
+}
+
+export interface ItemReusablePlugs {
+    /** Keyed by socket index */
+    plugs: Record<string, ItemPlug[]>
+}
+
+/** Unlocked plugs per plug set hash, account wide and per character */
+export interface PlugSets {
+    profile: Record<string, ItemPlug[]>
+    characters: Record<string, Record<string, ItemPlug[]>>
+}
+
 export interface ItemObjective {
     objectiveHash: number
     progress?: number
@@ -108,4 +132,5 @@ export interface ItemComponents {
     sockets: Record<string, ItemSockets>
     stats: Record<string, ItemStats>
     plugObjectives: Record<string, ItemPlugObjectives>
+    reusablePlugs: Record<string, ItemReusablePlugs>
 }

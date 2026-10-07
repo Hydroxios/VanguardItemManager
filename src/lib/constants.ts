@@ -34,6 +34,15 @@ export const ARMOR_SLOTS = [
   EQUIPMENT_SLOTS.CLASS_ITEM,
 ];
 
+export const SOCKET_CATEGORIES = {
+  ARMOR_MODS: 590099826,
+  WEAPON_MODS: 2685412949,
+  WEAPON_PERKS: 4241085061,
+};
+
+/** In a loadout's plugItemHashes, marks a socket the loadout leaves as is */
+export const UNSET_PLUG_HASH = 2166136261;
+
 // Character and armor stat hashes
 export const ARMOR_STATS = {
   MOBILITY: 2996146975,

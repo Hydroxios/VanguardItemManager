@@ -97,7 +97,9 @@ export type DestinyDefinitionTableName =
     | "DestinyRaceDefinition"
     | "DestinyInventoryBucketDefinition"
     | "DestinyInventoryItemConstantsDefinition"
-    | "DestinySeasonDefinition";
+    | "DestinySeasonDefinition"
+    | "DestinySocketCategoryDefinition"
+    | "DestinyMaterialRequirementSetDefinition";
 
 interface DestinyManifest {
     jsonWorldContentPaths: Record<string, string>;
@@ -382,6 +384,31 @@ export const updateLoadoutIdentifiers = async (
             characterId: characterId,
             loadoutIndex: loadoutIndex,
             ...identifiers
+        }),
+        token
+    })
+}
+
+/**
+ * Inserts a plug (mod...) in an item socket. Only works for plugs that cost no materials,
+ * on items held by a character (not in the vault).
+ */
+export const insertSocketPlugFree = async (
+    token: string,
+    membershipType: number,
+    characterId: string,
+    itemInstanceId: string,
+    socketIndex: number,
+    plugItemHash: number
+) => {
+    await bungie(`/Destiny2/Actions/Items/InsertSocketPlugFree/`, {
+        method: "POST",
+        body: JSON.stringify({
+            // socketArrayType 0: the item's default sockets
+            plug: { socketIndex, socketArrayType: 0, plugItemHash },
+            itemId: itemInstanceId,
+            characterId: characterId,
+            membershipType: membershipType
         }),
         token
     })

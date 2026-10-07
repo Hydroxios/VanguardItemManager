@@ -1,7 +1,7 @@
 import { createContext, ReactNode, useContext, useEffect, useState, useMemo, useRef } from "react";
 import { getCurrentUser, getProfile } from "@/lib/bungie";
 import useAuth from "./useAuth";
-import { BungieUser, Character, Currency, Item, ItemInstance, ItemComponents, Loadout, ProfileData } from "@/lib/types";
+import { BungieUser, Character, Currency, Item, ItemInstance, ItemComponents, ItemPlug, Loadout, PlugSets, ProfileData } from "@/lib/types";
 import { BUCKETS } from "@/lib/constants";
 
 
@@ -16,6 +16,7 @@ export interface Profile {
     characterLoadouts: Record<string, { loadouts: Loadout[] }>
     characters: Record<string, Character>
     itemComponents: ItemComponents
+    plugSets: PlugSets
     profile: ProfileData
     profileCurrencies: Currency[]
     profileInventory: Item[]
@@ -49,7 +50,8 @@ export const ProfileProvider = ({ children }: ProfileProviderProps) => {
     const [characterLoadouts, setCharacterLoadouts] = useState<Record<string, { loadouts: Loadout[] }>>({})
     const [characters, setCharacters] = useState<Record<string, Character>>({})
 
-    const [itemComponents, setItemComponents] = useState<ItemComponents>({ instances: {}, perks: {}, sockets: {}, stats: {}, plugObjectives: {} })
+    const [itemComponents, setItemComponents] = useState<ItemComponents>({ instances: {}, perks: {}, sockets: {}, stats: {}, plugObjectives: {}, reusablePlugs: {} })
+    const [plugSets, setPlugSets] = useState<PlugSets>({ profile: {}, characters: {} })
 
     const [profileData, setProfileData] = useState<ProfileData>({ userInfo: undefined, characterIds: [], currentGuardianRank: 0, currentSeasonHash: 0 })
     const [profileCurrencies, setProfileCurrencies] = useState<Currency[]>([])
@@ -115,9 +117,17 @@ export const ProfileProvider = ({ children }: ProfileProviderProps) => {
             perks: profile.itemComponents.perks.data,
             sockets: profile.itemComponents.sockets?.data ?? {},
             stats: profile.itemComponents.stats.data,
-            plugObjectives: profile.itemComponents.plugObjectives?.data ?? {}
+            plugObjectives: profile.itemComponents.plugObjectives?.data ?? {},
+            reusablePlugs: profile.itemComponents.reusablePlugs?.data ?? {}
         }
         setItemComponents(itemcomps)
+
+        // Unlocked plugs (mods...) come with the ItemSockets component
+        const characterPlugSets: Record<string, { plugs: Record<string, ItemPlug[]> }> = profile.characterPlugSets?.data ?? {}
+        setPlugSets({
+            profile: profile.profilePlugSets?.data?.plugs ?? {},
+            characters: Object.fromEntries(Object.entries(characterPlugSets).map(([id, set]) => [id, set.plugs ?? {}])),
+        })
 
         setProfileData(profile.profile.data)
         setProfileCurrencies(profile.profileCurrencies.data.items)
@@ -450,6 +460,7 @@ export const ProfileProvider = ({ children }: ProfileProviderProps) => {
         characterLoadouts,
         characters,
         itemComponents,
+        plugSets,
         profile: profileData,
         profileCurrencies,
         profileInventory,
@@ -463,7 +474,7 @@ export const ProfileProvider = ({ children }: ProfileProviderProps) => {
         transferEquippedItem,
         equipLoadoutLocally,
         updateLoadoutLocally
-    }), [loading, loadError, user, refreshing, characterEquipment, characterInventories, characterLoadouts, characters, itemComponents, profileData, profileCurrencies, profileInventory, lastRefresh]);
+    }), [loading, loadError, user, refreshing, characterEquipment, characterInventories, characterLoadouts, characters, itemComponents, plugSets, profileData, profileCurrencies, profileInventory, lastRefresh]);
 
     return (
         <ProfileContext.Provider value={contextValue}>

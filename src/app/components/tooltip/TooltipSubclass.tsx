@@ -3,15 +3,12 @@
 import { useDefinitions } from "@/lib/hooks/useDefinitions";
 import { useProfile } from "@/lib/hooks/useProfile";
 import Image from "next/image";
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useMemo } from "react";
+import PlugTooltip, { usePlugTooltip } from "./PlugTooltip";
 import { ItemDefinition, PerkDefinition, Perk } from "@/lib/types";
 
 const BUNGIE_BASE_URL = "https://www.bungie.net";
 const SUBCLASS_ABILITY_CATEGORY_HASH = 1043342778;
-const SUBCLASS_TOOLTIP_MARGIN = 8;
-const SUBCLASS_TOOLTIP_OFFSET = 14;
-const SUBCLASS_TOOLTIP_WIDTH = 300;
-const SUBCLASS_TOOLTIP_FALLBACK_HEIGHT = 150;
 
 interface TooltipSubclassProps {
     item: ItemDefinition;
@@ -27,14 +24,6 @@ interface ActiveSubclassPerk {
     perk?: Perk;
     definition?: PerkDefinition;
     abilityItems: ItemDefinition[];
-}
-
-interface SubclassTooltipState {
-    name: string;
-    description: string;
-    typeName?: string;
-    x: number;
-    y: number;
 }
 
 type SubclassSection = "super" | "abilities" | "aspects" | "fragments";
@@ -102,12 +91,7 @@ const getSubclassAbilityItemsByPerk = (itemDefinitions: Record<string, ItemDefin
 };
 
 const TooltipSubclass = ({ item, itemInstanceId }: TooltipSubclassProps) => {
-    const [perkTooltip, setPerkTooltip] = useState<SubclassTooltipState | null>(null);
-    const [tooltipSize, setTooltipSize] = useState({
-        width: SUBCLASS_TOOLTIP_WIDTH,
-        height: SUBCLASS_TOOLTIP_FALLBACK_HEIGHT,
-    });
-    const tooltipRef = useRef<HTMLDivElement>(null);
+    const { tooltip: perkTooltip, handlers: perkTooltipHandlers } = usePlugTooltip();
     const { itemComponents } = useProfile();
     const { perksDefinitions, itemDefinitions } = useDefinitions();
 
@@ -197,17 +181,6 @@ const TooltipSubclass = ({ item, itemInstanceId }: TooltipSubclassProps) => {
         ? socketSubclassPerks
         : activePerks;
 
-    // Must stay above the early return below so the hook order never changes between renders
-    useLayoutEffect(() => {
-        if (!perkTooltip || !tooltipRef.current) return;
-
-        const rect = tooltipRef.current.getBoundingClientRect();
-        setTooltipSize({
-            width: rect.width,
-            height: rect.height,
-        });
-    }, [perkTooltip]);
-
     if (!displayedPerks.length) return null;
 
     const groupedPerks = displayedPerks.reduce<Record<SubclassSection, ActiveSubclassPerk[]>>(
@@ -223,69 +196,6 @@ const TooltipSubclass = ({ item, itemInstanceId }: TooltipSubclassProps) => {
         }
     );
 
-    const showPerkTooltip = (
-        event: React.MouseEvent<HTMLDivElement>,
-        activePerk: Pick<ActiveSubclassPerk, "name" | "description" | "typeName">
-    ) => {
-        setPerkTooltip({
-            name: activePerk.name,
-            description: activePerk.description ?? "",
-            typeName: activePerk.typeName,
-            x: event.clientX,
-            y: event.clientY,
-        });
-    };
-
-    const movePerkTooltip = (event: React.MouseEvent<HTMLDivElement>) => {
-        setPerkTooltip((current) =>
-            current
-                ? {
-                    ...current,
-                    x: event.clientX,
-                    y: event.clientY,
-                }
-                : current
-        );
-    };
-
-    const hidePerkTooltip = () => {
-        setPerkTooltip(null);
-    };
-
-    const getPerkTooltipStyle = (tooltip: SubclassTooltipState) => {
-        const viewportWidth = window.innerWidth;
-        const viewportHeight = window.innerHeight;
-        const tooltipWidth = tooltipSize.width || SUBCLASS_TOOLTIP_WIDTH;
-        const tooltipHeight = tooltipSize.height || SUBCLASS_TOOLTIP_FALLBACK_HEIGHT;
-
-        const preferredLeft = tooltip.x + SUBCLASS_TOOLTIP_OFFSET;
-        const flippedLeft =
-            tooltip.x - tooltipWidth - SUBCLASS_TOOLTIP_OFFSET;
-        const maxLeft =
-            viewportWidth - tooltipWidth - SUBCLASS_TOOLTIP_MARGIN;
-        const left =
-            preferredLeft + tooltipWidth + SUBCLASS_TOOLTIP_MARGIN >
-                viewportWidth
-                ? Math.max(SUBCLASS_TOOLTIP_MARGIN, flippedLeft)
-                : Math.min(preferredLeft, maxLeft);
-
-        const preferredTop = tooltip.y + SUBCLASS_TOOLTIP_OFFSET;
-        const flippedTop = tooltip.y - tooltipHeight - SUBCLASS_TOOLTIP_OFFSET;
-        const maxTop =
-            viewportHeight - tooltipHeight - SUBCLASS_TOOLTIP_MARGIN;
-        const top =
-            preferredTop + tooltipHeight + SUBCLASS_TOOLTIP_MARGIN >
-                viewportHeight
-                ? Math.max(SUBCLASS_TOOLTIP_MARGIN, flippedTop)
-                : Math.min(preferredTop, maxTop);
-
-        return {
-            left,
-            top,
-            width: `min(${SUBCLASS_TOOLTIP_WIDTH}px, calc(100vw - ${SUBCLASS_TOOLTIP_MARGIN * 2}px))`,
-        };
-    };
-
     const renderPerkTile = (
         activePerk: Pick<
             ActiveSubclassPerk,
@@ -296,9 +206,11 @@ const TooltipSubclass = ({ item, itemInstanceId }: TooltipSubclassProps) => {
         return (
             <div
                 key={`${activePerk.id}-${activePerk.name}`}
-                onMouseEnter={(event) => showPerkTooltip(event, activePerk)}
-                onMouseMove={movePerkTooltip}
-                onMouseLeave={hidePerkTooltip}
+                {...perkTooltipHandlers({
+                    name: activePerk.name,
+                    description: activePerk.description,
+                    typeName: activePerk.typeName,
+                })}
                 className={
                     size === "lg"
                         ? "relative flex h-16 w-16 rotate-45 cursor-help items-center justify-center border border-white/25 bg-cyan-300/35 shadow-[0_0_0_8px_rgba(255,255,255,0.04)]"
@@ -385,29 +297,7 @@ const TooltipSubclass = ({ item, itemInstanceId }: TooltipSubclassProps) => {
                     </div>
                 </div>
             </div>
-            {perkTooltip && (
-                <div
-                    ref={tooltipRef}
-                    className="fixed z-[1010] border border-white/25 bg-[#111318]/95 text-left shadow-[0_12px_30px_rgba(0,0,0,0.55)] pointer-events-none"
-                    style={getPerkTooltipStyle(perkTooltip)}
-                >
-                    <div className="border-b border-white/15 bg-white/10 px-3 py-2">
-                        <div className="text-[13px] font-semibold uppercase tracking-wide text-white">
-                            {perkTooltip.name}
-                        </div>
-                        {perkTooltip.typeName && (
-                            <div className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-cyan-200/75">
-                                {perkTooltip.typeName}
-                            </div>
-                        )}
-                    </div>
-                    {perkTooltip.description && (
-                        <div className="px-3 py-2 text-xs leading-relaxed text-gray-300">
-                            {perkTooltip.description}
-                        </div>
-                    )}
-                </div>
-            )}
+            <PlugTooltip tooltip={perkTooltip} />
         </>
     );
 };

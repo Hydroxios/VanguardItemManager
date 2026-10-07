@@ -35,7 +35,27 @@ export interface ItemDefinition {
     }[]
     plug?: {
         plugCategoryIdentifier: string
+        plugCategoryHash?: number
+        energyCost?: { energyCost: number }
+        /** Aspects: how many fragment sockets they open */
+        energyCapacity?: { capacityValue: number }
+        /** Non-zero when inserting the plug costs materials (crafted weapon perks...) */
+        insertionMaterialRequirementHash?: number
     }
+    /** Stats the item (or plug, once inserted) adds */
+    investmentStats?: { statTypeHash: number, value: number, isConditionallyActive?: boolean }[]
+    sockets?: {
+        socketEntries: SocketEntryDefinition[]
+        socketCategories: { socketCategoryHash: number, socketIndexes: number[] }[]
+    }
+}
+
+export interface SocketEntryDefinition {
+    socketTypeHash: number
+    singleInitialItemHash: number
+    reusablePlugSetHash?: number
+    randomizedPlugSetHash?: number
+    reusablePlugItems?: { plugItemHash: number }[]
 }
 
 export interface ClassDefinition {
@@ -111,6 +131,17 @@ export interface ItemConstantsDefinition {
     hash: number
 }
 
+export interface SocketCategoryDefinition {
+    displayProperties: DisplayPropertiesDefinition
+    hash: number
+}
+
+/** What inserting a plug costs; a set without counted materials is free */
+export interface MaterialRequirementSetDefinition {
+    materials: { itemHash: number, count: number, omitFromRequirements?: boolean }[]
+    hash: number
+}
+
 export interface SeasonDefinition {
     displayProperties: DisplayPropertiesDefinition
     seasonNumber: number
@@ -130,3 +161,5 @@ export type RaceDefinitions = Record<string, RaceDefinition>
 export type BucketDefinitions = Record<string, BucketDefinition>
 export type ItemConstantsDefinitions = Record<string, ItemConstantsDefinition>
 export type SeasonDefinitions = Record<string, SeasonDefinition>
+export type SocketCategoryDefinitions = Record<string, SocketCategoryDefinition>
+export type MaterialRequirementSetDefinitions = Record<string, MaterialRequirementSetDefinition>
