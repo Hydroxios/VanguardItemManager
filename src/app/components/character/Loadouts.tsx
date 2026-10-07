@@ -6,13 +6,15 @@ import {
   transferItem,
   clearLoadout
 } from "@/lib/bungie";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNotifications } from "@/app/components/NotificationsProvider";
 import { useDefinitions } from "@/lib/hooks/useDefinitions";
 import useAuth from "@/lib/hooks/useAuth";
 import { Item, Loadout, useProfile } from "@/lib/hooks/useProfile";
 import LoadoutViewerModal from "./LoadoutViewerModal";
 import Image from "next/image";
+
+const POSTMASTER_BUCKET_HASH = 215593132;
 
 interface LoadoutsProps {
   characterId: string;
@@ -40,9 +42,19 @@ const Loadouts = ({
     characterInventories,
     refresh,
     characterEquipment,
+    profileInventory,
     moveItem,
     equipLoadoutLocally
   } = useProfile()
+
+  // Lookup used by the equipping overlay, built once per inventory change instead of per item
+  const itemsByInstanceId = useMemo(() => {
+    const map = new Map<string, Item>();
+    profileInventory.forEach(item => item.itemInstanceId && map.set(item.itemInstanceId, item));
+    Object.values(characterInventories).forEach(inv => inv.items.forEach(item => item.itemInstanceId && map.set(item.itemInstanceId, item)));
+    Object.values(characterEquipment).forEach(eq => eq.items.forEach(item => item.itemInstanceId && map.set(item.itemInstanceId, item)));
+    return map;
+  }, [profileInventory, characterInventories, characterEquipment]);
 
   useEffect(() => {
     const ls: any[] = [];
@@ -53,107 +65,103 @@ const Loadouts = ({
       ls.push({ color: color?.colorImagePath, icon: icon?.iconImagePath });
     }
     setElements(() => ls);
-  }, [characterLoadouts, characterId]);
+  }, [characterLoadouts, characterId, loadoutColorDefinitions, loadoutIconDefinitions]);
 
   const handleEquip = async (index: number) => {
     setOnCooldown(() => true);
     setEquipedItemIds([]); // reset à chaque nouveau equip
     const l = characterLoadouts[characterId].loadouts[index];
     setEquipingLoadout(l);
-    console.log("equipping");
-    // On va stocker {item, characterId} pour chaque item
+    // On va stocker {item, characterId} pour chaque item ("vault" pour le coffre)
     type ItemWithChar = { item: Item; characterId: string };
     const itemToDesequip: ItemWithChar[] = [];
 
-    // Map de tous les items par instanceId, avec leur characterId
+    // Map de tous les items par instanceId, avec leur emplacement
     const itemMap: Record<string, ItemWithChar> = {};
+    profileInventory.forEach(item => {
+      if (item.itemInstanceId) itemMap[item.itemInstanceId] = { item, characterId: "vault" };
+    });
     Object.entries(characterInventories).forEach(([charId, inv]) => {
       inv.items.forEach(item => {
-        itemMap[item.itemInstanceId] = { item, characterId: charId };
+        if (item.itemInstanceId) itemMap[item.itemInstanceId] = { item, characterId: charId };
       });
     });
     Object.entries(characterEquipment).forEach(([charId, eq]) => {
       eq.items.forEach(item => {
-        itemMap[item.itemInstanceId] = { item, characterId: charId };
+        if (item.itemInstanceId) itemMap[item.itemInstanceId] = { item, characterId: charId };
       });
     });
 
-    for (let i = 0; i < l.items.length; i++) {
-      const loadoutItem = l.items[i];
-      const found = itemMap[loadoutItem.itemInstanceId];
-      if (found) {
+    try {
+      for (let i = 0; i < l.items.length; i++) {
+        const loadoutItem = l.items[i];
+        const found = itemMap[loadoutItem.itemInstanceId];
+        // Si on ne trouve pas l'item dans le profil, on ignore
+        if (!found) continue;
+
         const { item: itemInstance, characterId: itemCharId } = found;
-        // Si l'item est déjà sur le bon perso
         if (itemCharId === characterId) {
+          // L'item est déjà sur le bon perso
           setEquipedItemIds(prev => [...prev, loadoutItem.itemInstanceId]);
-        } else if (itemCharId) {
-          // Si l'item est sur un autre perso
-          if (itemInstance.transferStatus === 0) {
-            await transferItem(token as string, user.membershipType, itemInstance.itemHash, loadoutItem.itemInstanceId, itemCharId, true);
-            moveItem(itemInstance.itemHash, loadoutItem.itemInstanceId, itemCharId, "vault", 1);
-            await transferItem(token as string, user.membershipType, itemInstance.itemHash, loadoutItem.itemInstanceId, characterId, false);
-            moveItem(itemInstance.itemHash, loadoutItem.itemInstanceId, "vault", characterId, 1);
-            setEquipedItemIds(prev => [...prev, loadoutItem.itemInstanceId]);
-          } else if (itemInstance.transferStatus === 1) {
-            // Non transférable, il faudra le déséquiper
-            itemToDesequip.push({ item: itemInstance, characterId: itemCharId });
-          }
-        } else {
-          // L'item n'est pas sur un perso (peut-être dans le coffre)
+        } else if (itemCharId === "vault") {
+          // L'item est dans le coffre
+          await transferItem(token as string, user.membershipType, itemInstance.itemHash, loadoutItem.itemInstanceId, characterId, false);
+          moveItem(itemInstance.itemHash, loadoutItem.itemInstanceId, "vault", characterId, 1);
+          setEquipedItemIds(prev => [...prev, loadoutItem.itemInstanceId]);
+        } else if (itemInstance.transferStatus & 1) {
+          // Équipé sur un autre perso, il faudra le déséquiper
+          itemToDesequip.push({ item: itemInstance, characterId: itemCharId });
+        } else if (!(itemInstance.transferStatus & 2)) {
+          // Sur un autre perso et transférable
+          await transferItem(token as string, user.membershipType, itemInstance.itemHash, loadoutItem.itemInstanceId, itemCharId, true);
+          moveItem(itemInstance.itemHash, loadoutItem.itemInstanceId, itemCharId, "vault", 1);
           await transferItem(token as string, user.membershipType, itemInstance.itemHash, loadoutItem.itemInstanceId, characterId, false);
           moveItem(itemInstance.itemHash, loadoutItem.itemInstanceId, "vault", characterId, 1);
           setEquipedItemIds(prev => [...prev, loadoutItem.itemInstanceId]);
         }
-      } else {
-        // Si on ne trouve pas l'item dans le profil, on ignore
       }
-    }
 
-    // Déséquipement si besoin
-    const characters: Record<string, { items: Item[]; }> = {};
-    for (let index = 0; index < itemToDesequip.length; index++) {
-      const { item, characterId: itemCharId } = itemToDesequip[index];
-      if (!characters[itemCharId]) {
-        characters[itemCharId] = characterInventories[itemCharId];
-      }
-      let validItem: Item | undefined;
-      Object.values(characters[itemCharId].items).forEach((i) => {
-        if (validItem) return;
-        if (i.itemHash !== item.itemHash) {
+      // Déséquipement si besoin
+      for (let index = 0; index < itemToDesequip.length; index++) {
+        const { item, characterId: itemCharId } = itemToDesequip[index];
+        const itemDef = itemDefinitions[item.itemHash];
+        const validItem = (characterInventories[itemCharId]?.items ?? []).find((i) => {
+          // Les objets du postmaster ne peuvent pas être équipés
+          if (!i.itemInstanceId || i.bucketHash === POSTMASTER_BUCKET_HASH || i.itemHash === item.itemHash) return false;
           const itemObject = itemDefinitions[i.itemHash];
-          if (itemObject.equippingBlock) {
-            const itemDef = itemDefinitions[item.itemHash];
-            if (itemObject.equippingBlock.equipmentSlotTypeHash === itemDef?.equippingBlock?.equipmentSlotTypeHash) {
-              if (itemObject.inventory.tierType < 6) {
-                validItem = i;
-                return;
-              }
-            }
-          }
+          return !!itemObject?.equippingBlock
+            && itemObject.equippingBlock.equipmentSlotTypeHash === itemDef?.equippingBlock?.equipmentSlotTypeHash
+            && itemObject.inventory.tierType < 6;
+        });
+        if (validItem) {
+          await equipItem(token as string, user.membershipType, itemCharId, validItem.itemInstanceId);
+          await transferItem(token as string, user.membershipType, item.itemHash, item.itemInstanceId, itemCharId, true);
+          moveItem(item.itemHash, item.itemInstanceId, itemCharId, "vault", 1);
+          await transferItem(token as string, user.membershipType, item.itemHash, item.itemInstanceId, characterId, false);
+          moveItem(item.itemHash, item.itemInstanceId, "vault", characterId, 1);
+          setEquipedItemIds(prev => [...prev, item.itemInstanceId]);
         }
-      });
-      if (validItem) {
-        await equipItem(token as string, user.membershipType, itemCharId, validItem.itemInstanceId);
-        await transferItem(token as string, user.membershipType, item.itemHash, item.itemInstanceId, itemCharId, true);
-        moveItem(item.itemHash, item.itemInstanceId, itemCharId, "vault", 1);
-        await transferItem(token as string, user.membershipType, item.itemHash, item.itemInstanceId, characterId, false);
-        moveItem(item.itemHash, item.itemInstanceId, "vault", characterId, 1);
-        setEquipedItemIds(prev => [...prev, item.itemInstanceId]);
       }
+
+      await equipLoadout(token as string, user.membershipType, characterId, index);
+
+      // Use the new centralized local equip function
+      const loadoutItems = l.items
+        .map(i => itemMap[i.itemInstanceId]?.item)
+        .filter((item): item is Item => item !== undefined);
+
+      equipLoadoutLocally(characterId, loadoutItems);
+
+      const icon = loadoutIconDefinitions[l.iconHash];
+      addNotification("Successfully equipped your loadout!", "", "success", icon ? "https://www.bungie.net" + icon.iconImagePath : "", 5000);
+    } catch (error) {
+      addNotification("Error while equipping loadout", error instanceof Error ? error.message : "Failed to equip loadout", "error", "", 5000);
+      // Some transfers may have succeeded; resync with the game
+      refresh();
+    } finally {
+      setOnCooldown(() => false);
+      setEquipingLoadout(null);
     }
-
-    await equipLoadout(token as string, user.membershipType, characterId, index);
-
-    // Use the new centralized local equip function
-    const loadoutItems = l.items
-      .map(i => itemMap[i.itemInstanceId]?.item)
-      .filter((item): item is Item => item !== undefined);
-
-    equipLoadoutLocally(characterId, loadoutItems);
-
-    const icon = loadoutIconDefinitions[l.iconHash];
-    addNotification("Succesfully equiped your loadout!", "", "success", "https://www.bungie.net" + icon.iconImagePath, 5000);
-    setOnCooldown(() => false);
   };
 
   // Toggle context menu for a loadout
@@ -234,11 +242,7 @@ const Loadouts = ({
             {equipingLoadout && (
               <div className="mt-4 flex flex-row flex-wrap items-center gap-4 w-full max-w-xs justify-center">
                 {equipingLoadout.items.map((i, idx) => {
-                  // Cherche l'item complet dans characterInventories ET characterEquipment
-                  const allInventoryItems = Object.values(characterInventories).flatMap(inv => inv.items);
-                  const allEquipmentItems = Object.values(characterEquipment).flatMap((eq: { items: Item[] }) => eq.items);
-                  const allItems = [...allInventoryItems, ...allEquipmentItems];
-                  const fullItem = allItems.find(it => it.itemInstanceId === i.itemInstanceId);
+                  const fullItem = itemsByInstanceId.get(i.itemInstanceId);
                   const def = fullItem ? itemDefinitions[fullItem.itemHash] : undefined;
                   const isEquipped = equipedItemIds.includes(i.itemInstanceId);
                   return (
