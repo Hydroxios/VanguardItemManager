@@ -303,7 +303,7 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
   const loadoutStats = sumStats([
     ...ARMOR_SLOTS.map((slot) => selection[slot]).filter((id): id is string => !!id)
       .map((id) => armorStatsWithPlugs(id, desiredPlugs(id), itemComponents, itemDefinitions)),
-    plugsStats(subclassOwned ? Object.values(desiredPlugs(subclassOwned.item.itemInstanceId)) : [], itemDefinitions),
+    plugsStats(subclassOwned ? Object.values(desiredPlugs(subclassOwned.item.itemInstanceId)) : [], itemDefinitions, classType),
   ]);
   const equippedItems = characterEquipment[characterId]?.items ?? [];
   const equippedSubclass = equippedItems.find(isSubclass);
@@ -312,7 +312,7 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
       .map((item) => armorStatsWithPlugs(item.itemInstanceId, {}, itemComponents, itemDefinitions)),
     plugsStats(equippedSubclass
       ? editableSocketsOf(equippedSubclass).map((socketIndex) => itemComponents.sockets[equippedSubclass.itemInstanceId]?.sockets[socketIndex]?.plugHash)
-      : [], itemDefinitions),
+      : [], itemDefinitions, classType),
   ]);
 
   const nameOf = (itemHash?: number) => itemDefinitions[itemHash ?? 0]?.displayProperties.name;

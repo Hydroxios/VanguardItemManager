@@ -13,6 +13,8 @@ export interface PlugTooltipContent {
     name: string
     description?: string
     typeName?: string
+    /** Stats the plug changes once slotted (fragments...) */
+    stats?: { name: string, value: number }[]
     /** Why the plug can't be picked, shown under the description */
     warning?: string
 }
@@ -88,6 +90,15 @@ const PlugTooltip = ({ tooltip }: { tooltip: PlugTooltipState | null }) => {
             {tooltip.description && (
                 <div className="px-3 py-2 text-xs leading-relaxed text-gray-300">
                     {tooltip.description}
+                </div>
+            )}
+            {!!tooltip.stats?.length && (
+                <div className={`flex flex-col gap-0.5 px-3 pb-2 text-xs font-medium tabular-nums ${tooltip.description ? "" : "pt-2"}`}>
+                    {tooltip.stats.map((stat) => (
+                        <div key={stat.name} className={stat.value > 0 ? "text-green-400" : "text-red-400"}>
+                            {stat.value > 0 ? `+${stat.value}` : stat.value} {stat.name}
+                        </div>
+                    ))}
                 </div>
             )}
             {tooltip.warning && (

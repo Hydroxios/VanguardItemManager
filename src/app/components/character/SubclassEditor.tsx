@@ -6,6 +6,7 @@ import PlugTooltip, { plugTooltipContent, usePlugTooltip } from "../tooltip/Plug
 import { useProfile } from "@/lib/hooks/useProfile";
 import { useDefinitions } from "@/lib/hooks/useDefinitions";
 import { countFragments, getEditableSubclassSockets, getFragmentCapacity, isEmptyPlug, SubclassSocketKind } from "@/lib/helpers/subclass";
+import { subclassPlugStats } from "@/lib/helpers/stats";
 import { ItemDefinition } from "@/lib/types";
 
 interface SubclassEditorProps {
@@ -26,7 +27,7 @@ const KIND_LABELS: Record<SubclassSocketKind, string> = {
 /** Picks the super, abilities, aspects and fragments of a subclass. Changes are reported to the parent, which applies them. */
 const SubclassEditor = ({ itemHash, itemInstanceId, characterId, plugs, onChange }: SubclassEditorProps) => {
   const { itemComponents, plugSets } = useProfile();
-  const { itemDefinitions, perksDefinitions, socketCategoryDefinitions } = useDefinitions();
+  const { itemDefinitions, perksDefinitions, socketCategoryDefinitions, statsDefinitions } = useDefinitions();
   const { tooltip, handlers: tooltipHandlers } = usePlugTooltip();
 
   const definition = itemDefinitions[itemHash];
@@ -70,6 +71,15 @@ const SubclassEditor = ({ itemHash, itemInstanceId, characterId, plugs, onChange
     return !activeGroup.socketIndexes.some((socketIndex) => socketIndex !== activeSocket && plugs[socketIndex] === plug.hash);
   };
 
+  // Like in the game, fragments list the stats they raise or lower
+  const tooltipFor = (plug: ItemDefinition, warning?: string) => ({
+    ...plugTooltipContent(plug, perksDefinitions, warning),
+    stats: subclassPlugStats(plug, definition.classType).map((stat) => ({
+      name: statsDefinitions[stat.statTypeHash]?.displayProperties.name ?? "Stat",
+      value: stat.value,
+    })),
+  });
+
   return (
     <div className="flex flex-col gap-4 flex-1 min-h-0">
       <div className="flex flex-wrap gap-x-6 gap-y-3 shrink-0">
@@ -93,7 +103,7 @@ const SubclassEditor = ({ itemHash, itemInstanceId, characterId, plugs, onChange
                       setActiveSocket(socketIndex);
                       setSearch("");
                     }}
-                    {...(plug ? tooltipHandlers(plugTooltipContent(plug, perksDefinitions, locked ? "Locked: your aspects don't open this fragment socket" : undefined)) : {})}
+                    {...(plug ? tooltipHandlers(tooltipFor(plug, locked ? "Locked: your aspects don't open this fragment socket" : undefined)) : {})}
                     className={`relative ring-offset-2 ring-offset-[#141414] transition-shadow ${isActive ? "ring-2 ring-[#7e57c2]" : "hover:ring-2 hover:ring-white/30"} ${locked ? "opacity-40" : ""}`}
                   >
                     <PlugIcon plug={plug} size={52} showCost={false} />
@@ -137,7 +147,7 @@ const SubclassEditor = ({ itemHash, itemInstanceId, characterId, plugs, onChange
               // aria-disabled rather than disabled: a disabled button gets no hover events, so no tooltip
               aria-disabled={!available}
               onClick={() => available && activeSocket !== undefined && onChange(activeSocket, plug.hash)}
-              {...tooltipHandlers(plugTooltipContent(plug, perksDefinitions, available ? undefined : activeLocked ? "Locked socket: it can only be emptied" : "Already slotted"))}
+              {...tooltipHandlers(tooltipFor(plug, available ? undefined : activeLocked ? "Locked socket: it can only be emptied" : "Already slotted"))}
               className={`rounded p-0.5 transition-colors aria-disabled:opacity-30 aria-disabled:cursor-not-allowed ${isSelected ? "bg-[#7e57c2]/30 ring-1 ring-[#7e57c2]" : "hover:bg-white/10"}`}
             >
               <PlugIcon plug={plug} size={48} showCost={false} />
