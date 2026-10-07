@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useState } from "react";
-import { ItemDefinition } from "@/lib/types";
+import { ItemComponents, ItemDefinition, Perk, PerksDefinitions } from "@/lib/types";
 
 type ItemType = "weapon" | "armor" | "subclass";
 
@@ -10,8 +10,8 @@ interface TooltipPerksProps {
     itemType: ItemType;
     item: ItemDefinition;
     itemInstanceId?: string;
-    itemComponents: any;
-    perksDefinitions: any;
+    itemComponents: ItemComponents;
+    perksDefinitions: PerksDefinitions;
 }
 
 interface PerkTooltipState {
@@ -21,7 +21,7 @@ interface PerkTooltipState {
     y: number;
 }
 
-const getPerkDisplayProperties = (perk: any, perksDefinitions: any) => {
+const getPerkDisplayProperties = (perk: Perk, perksDefinitions: PerksDefinitions) => {
     const perkDef = perksDefinitions[perk.perkHash];
 
     return {
@@ -42,7 +42,7 @@ const TooltipPerks = ({
 
     const showPerkTooltip = (
         event: React.MouseEvent<HTMLDivElement>,
-        perk: any
+        perk: Perk
     ) => {
         const { name, description } = getPerkDisplayProperties(perk, perksDefinitions);
 
@@ -71,7 +71,7 @@ const TooltipPerks = ({
     };
 
     const renderPerkIcon = (
-        perk: any,
+        perk: Perk,
         alt: string,
         size = 32,
         className = "rounded-full bg-sky-500 p-1"
@@ -100,7 +100,7 @@ const TooltipPerks = ({
         if (!item) return null;
         if (!itemInstanceId) return;
         const filteredPerks = (itemComponents.perks[itemInstanceId]?.perks ?? []).filter(
-            (p: any) => p.isActive && p.visible
+            (p) => p.isActive && p.visible
         );
         const frame = filteredPerks[0];
         const frameDef = frame ? perksDefinitions[frame.perkHash] : undefined;
@@ -134,7 +134,7 @@ const TooltipPerks = ({
                     key={"perks"}
                     className="flex flex-row gap-2 w-full p-2 items-center justify-center"
                 >
-                    {perks.map((p: any, idx: number) => (
+                    {perks.map((p, idx) => (
                         <div key={idx}>
                             {p && perksDefinitions[p.perkHash] && (
                                 renderPerkIcon(p, "Perk")
@@ -166,10 +166,10 @@ const TooltipPerks = ({
                             itemComponents.perks[itemInstanceId] &&
                             itemComponents.perks[itemInstanceId].perks
                                 .filter(
-                                    (p: any) =>
-                                        p.isActive && p.visible && (p.iconPath as string).length > 0
+                                    (p) =>
+                                        p.isActive && p.visible && p.iconPath.length > 0
                                 )
-                                .map((p: any, idx: number) => {
+                                .map((p, idx) => {
                                     const perkDef = perksDefinitions[p.perkHash];
                                     if (!perkDef) return null;
                                     return (

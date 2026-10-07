@@ -3,11 +3,11 @@
 import Item from "../character/Item";
 import { useDefinitions } from "@/lib/hooks/useDefinitions";
 import { useProfile } from "@/lib/hooks/useProfile";
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import useTransferItem from "@/lib/hooks/useTransferItem";
 import { getDamageTypeIcon } from "@/lib/helpers/damage-type";
 import Image from "next/image";
-import { ItemDefinition, ItemPerks, ItemStats, Perk } from "@/lib/types";
+import { Item as ProfileItem, ItemDefinition, ItemPerks, ItemStats, Perk } from "@/lib/types";
 
 interface SearchResult {
   item: ItemDefinition;
@@ -23,7 +23,6 @@ interface SearchResult {
 const typeBlacklist = [14, 24, 26, 17, 0, 16, 19, 25, 28, 29, 22, 21, 8, 12]
 
 const SearchBar = ({ currentCharacterId, open, onClose }: { currentCharacterId?: string, open: boolean, onClose: () => void }) => {
-  const [results, setResults] = useState<SearchResult[]>([]); // State to store search results
   const [search, setSearch] = useState(""); // State for the search input value
   const [isFocused, setIsFocused] = useState(false); // State to track if the search bar is focused
 
@@ -38,12 +37,9 @@ const SearchBar = ({ currentCharacterId, open, onClose }: { currentCharacterId?:
 
   const { transfer } = useTransferItem();
 
-  const handleSearch = (search: string) => {
-    setSearch(search);
-    if (search.length === 0) {
-      setResults([]);
-      return;
-    }
+  // Recomputed as you type and whenever items move, only while the search is shown
+  const results = useMemo<SearchResult[]>(() => {
+    if (!open || search.length === 0) return [];
 
     const query = search.toLowerCase().trim();
     const searchTerms = query.split(' ').filter(term => term.length > 0);
@@ -56,7 +52,7 @@ const SearchBar = ({ currentCharacterId, open, onClose }: { currentCharacterId?:
       name: searchTerms.filter(term => !term.includes(':') && !term.startsWith('>=')).join(' ')
     };
 
-    const allItems: { item: any, location: string, characterId: string }[] = [];
+    const allItems: { item: ProfileItem & { itemDef: ItemDefinition }, location: string, characterId: string }[] = [];
 
     // Add equipped items
     Object.keys(characterEquipment).forEach((char: string) => {
@@ -98,7 +94,7 @@ const SearchBar = ({ currentCharacterId, open, onClose }: { currentCharacterId?:
       }
     });
 
-    const filteredResults = allItems.filter(({ item }) => {
+    return allItems.filter(({ item }) => {
       const i: ItemDefinition = item.itemDef;
       const state = item.state;
       if (!i || !i.displayProperties || !i.displayProperties.name) return false;
@@ -165,20 +161,11 @@ const SearchBar = ({ currentCharacterId, open, onClose }: { currentCharacterId?:
       perks: itemComponents.perks[item.itemInstanceId],
       stats: itemComponents.stats[item.itemInstanceId],
     }));
-
-    setResults(filteredResults);
-  };
-
-
-  // Re-run the search when items move, but only while the search is visible
-  useEffect(() => {
-    if (open) handleSearch(search);
-  }, [open, characters, characterEquipment, characterInventories, profileInventory]);
+  }, [open, search, characters, characterEquipment, characterInventories, profileInventory, itemComponents, itemDefinitions, classDefinitions, perksDefinitions]);
 
   // Clear search input and results
   const handleClearSearch = () => {
     setSearch("");
-    setResults([]);
   };
 
   // Handle double click to transfer item to the current character
@@ -216,7 +203,7 @@ const SearchBar = ({ currentCharacterId, open, onClose }: { currentCharacterId?:
             placeholder="Search for items, perks, tiers..."
             className="flex-grow p-2 bg-transparent text-white text-xl placeholder-gray-500 focus:outline-none font-medium"
             value={search}
-            onChange={(e) => handleSearch(e.target.value)}
+            onChange={(e) => setSearch(e.target.value)}
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
             autoFocus
@@ -300,8 +287,8 @@ const SearchBar = ({ currentCharacterId, open, onClose }: { currentCharacterId?:
                         itemInstanceId={result.itemInstanceId}
                         ornamentItem={result.overrideStyleItemHash ? itemDefinitions[result.overrideStyleItemHash] : undefined}
                         state={result.state}
-                        perks={result.perks || {}}
-                        stats={result.stats || {}}
+                        perks={result.perks}
+                        stats={result.stats}
                         characterId={result.characterId}
                         armor={false}
                         quantity={1}

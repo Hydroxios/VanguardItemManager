@@ -32,22 +32,16 @@ const Vault: React.FC<VaultProps> = ({
   setIsOpen,
   characterId,
 }) => {
-  const [processedItems, setProcessedItems] = useState<{
-    weapons: ProcessedItem[],
-    armor: ProcessedItem[],
-    misc: ProcessedItem[]
-  }>({ weapons: [], armor: [], misc: [] });
-
   const [activeTab, setActiveTab] = useState<'weapons' | 'armor' | 'misc'>('weapons');
   const [weaponTypeFilter, setWeaponTypeFilter] = useState<string>('all');
   const [elementFilter, setElementFilter] = useState<DamageType | 'all'>('all');
-  const [weaponTypes, setWeaponTypes] = useState<{ [key: string]: string }>({});
   const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState<boolean>(false);
   const [isElementDropdownOpen, setIsElementDropdownOpen] = useState<boolean>(false);
   const [showDuplicates, setShowDuplicates] = useState<boolean>(false);
   const [isAnimatingOut, setIsAnimatingOut] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const [vaultHeight, setVaultHeight] = useState<number>(50); // Default height in vh
+  // Height in vh, as last resized; the vault only renders on the client, after login
+  const [vaultHeight, setVaultHeight] = useState<number>(() => Number(localStorage.getItem('vaultHeight')) || 50);
   const [isResizing, setIsResizing] = useState<boolean>(false);
 
   const resizeRef = useRef<HTMLDivElement>(null);
@@ -57,8 +51,8 @@ const Vault: React.FC<VaultProps> = ({
   const { profileInventory, itemComponents } = useProfile()
   const { transfer } = useTransferItem()
 
-  // Process inventory items into categories
-  useEffect(() => {
+  // Vault items sorted by category, and the weapon types found for the type filter
+  const { processedItems, weaponTypes } = useMemo(() => {
     // An empty vault must still clear the grid, so don't return early here
     const weapons: ProcessedItem[] = [];
     const armor: ProcessedItem[] = [];
@@ -104,17 +98,15 @@ const Vault: React.FC<VaultProps> = ({
       }
     });
 
-    setProcessedItems({
-      weapons: weapons.sort((a, b) => a.item.displayProperties.name.localeCompare(b.item.displayProperties.name)),
-      armor: armor.sort((a, b) => a.item.displayProperties.name.localeCompare(b.item.displayProperties.name)),
-      misc: misc.sort((a, b) => a.item.displayProperties.name.localeCompare(b.item.displayProperties.name))
-    });
-
-    setWeaponTypes(types);
+    const byName = (a: ProcessedItem, b: ProcessedItem) => a.item.displayProperties.name.localeCompare(b.item.displayProperties.name);
+    return {
+      processedItems: { weapons: weapons.sort(byName), armor: armor.sort(byName), misc: misc.sort(byName) },
+      weaponTypes: types,
+    };
   }, [profileInventory, itemDefinitions, itemComponents]);
 
   // Handle item transfer from vault to character
-  const handleTransfer = useCallback((item: any) => {
+  const handleTransfer = useCallback((item: ProcessedItem) => {
     const instanceId = item.itemInstance.itemInstanceId;
     transfer({
       itemHash: item.item.hash,
@@ -127,7 +119,7 @@ const Vault: React.FC<VaultProps> = ({
   }, [characterId, transfer]);
 
   // Handle drag start for items
-  const handleDragStart = useCallback((event: React.DragEvent, item: any) => {
+  const handleDragStart = useCallback((event: React.DragEvent, item: ProcessedItem) => {
     event.dataTransfer.setData(
       "text/plain",
       "st:" + item.item.hash + ":" + (item.itemInstance.itemInstanceId || '0')
@@ -193,7 +185,7 @@ const Vault: React.FC<VaultProps> = ({
         const instanceId = item.itemInstance.itemInstanceId;
         const itemPerkData = instanceId ? itemComponents.perks[instanceId] : null;
 
-        const hasMatchingPerk = itemPerkData?.perks.some((perk: any) =>
+        const hasMatchingPerk = itemPerkData?.perks.some((perk) =>
           perk.visible &&
           perk.isActive &&
           perksDefinitions[perk.perkHash]?.displayProperties?.name?.toLowerCase().includes(perkQuery)
@@ -232,14 +224,6 @@ const Vault: React.FC<VaultProps> = ({
 
   }, [activeTab, processedItems, weaponTypeFilter, elementFilter, searchQuery, itemComponents, perksDefinitions, showDuplicates]);
 
-  // Reset filters when changing tabs
-  useEffect(() => {
-    if (activeTab !== 'weapons') {
-      setWeaponTypeFilter('all');
-      setElementFilter('all');
-    }
-  }, [activeTab]);
-
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -275,6 +259,15 @@ const Vault: React.FC<VaultProps> = ({
     };
   }, [isOpen, isAnimatingOut]);
 
+  // The weapon filters only apply to the weapons tab: leaving it resets them
+  const changeTab = (tab: typeof activeTab) => {
+    setActiveTab(tab);
+    if (tab !== 'weapons') {
+      setWeaponTypeFilter('all');
+      setElementFilter('all');
+    }
+  };
+
   // Close with animation
   const handleClose = useCallback(() => {
     setIsAnimatingOut(true);
@@ -283,16 +276,6 @@ const Vault: React.FC<VaultProps> = ({
       setIsAnimatingOut(false);
     }, 300); // Match the animation duration
   }, [setIsOpen]);
-
-  // Load saved height from localStorage or use default
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const savedHeight = localStorage.getItem('vaultHeight');
-      if (savedHeight) {
-        setVaultHeight(Number(savedHeight));
-      }
-    }
-  }, []);
 
   // Handle resize functionality
   useEffect(() => {
@@ -380,7 +363,7 @@ const Vault: React.FC<VaultProps> = ({
                 ? 'bg-purple-600 text-white shadow-lg shadow-purple-900/20'
                 : 'text-gray-400 hover:text-white hover:bg-white/5'
                 }`}
-              onClick={() => setActiveTab(tab)}
+              onClick={() => changeTab(tab)}
             >
               {tab.charAt(0).toUpperCase() + tab.slice(1)}
               <span className={`ml-2 text-xs ${activeTab === tab ? 'text-purple-200' : 'text-gray-600'}`}>

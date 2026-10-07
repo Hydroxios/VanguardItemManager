@@ -1,4 +1,4 @@
-import { BungieUser, Item } from "@/lib/types";
+import { BungieUser, Item, ItemDefinitions } from "@/lib/types";
 import { fetchManifestFile, pruneManifestCache } from "./manifest-cache";
 
 const apiKey = process.env.NODE_ENV === 'production' ? process.env.NEXT_PUBLIC_BUNGIE_API_KEY! : process.env.NEXT_PUBLIC_BUNGIE_API_KEY_DEV!;
@@ -175,7 +175,7 @@ export const refreshToken = async (legacyRefreshToken?: string): Promise<AccessT
 
 export const getCurrentUser = async () => {
     const data = await bungie(`/User/GetMembershipsForCurrentUser`, { auth: true })
-    const destinyMembership = data.primaryMembershipId ? data.destinyMemberships.filter((m: any) => m.membershipId === data.primaryMembershipId)[0] : data.destinyMemberships[0];
+    const destinyMembership = data.primaryMembershipId ? data.destinyMemberships.filter((m: Omit<BungieUser, "uniqueName">) => m.membershipId === data.primaryMembershipId)[0] : data.destinyMemberships[0];
     const user: BungieUser = {
         uniqueName: data.bungieNetUser.uniqueName,
         membershipId: destinyMembership.membershipId,
@@ -257,7 +257,7 @@ export const getGlobalAlerts = async () => {
 
 export const getCharacterInventory = async (membershipId: string, membershipType: number, characterId: string) => {
     const data = await bungie(`/Destiny2/${membershipType}/Profile/${membershipId}/Character/${characterId}/?components=201`, { auth: true });
-    return { items: data.inventory.data.items as any[] };
+    return { items: data.inventory.data.items as Item[] };
 }
 
 export const getItem = async (membershipType: number, membershipId: string, itemInstanceId: string, components: string) => {
@@ -300,7 +300,7 @@ export const transferItem = async (membershipType: number, itemHash: number, ite
  * transferStatus & 1 means the item is equipped and needs to be unequipped first
  */
 export const safeTransferItem = async (membershipType: number, itemHash: number, itemInstanceId: string,
-    sourceCharacterId: string, targetCharacterId: string, membershipId: string, itemDefinitions?: any): Promise<any | null> => {
+    sourceCharacterId: string, targetCharacterId: string, membershipId: string, itemDefinitions?: ItemDefinitions): Promise<Item | null> => {
     // First check if the item is equipped
     const itemResponse = await getItem(membershipType, membershipId, itemInstanceId, "307,302,304,305");
 
@@ -316,7 +316,7 @@ export const safeTransferItem = async (membershipType: number, itemHash: number,
             const characterInventory = await getCharacterInventory(membershipId, membershipType, sourceCharacterId);
 
             // Try to find another item of the same type in the inventory to equip
-            let replacementItem = null;
+            let replacementItem: Item | null = null;
             if (characterInventory && characterInventory.items) {
                 for (const item of characterInventory.items) {
                     // Avoid using the same item as replacement

@@ -1,6 +1,6 @@
 import { useDefinitions } from "@/lib/hooks/useDefinitions";
 import { useProfile } from "@/lib/hooks/useProfile";
-import { useCallback, useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import HeaderButton from "./HeaderButton";
 import EmblemSelector from "./EmblemSelector";
 import Image from "next/image";
@@ -22,72 +22,40 @@ const CharacterHeader = ({
   const { characters, profile, refresh, refreshing } =
     useProfile();
 
-  const [emblemSpecial, setEmblemSpecial] = useState<string>(
-    `https://www.bungie.net${itemDefinitions[characters[characterId].emblemHash].secondarySpecial}`
-  );
-  const [emblemOverlay, setEmblemOverlay] = useState<string>(
-    `https://www.bungie.net${itemDefinitions[characters[characterId].emblemHash].secondaryOverlay}`
-  );
-
   const [isEmblemSelectorOpen, setIsEmblemSelectorOpen] = useState(false);
-  const [currentSeasonNumber, setCurrentSeasonNumber] = useState<number>(0);
-  const [fadeOpacity, setFadeOpacity] = useState(1);
-  const fadeTimeout = useRef<NodeJS.Timeout | null>(null);
+  const headerRef = useRef<HTMLDivElement>(null);
 
-  // Last character/emblem shown, so the fade only plays when one of them actually changes
-  const shownKey = useRef<string | null>(null);
+  const currentSeasonNumber = seasonDefinitions[profile.currentSeasonHash]?.seasonNumber ?? 0;
 
-  const currentEmblemHash = characters[characterId].emblemHash;
-
-  const setEmblem = useCallback(() => {
-    const emblem = itemDefinitions[characters[characterId].emblemHash];
-    if (!emblem) return;
-    setEmblemSpecial(
-      `https://www.bungie.net${emblem.secondarySpecial}`
-    );
-    setEmblemOverlay(
-      `https://www.bungie.net${emblem.secondaryOverlay}`
-    );
-  }, [characterId, characters, itemDefinitions]);
+  // The emblem on screen. When the character or its emblem changes, it lags behind while the old one fades out;
+  // a data refresh keeps the same key, so it doesn't fade
+  const emblemKey = `${characterId}:${characters[characterId].emblemHash}`;
+  const [shownEmblem, setShownEmblem] = useState({ key: emblemKey, hash: characters[characterId].emblemHash });
+  const emblem = itemDefinitions[shownEmblem.hash];
+  const emblemSpecial = `https://www.bungie.net${emblem?.secondarySpecial ?? ""}`;
+  const emblemOverlay = `https://www.bungie.net${emblem?.secondaryOverlay ?? ""}`;
 
   useEffect(() => {
-    setCurrentSeasonNumber(seasonDefinitions[profile.currentSeasonHash]?.seasonNumber ?? 0);
-  }, [profile.currentSeasonHash, seasonDefinitions]);
-
-  useEffect(() => {
-    const key = `${characterId}:${currentEmblemHash}`;
-    if (shownKey.current === null || shownKey.current === key) {
-      // First render, or only the data refreshed: update without fading
-      shownKey.current = key;
-      setEmblem();
-      return;
-    }
-    shownKey.current = key;
-    setFadeOpacity(0); // Fade out with the old emblem still shown
-    if (fadeTimeout.current) clearTimeout(fadeTimeout.current);
-    fadeTimeout.current = setTimeout(() => {
-      setEmblem(); // Swap the emblem while hidden
-      setFadeOpacity(1); // Fade in
-    }, 200); // Durée du fade out (ms)
-  }, [characterId, currentEmblemHash, setEmblem]);
-
-  useEffect(() => {
-    return () => {
-      if (fadeTimeout.current) {
-        clearTimeout(fadeTimeout.current);
-      }
-    };
-  }, []);
+    if (shownEmblem.key === emblemKey) return;
+    const header = headerRef.current;
+    if (header) header.style.opacity = "0"; // Fade out with the old emblem still shown
+    const timeout = setTimeout(() => {
+      setShownEmblem({ key: emblemKey, hash: characters[characterId].emblemHash }); // Swap the emblem while hidden
+      if (header) header.style.opacity = "1"; // Fade in
+    }, 200); // Fade out duration (ms)
+    return () => clearTimeout(timeout);
+  }, [emblemKey, shownEmblem.key, characters, characterId]);
 
   return (
     <div
+      ref={headerRef}
       className="w-full flex flex-row items-center fixed top-0 left-0 right-0 z-[1001] shadow-lg"
       style={{
         height: "70px",
         backgroundSize: "100%",
         backgroundImage: `url(${emblemSpecial})`,
+        // opacity is set by the fade effect
         transition: "opacity 0.5s ease-in-out",
-        opacity: fadeOpacity,
       }}
     >
       <div className="w-full flex flex-row items-center justify-center">
@@ -97,7 +65,6 @@ const CharacterHeader = ({
           src={emblemOverlay}
           alt="Emblem"
           className="absolute left-[150px] top-[25px] w-20 h-20 cursor-pointer hover:scale-105 transition-all duration-500"
-          style={{ transition: "opacity 0.5s ease-in-out", opacity: fadeOpacity }}
           onClick={() => setIsEmblemSelectorOpen((prev) => !prev)}
         />
         {isEmblemSelectorOpen && (

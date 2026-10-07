@@ -29,13 +29,13 @@ const AppView = () => {
   const { keepOpen, setKeepOpen } = useItemTooltip()
   const [settingsOpen, setSettingsOpen] = useState(false);
 
-  const init = async () => {
-    const alerts: Alert[] = await getGlobalAlerts();
-    setAlerts(alerts);
-  };
-
+  // Bungie's global alerts (maintenance announcements...)
   useEffect(() => {
-    init();
+    let active = true;
+    getGlobalAlerts().then((alerts: Alert[]) => {
+      if (active) setAlerts(alerts);
+    });
+    return () => { active = false; };
   }, []);
 
   // Keeps the profile in sync with the game; the API layer renews the access token when needed
@@ -62,7 +62,7 @@ const AppView = () => {
               <div className="relative pt-4">
                 <CharacterView
                   characterId={currentCharacter}
-                  changeCharacter={(characterId) => setCurrentCharacter(characterId)}
+                  changeCharacter={setCurrentCharacter}
                   onOpenSettings={() => setSettingsOpen(true)}
                 />
               </div>

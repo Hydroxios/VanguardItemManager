@@ -84,11 +84,11 @@ const Postmaster: React.FC<PostmasterProps> = ({
       if (needRefresh) {
         // await refresh();
       }
-    } catch (err: any) {
+    } catch (err) {
       updateNotification(
         notificationId,
         `Error collecting ${itemName}`,
-        err.message,
+        err instanceof Error ? err.message : "",
         "error",
         `https://www.bungie.net${itemIcon}`,
         5000,
@@ -108,7 +108,7 @@ const Postmaster: React.FC<PostmasterProps> = ({
   };
 
   // Render a postmaster item
-  const renderPostmasterItem = (item: any) => {
+  const renderPostmasterItem = (item: Item) => {
     const itemDefinition = itemDefinitions[item.itemHash];
     if (!itemDefinition) return null;
 

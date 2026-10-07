@@ -8,7 +8,8 @@ interface TooltipState {
   itemInstanceId: string | undefined;
   positions: { x: number, y: number };
   open: boolean;
-  characterId: any;
+  /** Where the item is shown, "" when nowhere in particular */
+  characterId: string;
   armor: boolean;
   state: number;
   drawTransfert: boolean;
@@ -27,7 +28,7 @@ const initialState: TooltipState = {
   itemInstanceId: undefined,
   positions: { x: 0, y: 0 },
   open: false,
-  characterId: null,
+  characterId: "",
   armor: false,
   state: 0,
   drawTransfert: true

@@ -1,14 +1,14 @@
 import WeaponStat from "../WeaponStat";
 import { getDamageTypeIcon } from "@/lib/helpers/damage-type";
 import Image from "next/image";
-import { ItemDefinition } from "@/lib/types";
+import { ItemComponents, ItemDefinition, StatsDefinitions } from "@/lib/types";
 import { ARMOR_STATS } from "@/lib/constants";
 
 interface TooltipStatsProps {
     item: ItemDefinition;
     itemInstanceId?: string;
-    itemComponents: any;
-    statsDefinitions: any;
+    itemComponents: ItemComponents;
+    statsDefinitions: StatsDefinitions;
     armor: boolean;
 }
 
@@ -39,8 +39,8 @@ const TooltipStats = ({
     const intellect = stats?.[ARMOR_STATS.INTELLECT];
     const strength = stats?.[ARMOR_STATS.STRENGTH];
 
-    const statName = (stat: any, fallback: string) => {
-        return statsDefinitions[stat?.statHash]?.displayProperties?.name ?? fallback;
+    const statName = (stat: { statHash: number } | undefined, fallback: string) => {
+        return (stat && statsDefinitions[stat.statHash]?.displayProperties?.name) ?? fallback;
     }
 
     const renderAmmoType = () => {

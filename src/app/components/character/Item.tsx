@@ -6,15 +6,16 @@ import { useDefinitions } from "@/lib/hooks/useDefinitions";
 import { useProfile } from "@/lib/hooks/useProfile";
 import ItemContextMenu from "./ItemContextMenu";
 import Image from "next/image";
+import { ItemDefinition, ItemPerks, ItemStats } from "@/lib/types";
 
 interface ItemProps {
   itemHash: number;
   itemInstanceId: string;
-  ornamentItem?: any | undefined;
+  ornamentItem?: ItemDefinition;
   state: number;
-  perks: any;
-  stats: any;
-  characterId: any;
+  perks?: ItemPerks;
+  stats?: ItemStats;
+  characterId: string;
   armor: boolean
   onDoubleClick?: () => void;
   quantity?: number;

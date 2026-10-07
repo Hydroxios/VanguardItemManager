@@ -26,13 +26,13 @@ const InventoryItems = ({
 
     const { user, equipItemLocally } = useProfile()
 
-    const equip = async (item: ItemDefinition, itemInstanceId: string, state: number, hash: number, ornamentItem?: any,) => {
+    const equip = async (item: ItemDefinition, itemInstanceId: string, state: number, hash: number, ornamentItem?: ItemDefinition) => {
         try {
             await equipItem(user.membershipType, characterId, itemInstanceId)
             equipItemLocally(characterId, itemInstanceId)
             addNotification("Successfully Equipped " + item.displayProperties.name + " !", "", "success", "https://www.bungie.net" + (ornamentItem ? ornamentItem.displayProperties.icon : item.displayProperties.icon), 5000)
-        } catch (err: any) {
-            addNotification("Error while equipping " + item.displayProperties.name + " !", err.message, "error", "https://www.bungie.net" + (ornamentItem ? ornamentItem.displayProperties.icon : item.displayProperties.icon), 5000)
+        } catch (err) {
+            addNotification("Error while equipping " + item.displayProperties.name + " !", err instanceof Error ? err.message : "", "error", "https://www.bungie.net" + (ornamentItem ? ornamentItem.displayProperties.icon : item.displayProperties.icon), 5000)
         }
     }
 

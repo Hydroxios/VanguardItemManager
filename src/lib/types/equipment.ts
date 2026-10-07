@@ -17,5 +17,4 @@ export interface EquipmentItem {
 export interface EquipmentSection {
   current: EquipmentItem | undefined;
   inventory: EquipmentItem[];
-  isOpen: boolean;
 }

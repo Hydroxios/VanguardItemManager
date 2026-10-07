@@ -1,14 +1,14 @@
 
 import useTransferItem from "@/lib/hooks/useTransferItem";
 import Image from "next/image";
-import { ItemDefinition } from "@/lib/types";
+import { Character, ClassDefinitions, ItemDefinition } from "@/lib/types";
 
 interface TooltipActionsProps {
     item: ItemDefinition;
     itemInstanceId?: string;
     characterId: string;
-    characters: any;
-    classDefinitions: any;
+    characters: Record<string, Character>;
+    classDefinitions: ClassDefinitions;
     drawTransfert: boolean;
     armor: boolean;
 }
@@ -36,8 +36,8 @@ const TooltipActions = ({
         >
             <div className="flex flex-row gap-2">
                 {Object.values(characters)
-                    .filter((c: any) => c.characterId !== location)
-                    .map((c: any) => (
+                    .filter((c) => c.characterId !== location)
+                    .map((c) => (
                         <button
                             key={c.characterId}
                             className="hover:opacity-80 transition-opacity"

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import Item from "./Item";
 import Currencies from "./Currencies";
 import Loadouts from "./Loadouts";
@@ -16,8 +16,20 @@ import DestinyIcon from "../destiny-ui/DestinyIcon";
 import SearchBar from "../inputs/SearchBar";
 import { useItemTooltipActions } from "@/lib/hooks/useItemTooltip";
 import CharacterHeader from "./header/CharacterHeader";
-import { EquipmentItem, EquipmentSection } from "@/lib/types";
+import { EquipmentItem, EquipmentSection, Item as ProfileItem } from "@/lib/types";
 import { CURRENCIES, EQUIPMENT_SLOTS } from "@/lib/constants";
+
+// The flyout section of each equipment slot type
+const SECTION_BY_SLOT: Record<number, string> = {
+  [EQUIPMENT_SLOTS.PRIMARY]: "primary",
+  [EQUIPMENT_SLOTS.ENERGETIC]: "energetic",
+  [EQUIPMENT_SLOTS.HEAVY]: "heavy",
+  [EQUIPMENT_SLOTS.HELMET]: "helmet",
+  [EQUIPMENT_SLOTS.ARMS]: "arms",
+  [EQUIPMENT_SLOTS.CHEST]: "chest",
+  [EQUIPMENT_SLOTS.LEGS]: "legs",
+  [EQUIPMENT_SLOTS.CLASS_ITEM]: "classItem",
+};
 
 interface CharacterViewProps {
   characterId: string;
@@ -30,28 +42,11 @@ const CharacterView: React.FC<CharacterViewProps> = ({
   changeCharacter,
   onOpenSettings,
 }) => {
-  const [equipment, setEquipment] = useState<Record<string, EquipmentSection>>({
-    primary: { current: undefined, inventory: [], isOpen: false },
-    energetic: { current: undefined, inventory: [], isOpen: false },
-    heavy: { current: undefined, inventory: [], isOpen: false },
-    helmet: { current: undefined, inventory: [], isOpen: false },
-    arms: { current: undefined, inventory: [], isOpen: false },
-    chest: { current: undefined, inventory: [], isOpen: false },
-    legs: { current: undefined, inventory: [], isOpen: false },
-    classItem: { current: undefined, inventory: [], isOpen: false },
-  });
-
-  const [currenciesData, setCurrenciesData] = useState<any[]>([]);
-  const [statistics, setStatistics] = useState<any>();
-  const [characterTitle, setCharacterTitle] = useState<string>("");
+  // Slots whose inventory flyout is open, while hovered
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
   const [isVaultOpen, setIsVaultOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false)
   const { transfer } = useTransferItem();
-  // eslint-disable-next-line
-  const [isVimMenuOpen, setIsVimMenuOpen] = useState(false);
-  // eslint-disable-next-line
-  const [currentLocale, setCurrentLocale] = useState<string>("en");
-  const vimMenuRef = useRef<HTMLDivElement>(null);
 
   const {
     definitionsLoaded,
@@ -65,7 +60,6 @@ const CharacterView: React.FC<CharacterViewProps> = ({
     characterInventories,
     itemComponents,
     profileCurrencies,
-    refresh,
   } = useProfile();
 
   const { hideTooltip } = useItemTooltipActions();
@@ -73,13 +67,7 @@ const CharacterView: React.FC<CharacterViewProps> = ({
   // Toggle equipment section open/closed
   const toggleEquipmentSection = useCallback(
     (section: string, isOpen: boolean) => {
-      setEquipment((prev) => ({
-        ...prev,
-        [section]: {
-          ...prev[section],
-          isOpen,
-        },
-      }));
+      setOpenSections((prev) => ({ ...prev, [section]: isOpen }));
     },
     []
   );
@@ -116,227 +104,58 @@ const CharacterView: React.FC<CharacterViewProps> = ({
     event.dataTransfer.dropEffect = "move";
   }, []);
 
-  // Initialize equipment and currencies
-  const initializeData = useCallback(() => {
-    // Process currencies
-    const c = [CURRENCIES.GLIMMER, CURRENCIES.BRIGHT_DUST]
-      .map((hash) => profileCurrencies.find((currency) => currency.itemHash === hash))
-      .filter((currency) => currency !== undefined)
-      .map((currency) => ({
-        item: itemDefinitions[currency.itemHash],
-        quantity: currency.quantity,
-      }));
-    setCurrenciesData(c);
+  // Glimmer and bright dust
+  const currencies = useMemo(() => [CURRENCIES.GLIMMER, CURRENCIES.BRIGHT_DUST]
+    .map((hash) => profileCurrencies.find((currency) => currency.itemHash === hash))
+    .filter((currency) => currency !== undefined)
+    .map((currency) => ({
+      item: itemDefinitions[currency.itemHash],
+      quantity: currency.quantity,
+    })),
+    [profileCurrencies, itemDefinitions]);
 
-    // Initialize equipment map
-    const equipmentMap: Record<string, EquipmentItem> = {};
-    const inventoryMap: Record<string, EquipmentItem[]> = {
-      primary: [],
-      energetic: [],
-      heavy: [],
-      helmet: [],
-      arms: [],
-      chest: [],
-      legs: [],
-      classItem: [],
-    };
-
-    // Process equipped items
-    characterEquipment[characterId].items.forEach((e) => {
-      const i = itemDefinitions[e.itemHash];
-      const ornamentItem = itemDefinitions[e.overrideStyleItemHash];
-
-      if (i.equippingBlock) {
-        const slotHash = i.equippingBlock.equipmentSlotTypeHash;
-        const equippedItem = {
-          item: i,
-          itemInstanceId: e.itemInstanceId,
-          ornamentItem,
-          perks: itemComponents.perks[e.itemInstanceId],
-          stats: itemComponents.stats[e.itemInstanceId],
-          state: e.state,
-          hash: e.itemHash
-        };
-
-        switch (slotHash) {
-          case EQUIPMENT_SLOTS.PRIMARY:
-            equipmentMap.primary = equippedItem;
-            break;
-          case EQUIPMENT_SLOTS.ENERGETIC:
-            equipmentMap.energetic = equippedItem;
-            break;
-          case EQUIPMENT_SLOTS.HEAVY:
-            equipmentMap.heavy = equippedItem;
-            break;
-          case EQUIPMENT_SLOTS.HELMET:
-            equipmentMap.helmet = equippedItem;
-            break;
-          case EQUIPMENT_SLOTS.ARMS:
-            equipmentMap.arms = equippedItem;
-            break;
-          case EQUIPMENT_SLOTS.CHEST:
-            equipmentMap.chest = equippedItem;
-            break;
-          case EQUIPMENT_SLOTS.LEGS:
-            equipmentMap.legs = equippedItem;
-            break;
-          case EQUIPMENT_SLOTS.CLASS_ITEM:
-            equipmentMap.classItem = equippedItem;
-            break;
-        }
-      }
+  // Each slot's equipped item, and the character's other items for that slot
+  const equipment = useMemo(() => {
+    const sections: Record<string, EquipmentSection> = Object.fromEntries(
+      Object.values(SECTION_BY_SLOT).map((section) => [section, { current: undefined, inventory: [] }])
+    );
+    const sectionOf = (item: ProfileItem) =>
+      SECTION_BY_SLOT[itemDefinitions[item.itemHash]?.equippingBlock?.equipmentSlotTypeHash ?? 0];
+    const toEquipmentItem = (item: ProfileItem): EquipmentItem => ({
+      item: itemDefinitions[item.itemHash],
+      itemInstanceId: item.itemInstanceId,
+      ornamentItem: itemDefinitions[item.overrideStyleItemHash],
+      perks: itemComponents.perks[item.itemInstanceId],
+      stats: itemComponents.stats[item.itemInstanceId],
+      state: item.state,
+      hash: item.itemHash,
     });
 
-
-    // Process inventory items
+    characterEquipment[characterId].items.forEach((item) => {
+      const section = sectionOf(item);
+      if (section) sections[section].current = toEquipmentItem(item);
+    });
     characterInventories[characterId].items.forEach((item) => {
-      if (item.itemInstanceId && item.location === 1) {
-        const i = itemDefinitions[item.itemHash];
-        const ornamentItem = itemDefinitions[item.overrideStyleItemHash];
-
-        if (i.equippingBlock) {
-          const slotHash = i.equippingBlock.equipmentSlotTypeHash;
-          const inventoryItem: EquipmentItem = {
-            item: i,
-            itemInstanceId: item.itemInstanceId,
-            ornamentItem,
-            perks: itemComponents.perks[item.itemInstanceId],
-            stats: itemComponents.stats[item.itemInstanceId],
-            state: item.state,
-            hash: item.itemHash
-          };
-
-          switch (slotHash) {
-            case EQUIPMENT_SLOTS.PRIMARY:
-              inventoryMap.primary.push(inventoryItem);
-              break;
-            case EQUIPMENT_SLOTS.ENERGETIC:
-              inventoryMap.energetic.push(inventoryItem);
-              break;
-            case EQUIPMENT_SLOTS.HEAVY:
-              inventoryMap.heavy.push(inventoryItem);
-              break;
-            case EQUIPMENT_SLOTS.HELMET:
-              inventoryMap.helmet.push(inventoryItem);
-              break;
-            case EQUIPMENT_SLOTS.ARMS:
-              inventoryMap.arms.push(inventoryItem);
-              break;
-            case EQUIPMENT_SLOTS.CHEST:
-              inventoryMap.chest.push(inventoryItem);
-              break;
-            case EQUIPMENT_SLOTS.LEGS:
-              inventoryMap.legs.push(inventoryItem);
-              break;
-            case EQUIPMENT_SLOTS.CLASS_ITEM:
-              inventoryMap.classItem.push(inventoryItem);
-              break;
-          }
-        }
-      }
+      const section = sectionOf(item);
+      // Location 1 is the inventory itself, as opposed to the postmaster
+      if (section && item.itemInstanceId && item.location === 1) sections[section].inventory.push(toEquipmentItem(item));
     });
+    return sections;
+  }, [characterEquipment, characterInventories, characterId, itemComponents, itemDefinitions]);
 
-    // Update equipment state
-    setEquipment({
-      primary: {
-        current: equipmentMap.primary,
-        inventory: inventoryMap.primary,
-        isOpen: false,
-      },
-      energetic: {
-        current: equipmentMap.energetic,
-        inventory: inventoryMap.energetic,
-        isOpen: false,
-      },
-      heavy: {
-        current: equipmentMap.heavy,
-        inventory: inventoryMap.heavy,
-        isOpen: false,
-      },
-      helmet: {
-        current: equipmentMap.helmet,
-        inventory: inventoryMap.helmet,
-        isOpen: false,
-      },
-      arms: {
-        current: equipmentMap.arms,
-        inventory: inventoryMap.arms,
-        isOpen: false,
-      },
-      chest: {
-        current: equipmentMap.chest,
-        inventory: inventoryMap.chest,
-        isOpen: false,
-      },
-      legs: {
-        current: equipmentMap.legs,
-        inventory: inventoryMap.legs,
-        isOpen: false,
-      },
-      classItem: {
-        current: equipmentMap.classItem,
-        inventory: inventoryMap.classItem,
-        isOpen: false,
-      },
-    });
+  const statistics = characters[characterId]?.stats;
 
-    // Set character stats
-    setStatistics(characters[characterId].stats);
+  // The character's title, in the form matching its gender
+  const characterTitle = useMemo(() => {
+    const character = characters[characterId];
+    const record = character?.titleRecordHash ? recordsDefinitions[character.titleRecordHash] : undefined;
+    if (!record) return "";
+    const titles = record.titleInfo.titlesByGenderHash;
+    return titles[character.genderHash || 0] || titles[Object.keys(titles)[0]] || "";
+  }, [characters, characterId, recordsDefinitions]);
 
-  }, [
-    profileCurrencies,
-    itemDefinitions,
-    characterEquipment,
-    characterInventories,
-    itemComponents,
-    characters,
-    characterId,
-    recordsDefinitions,
-  ]);
-
-  // Setup initial data and refresh interval
+  // Keyboard shortcuts
   useEffect(() => {
-    initializeData();
-    const currentCharacter = characters[characterId];
-    if (currentCharacter.titleRecordHash) {
-      const record = recordsDefinitions[currentCharacter.titleRecordHash];
-      if (record) {
-        // Get the title text based on character gender
-        const genderHash = currentCharacter.genderHash || 0;
-        const titleText =
-          record.titleInfo.titlesByGenderHash[genderHash] ||
-          record.titleInfo.titlesByGenderHash[
-          Object.keys(record.titleInfo.titlesByGenderHash)[0]
-          ];
-
-        setCharacterTitle(titleText || "");
-      }
-    } else {
-      setCharacterTitle("");
-    }
-
-  }, [initializeData, characters, characterId, recordsDefinitions, refresh]);
-
-  // Load current locale from localStorage
-  useEffect(() => {
-    const savedLocale = localStorage.getItem("locale");
-    if (savedLocale) {
-      setCurrentLocale(savedLocale);
-    }
-  }, []);
-
-  // Close menu when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        vimMenuRef.current &&
-        !vimMenuRef.current.contains(event.target as Node)
-      ) {
-        setIsVimMenuOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         if (isVaultOpen) {
@@ -365,16 +184,16 @@ const CharacterView: React.FC<CharacterViewProps> = ({
     window.addEventListener("keyup", handleKeyUp)
 
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [isVaultOpen, searchOpen]);
+  }, [isVaultOpen, searchOpen, hideTooltip, changeCharacter]);
 
   // Render equipment section
   const renderEquipmentSection = useCallback(
     (section: string, isWeapon: boolean, isRightSide: boolean) => {
-      const { current, inventory, isOpen } = equipment[section];
+      const { current, inventory } = equipment[section];
+      const isOpen = !!openSections[section];
 
       if (!current) return null;
 
@@ -406,13 +225,13 @@ const CharacterView: React.FC<CharacterViewProps> = ({
         </div>
       );
     },
-    [equipment, toggleEquipmentSection, characterId]
+    [equipment, openSections, toggleEquipmentSection, characterId]
   );
 
   return (
     <div className="mx-auto" onDrop={handleDrop} onDragOver={handleDragOver}>
       <div className="flex flex-row gap-2 items-center fixed right-[15px] top-[80px] z-[50] hover:shadow-lg">
-        {currenciesData?.length > 0 && <Currencies currencies={currenciesData} />}
+        {currencies.length > 0 && <Currencies currencies={currencies} />}
       </div>
 
       <CharacterHeader

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useProfile } from "@/lib/hooks/useProfile";
 import { useDefinitions } from "@/lib/hooks/useDefinitions";
@@ -26,12 +26,6 @@ const ItemContextMenu = ({
     const { characters } = useProfile();
     const { classDefinitions } = useDefinitions();
     const { transfer, locateItem } = useTransferItem();
-    const [mounted, setMounted] = useState(false);
-
-    useEffect(() => {
-        setMounted(true);
-        return () => setMounted(false);
-    }, []);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -54,8 +48,7 @@ const ItemContextMenu = ({
         transfer({ itemHash, itemInstanceId, toId: targetCharacterId, fromId: location });
     };
 
-    if (!mounted) return null;
-
+    // Only opened by a right click, so it never renders on the server and `document` is there
     return createPortal(
         <div
             ref={menuRef}
@@ -70,8 +63,8 @@ const ItemContextMenu = ({
             </div>
             <div className="py-1">
                 {Object.values(characters)
-                    .filter((c: any) => c.characterId !== location)
-                    .map((c: any) => (
+                    .filter((c) => c.characterId !== location)
+                    .map((c) => (
                         <button
                             key={c.characterId}
                             className="flex items-center w-full text-left px-3 py-2 text-sm text-white hover:bg-[#3a3a50] transition-colors"

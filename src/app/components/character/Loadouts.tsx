@@ -50,7 +50,6 @@ interface LoadoutsProps {
 const Loadouts = ({
   characterId,
 }: LoadoutsProps) => {
-  const [elements, setElements] = useState<any>();
   const [onCooldown, setOnCooldown] = useState(false);
   const [isContextMenuOpen, setIsContextMenuOpen] = useState<number | null>(null);
   // How far the open menu is moved up or down to stay inside the window
@@ -92,16 +91,12 @@ const Loadouts = ({
     return map;
   }, [profileInventory, characterInventories, characterEquipment]);
 
-  useEffect(() => {
-    const ls: any[] = [];
-    for (let index = 0; index < characterLoadouts[characterId].loadouts.length; index++) {
-      const l = characterLoadouts[characterId].loadouts[index];
-      const color = loadoutColorDefinitions[l.colorHash];
-      const icon = loadoutIconDefinitions[l.iconHash];
-      ls.push({ color: color?.colorImagePath, icon: icon?.iconImagePath, name: loadoutNameDefinitions[l.nameHash]?.name });
-    }
-    setElements(() => ls);
-  }, [characterLoadouts, characterId, loadoutColorDefinitions, loadoutIconDefinitions, loadoutNameDefinitions]);
+  // What each loadout slot shows
+  const elements = useMemo(() => characterLoadouts[characterId].loadouts.map((l) => ({
+    color: loadoutColorDefinitions[l.colorHash]?.colorImagePath,
+    icon: loadoutIconDefinitions[l.iconHash]?.iconImagePath,
+    name: loadoutNameDefinitions[l.nameHash]?.name,
+  })), [characterLoadouts, characterId, loadoutColorDefinitions, loadoutIconDefinitions, loadoutNameDefinitions]);
 
   const handleEquip = async (index: number) => {
     setOnCooldown(() => true);
@@ -270,8 +265,8 @@ const Loadouts = ({
 
       // Refresh character data
       await refresh();
-    } catch (error: any) {
-      addNotification("Error", error.message || "Failed to clear loadout", "error", "", 5000);
+    } catch (error) {
+      addNotification("Error", (error instanceof Error && error.message) || "Failed to clear loadout", "error", "", 5000);
     }
   };
 
@@ -369,8 +364,7 @@ const Loadouts = ({
           </div>
         )}
         <div className={`grid grid-cols-2 grid-rows-6 gap-1 p-4 fixed left-5 top-1/2 transform -translate-y-1/2 ${onCooldown ? 'grayscale' : ''}`}>
-          {elements &&
-            elements.map((element: any, index: number) => (
+          {elements.map((element, index) => (
               <div
                 key={index}
                 className="relative"

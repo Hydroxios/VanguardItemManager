@@ -1,4 +1,4 @@
-import { createContext, ReactNode, useContext, useEffect, useState, useMemo, useRef } from "react";
+import { createContext, ReactNode, useCallback, useContext, useEffect, useState, useMemo, useRef } from "react";
 import { getCurrentUser, getProfile } from "@/lib/bungie";
 import { BungieUser, Character, Currency, Item, ItemInstance, ItemComponents, ItemPlug, Loadout, PlugSets, ProfileData } from "@/lib/types";
 import { BUCKETS } from "@/lib/constants";
@@ -70,83 +70,91 @@ export const ProfileProvider = ({ children }: ProfileProviderProps) => {
     useEffect(() => { profileInventoryRef.current = profileInventory; }, [profileInventory]);
     useEffect(() => { itemComponentsRef.current = itemComponents; }, [itemComponents]);
 
-    const fetchProfile = async () => {
-        if (refreshing) return;
+    // A fetch outlives the render that started it, so it reads the cached user and its own progress through refs
+    const userRef = useRef<BungieUser | undefined>(undefined);
+    const loadedRef = useRef(false);
+    const fetchingRef = useRef<Promise<void> | null>(null);
 
-        let profile;
-        let u;
-        try {
-            if (!user) {
-                u = await getCurrentUser();
-                setUser(u)
-            } else {
-                u = user
+    /** Loads the profile into the state. A fetch already running serves every caller; errors only block the UI on the first load. */
+    const fetchProfile = useCallback(() => {
+        fetchingRef.current ??= (async () => {
+            const u = userRef.current ?? await getCurrentUser();
+            userRef.current = u;
+            return { u, profile: await getProfile(u.membershipId, u.membershipType) };
+        })().then(({ u, profile }) => {
+            setUser(u)
+            setLoadError(undefined)
+
+            setCharacterEquipementState(profile.characterEquipment.data)
+            setCharacterInventoriesState(profile.characterInventories.data)
+            setCharacterLoadouts(profile.characterLoadouts.data)
+            setCharacters(profile.characters.data)
+
+            const itemcomps: ItemComponents = {
+                instances: profile.itemComponents.instances.data,
+                perks: profile.itemComponents.perks.data,
+                sockets: profile.itemComponents.sockets?.data ?? {},
+                stats: profile.itemComponents.stats.data,
+                plugObjectives: profile.itemComponents.plugObjectives?.data ?? {},
+                reusablePlugs: profile.itemComponents.reusablePlugs?.data ?? {}
             }
+            setItemComponents(itemcomps)
 
-            profile = await getProfile(u.membershipId, u.membershipType)
-        } catch (error) {
+            // Unlocked plugs (mods...) come with the ItemSockets component
+            const characterPlugSets: Record<string, { plugs: Record<string, ItemPlug[]> }> = profile.characterPlugSets?.data ?? {}
+            setPlugSets({
+                profile: profile.profilePlugSets?.data?.plugs ?? {},
+                characters: Object.fromEntries(Object.entries(characterPlugSets).map(([id, set]) => [id, set.plugs ?? {}])),
+            })
+
+            setProfileData(profile.profile.data)
+            setProfileCurrencies(profile.profileCurrencies.data.items)
+            setProfileInventoryState(profile.profileInventory.data.items)
+
+            setLoading(false)
+            loadedRef.current = true
+            setLastRefresh(Date.now())
+        }).catch((error) => {
             console.error("Failed to fetch profile:", error)
             // Only block the UI on the first load; later refreshes keep the current data
-            if (loading) setLoadError(error instanceof Error ? error.message : "Could not load your profile.")
-            return
-        }
-        setLoadError(undefined)
-
-        setCharacterEquipementState(profile.characterEquipment.data)
-        setCharacterInventoriesState(profile.characterInventories.data)
-        setCharacterLoadouts(profile.characterLoadouts.data)
-        setCharacters(profile.characters.data)
-
-        const itemcomps: ItemComponents = {
-            instances: profile.itemComponents.instances.data,
-            perks: profile.itemComponents.perks.data,
-            sockets: profile.itemComponents.sockets?.data ?? {},
-            stats: profile.itemComponents.stats.data,
-            plugObjectives: profile.itemComponents.plugObjectives?.data ?? {},
-            reusablePlugs: profile.itemComponents.reusablePlugs?.data ?? {}
-        }
-        setItemComponents(itemcomps)
-
-        // Unlocked plugs (mods...) come with the ItemSockets component
-        const characterPlugSets: Record<string, { plugs: Record<string, ItemPlug[]> }> = profile.characterPlugSets?.data ?? {}
-        setPlugSets({
-            profile: profile.profilePlugSets?.data?.plugs ?? {},
-            characters: Object.fromEntries(Object.entries(characterPlugSets).map(([id, set]) => [id, set.plugs ?? {}])),
-        })
-
-        setProfileData(profile.profile.data)
-        setProfileCurrencies(profile.profileCurrencies.data.items)
-        setProfileInventoryState(profile.profileInventory.data.items)
-
-        if (loading) {
-            setLoading(false)
-        }
-
-        setLastRefresh(Date.now())
-    }
+            if (!loadedRef.current) setLoadError(error instanceof Error ? error.message : "Could not load your profile.")
+        }).finally(() => {
+            fetchingRef.current = null;
+        });
+        return fetchingRef.current;
+    }, []);
 
     useEffect(() => {
         fetchProfile()
-    }, [])
+    }, [fetchProfile])
+
+    const refresh = useCallback(async () => {
+        setRefreshing(true);
+        try {
+            await fetchProfile();
+        } finally {
+            setRefreshing(false);
+        }
+    }, [fetchProfile]);
 
     // These setters update the refs synchronously so several local moves in a row
     // always build on the latest state, whatever React does with the updates
-    const setCharacterEquipment = (characterId: string, items: Item[]) => {
+    const setCharacterEquipment = useCallback((characterId: string, items: Item[]) => {
         const newState = { ...characterEquipmentRef.current, [characterId]: { items } };
         characterEquipmentRef.current = newState;
         setCharacterEquipementState(newState);
-    };
-    const setCharacterInventory = (characterId: string, items: Item[]) => {
+    }, []);
+    const setCharacterInventory = useCallback((characterId: string, items: Item[]) => {
         const newState = { ...characterInventoriesRef.current, [characterId]: { items } };
         characterInventoriesRef.current = newState;
         setCharacterInventoriesState(newState);
-    };
-    const setProfileInventory = (items: Item[]) => {
+    }, []);
+    const setProfileInventory = useCallback((items: Item[]) => {
         setProfileInventoryState(items)
         profileInventoryRef.current = items;
-    };
+    }, []);
 
-    const moveItem = (itemHash: number, itemInstanceId: string | undefined, fromId: string, toId: string, quantity: number, updates?: Partial<Item>, sourceBucketHash?: number) => {
+    const moveItem = useCallback((itemHash: number, itemInstanceId: string | undefined, fromId: string, toId: string, quantity: number, updates?: Partial<Item>, sourceBucketHash?: number) => {
         // Use refs for current state
         const currentProfileInventory = profileInventoryRef.current;
         const currentCharacterInventories = characterInventoriesRef.current;
@@ -236,9 +244,9 @@ export const ProfileProvider = ({ children }: ProfileProviderProps) => {
             const targetInventory = characterInventoriesRef.current[toId]?.items || [];
             setCharacterInventory(toId, addItem(targetInventory, movedItem));
         }
-    };
+    }, [setCharacterEquipment, setCharacterInventory, setProfileInventory]);
 
-    const changeEmblem = (characterId: string, emblemHash: number) => {
+    const changeEmblem = useCallback((characterId: string, emblemHash: number) => {
         setCharacters(prev => ({
             ...prev,
             [characterId]: {
@@ -270,9 +278,9 @@ export const ProfileProvider = ({ children }: ProfileProviderProps) => {
                 setCharacterEquipment(characterId, updatedEquipment);
             }
         }
-    };
+    }, [setCharacterEquipment, setCharacterInventory]);
 
-    const equipItemLocally = (characterId: string, itemInstanceId: string) => {
+    const equipItemLocally = useCallback((characterId: string, itemInstanceId: string) => {
         const inventory = characterInventoriesRef.current[characterId];
         const equipment = characterEquipmentRef.current[characterId];
 
@@ -307,9 +315,9 @@ export const ProfileProvider = ({ children }: ProfileProviderProps) => {
                 [currentlyEquipped.itemInstanceId]: { ...prev.instances[currentlyEquipped.itemInstanceId], isEquipped: false }
             }
         }));
-    };
+    }, [setCharacterEquipment, setCharacterInventory]);
 
-    const transferEquippedItem = (itemHash: number, itemInstanceId: string, fromId: string, toId: string, replacementItemInstanceId: string) => {
+    const transferEquippedItem = useCallback((itemHash: number, itemInstanceId: string, fromId: string, toId: string, replacementItemInstanceId: string) => {
         const inventory = characterInventoriesRef.current[fromId];
         const equipment = characterEquipmentRef.current[fromId];
 
@@ -356,9 +364,9 @@ export const ProfileProvider = ({ children }: ProfileProviderProps) => {
                 [itemInstanceId]: { ...prev.instances[itemInstanceId], isEquipped: false }
             }
         }));
-    };
+    }, [setCharacterEquipment, setCharacterInventory, setProfileInventory]);
 
-    const equipLoadoutLocally = (characterId: string, loadoutItems: Item[]) => {
+    const equipLoadoutLocally = useCallback((characterId: string, loadoutItems: Item[]) => {
         const inventory = characterInventoriesRef.current[characterId];
         const equipment = characterEquipmentRef.current[characterId];
 
@@ -416,30 +424,22 @@ export const ProfileProvider = ({ children }: ProfileProviderProps) => {
                 }
             }));
         }
-    };
+    }, [setCharacterEquipment, setCharacterInventory]);
 
-    const updateLoadoutLocally = (characterId: string, loadoutIndex: number, loadout: Loadout) => {
+    const updateLoadoutLocally = useCallback((characterId: string, loadoutIndex: number, loadout: Loadout) => {
         setCharacterLoadouts(prev => {
             const loadouts = [...(prev[characterId]?.loadouts ?? [])];
             loadouts[loadoutIndex] = loadout;
             return { ...prev, [characterId]: { loadouts } };
         });
-    };
+    }, []);
 
     const contextValue = useMemo(() => ({
         loadingProfile: loading,
         profileError: loadError,
         user: user as BungieUser,
         refreshing,
-        refresh: async () => {
-            if (refreshing) return;
-            setRefreshing(true);
-            try {
-                await fetchProfile();
-            } finally {
-                setRefreshing(false);
-            }
-        },
+        refresh,
         characterEquipment,
         characterInventories,
         characterLoadouts,
@@ -459,7 +459,8 @@ export const ProfileProvider = ({ children }: ProfileProviderProps) => {
         transferEquippedItem,
         equipLoadoutLocally,
         updateLoadoutLocally
-    }), [loading, loadError, user, refreshing, characterEquipment, characterInventories, characterLoadouts, characters, itemComponents, plugSets, profileData, profileCurrencies, profileInventory, lastRefresh]);
+    }), [loading, loadError, user, refreshing, refresh, characterEquipment, characterInventories, characterLoadouts, characters, itemComponents, plugSets, profileData, profileCurrencies, profileInventory, lastRefresh,
+        setCharacterEquipment, setCharacterInventory, setProfileInventory, moveItem, changeEmblem, equipItemLocally, transferEquippedItem, equipLoadoutLocally, updateLoadoutLocally]);
 
     return (
         <ProfileContext.Provider value={contextValue}>

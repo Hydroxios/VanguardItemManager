@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useState } from "react";
+import { useLayoutEffect, useRef } from "react";
 import { useItemTooltip } from "@/lib/hooks/useItemTooltip";
 import { useDebug } from "@/app/components/debug/DebugProvider";
 import DebugInfos from "@/app/components/debug/DebugInfos";
@@ -26,11 +26,7 @@ const GlobalItemTooltip = () => {
     drawTransfert,
   } = tooltipState;
 
-  // UI state
-  const [adjustedPosition, setAdjustedPosition] = useState({ x: 0, y: 0 });
-  const [tooltipHeight, setTooltipHeight] = useState(0);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [tooltipWidth, setTooltipWidth] = useState(275); // Default width
+  const tooltipRef = useRef<HTMLDivElement>(null);
 
   const { debugMode } = useDebug();
   const {
@@ -50,50 +46,33 @@ const GlobalItemTooltip = () => {
     );
   };
 
-  // Adjust tooltip position to stay within viewport bounds
+  // Keep the tooltip within the viewport. It is measured once rendered, then moved before the browser paints,
+  // straight on the element so placing it doesn't cost another render
   useLayoutEffect(() => {
-    if (!open || !item) return;
+    const tooltipElement = tooltipRef.current;
+    if (!open || !item || !tooltipElement) return;
 
-    // Set initial position
     let newX = positions.x;
     let newY = positions.y;
+    const tooltipRect = tooltipElement.getBoundingClientRect();
 
-    // Get viewport dimensions
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
-
-    // Reference to tooltip element for measuring
-    const tooltipElement = document.querySelector(
-      ".item-tooltip"
-    ) as HTMLElement;
-    if (tooltipElement) {
-      // Get tooltip dimensions
-      const tooltipRect = tooltipElement.getBoundingClientRect();
-      setTooltipHeight(tooltipRect.height);
-      setTooltipWidth(tooltipRect.width);
-
-      // Adjust X position if needed
-      if (newX + tooltipRect.width > viewportWidth) {
-        newX = viewportWidth - tooltipRect.width - 10; // 10px margin
-      }
-      if (newX < 0) {
-        newX = 10;
-      }
-
-      // Adjust Y position if needed
-      if (newY + tooltipRect.height > viewportHeight) {
-        // Position above the cursor if it would overflow at the bottom
-        newY = viewportHeight - tooltipRect.height - 10; // 10px margin
-      }
-      if (newY < 0) {
-        newY = 20;
-      }
-
-      setAdjustedPosition({ x: newX, y: newY });
-    } else {
-      setAdjustedPosition({ x: newX, y: newY });
+    if (newX + tooltipRect.width > window.innerWidth) {
+      newX = window.innerWidth - tooltipRect.width - 10; // 10px margin
     }
-  }, [open, item, positions, tooltipHeight]);
+    if (newX < 0) {
+      newX = 10;
+    }
+    if (newY + tooltipRect.height > window.innerHeight) {
+      // Move it up when it would overflow at the bottom
+      newY = window.innerHeight - tooltipRect.height - 10; // 10px margin
+    }
+    if (newY < 0) {
+      newY = 20;
+    }
+
+    tooltipElement.style.left = `${newX}px`;
+    tooltipElement.style.top = `${newY}px`;
+  }, [open, item, positions]);
 
   if (!open || !item) {
     return null;
@@ -103,10 +82,10 @@ const GlobalItemTooltip = () => {
 
   return (
     <div
+      ref={tooltipRef}
       className={`flex flex-col fixed items-start bg-black bg-opacity-90 z-[1005] pointer-events-auto item-tooltip max-h-[90vh] overflow-y-auto overflow-x-hidden`}
       style={{
-        top: adjustedPosition.y,
-        left: adjustedPosition.x,
+        // left and top are set by the layout effect above
         // Subclasses size to their content; other items keep a fixed width
         width: item.itemType === 16 ? undefined : "min(400px, calc(100vw - 20px))",
         maxWidth: "min(720px, calc(100vw - 20px))",
@@ -183,7 +162,7 @@ const GlobalItemTooltip = () => {
             item,
             perksDefinitions: [
               itemComponents?.perks?.[itemInstanceId!]?.perks?.map(
-                (p: any) => perksDefinitions[p.perkHash]
+                (p) => perksDefinitions[p.perkHash]
               ),
             ],
           }}

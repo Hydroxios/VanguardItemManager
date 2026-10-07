@@ -2,15 +2,15 @@ import { useDefinitions } from "@/lib/hooks/useDefinitions";
 import { getWeaponKillCounter } from "@/lib/helpers/kill-counter";
 import Image from "next/image";
 import { useMemo } from "react";
-import { ItemDefinition, ObjectiveDefinitions } from "@/lib/types";
+import { ItemComponents, ItemConstantsDefinitions, ItemDefinition, ObjectiveDefinitions } from "@/lib/types";
 
 const numberFormat = new Intl.NumberFormat();
 
 interface TooltipHeaderProps {
     item: ItemDefinition;
     itemInstanceId?: string;
-    itemComponents: any;
-    itemConstantsDefinitions: any;
+    itemComponents: ItemComponents;
+    itemConstantsDefinitions: ItemConstantsDefinitions;
     objectiveDefinitions: ObjectiveDefinitions;
     state: number;
 }
