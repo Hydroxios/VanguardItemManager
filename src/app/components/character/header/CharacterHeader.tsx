@@ -34,7 +34,8 @@ const CharacterHeader = ({
   const [fadeOpacity, setFadeOpacity] = useState(1);
   const fadeTimeout = useRef<NodeJS.Timeout | null>(null);
 
-  const [isFirstRender, setIsFirstRender] = useState(true);
+  // Last character/emblem shown, so the fade only plays when one of them actually changes
+  const shownKey = useRef<string | null>(null);
 
   const currentEmblemHash = characters[characterId].emblemHash;
 
@@ -49,28 +50,26 @@ const CharacterHeader = ({
     );
   }, [characterId, characters, itemDefinitions]);
 
-  const handleCharacterChangeFade = useCallback(() => {
-    if (isFirstRender) {
-      setIsFirstRender(false);
+  useEffect(() => {
+    setCurrentSeasonNumber(seasonDefinitions[profile.currentSeasonHash]?.seasonNumber ?? 0);
+  }, [profile.currentSeasonHash, seasonDefinitions]);
+
+  useEffect(() => {
+    const key = `${characterId}:${currentEmblemHash}`;
+    if (shownKey.current === null || shownKey.current === key) {
+      // First render, or only the data refreshed: update without fading
+      shownKey.current = key;
+      setEmblem();
       return;
     }
-    setFadeOpacity(0); // Fade out
-    // Nettoie un fade précédent si encore actif
+    shownKey.current = key;
+    setFadeOpacity(0); // Fade out with the old emblem still shown
     if (fadeTimeout.current) clearTimeout(fadeTimeout.current);
     fadeTimeout.current = setTimeout(() => {
-      setEmblem(); // Mets à jour l'emblème
+      setEmblem(); // Swap the emblem while hidden
       setFadeOpacity(1); // Fade in
     }, 200); // Durée du fade out (ms)
-  }, [isFirstRender, setEmblem]);
-
-  useEffect(() => {
-    setEmblem();
-    setCurrentSeasonNumber(seasonDefinitions[profile.currentSeasonHash]?.seasonNumber ?? 0);
-  }, [characterId, characters, itemDefinitions, profile.currentSeasonHash, seasonDefinitions, setEmblem]);
-
-  useEffect(() => {
-    handleCharacterChangeFade();
-  }, [characterId, currentEmblemHash, handleCharacterChangeFade]);
+  }, [characterId, currentEmblemHash, setEmblem]);
 
   useEffect(() => {
     return () => {

@@ -1,7 +1,7 @@
 "use client"
 
 import Image from "next/image";
-import React, { createContext, useContext, useState, useCallback, ReactNode } from "react";
+import React, { createContext, useContext, useState, useCallback, ReactNode, useRef } from "react";
 
 type Notification = {
   id: number;
@@ -21,9 +21,11 @@ const NotificationsContext = createContext<NotificationsContextType | undefined>
 
 export const NotificationsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  // Incrementing ids: Date.now() collides when two notifications are created in the same millisecond
+  const nextId = useRef(1);
 
   const addNotification = useCallback((message: string, description: string = "", type: "info" | "success" | "error" | "warning" = "info", icon: string = "", duration: number = 3000, loading: boolean = false) => {
-    const id = Date.now();
+    const id = nextId.current++;
     setNotifications((prev) => [...prev, { id, message, description, type, icon, loading }]);
 
     if (!loading) {

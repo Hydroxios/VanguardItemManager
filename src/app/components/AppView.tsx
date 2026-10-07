@@ -14,6 +14,10 @@ import { Alert } from "@/lib/types";
 import Image from "next/image";
 import { useAuth } from "@/lib/hooks/useAuth";
 
+// Bungie alerts are HTML snippets; show their text without rendering untrusted markup
+const htmlToText = (html: string) =>
+  new DOMParser().parseFromString(html, "text/html").body.textContent ?? "";
+
 const AppView = () => {
   const [currentCharacter, setCurrentCharacter] = useState<string | undefined>();
 
@@ -101,7 +105,7 @@ const AppView = () => {
             {alerts.map((alert, index) => (
               <li key={index}>
                 <span className="cursor-pointer" onClick={() => window.open(alert.AlertLink)}>
-                  {alert.AlertHtml}
+                  {htmlToText(alert.AlertHtml)}
                 </span>
               </li>
             ))}

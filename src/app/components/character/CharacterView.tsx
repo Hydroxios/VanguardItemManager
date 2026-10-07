@@ -25,6 +25,9 @@ interface CharacterViewProps {
   onOpenSettings: () => void;
 }
 
+const GLIMMER_HASH = 3159615086;
+const BRIGHT_DUST_HASH = 2817410917;
+
 // Equipment slot type hash constants
 const EQUIPMENT_SLOTS = {
   PRIMARY: 1498876634,
@@ -96,7 +99,6 @@ const CharacterView: React.FC<CharacterViewProps> = ({
     itemComponents,
     profileCurrencies,
     refresh,
-    equipItemLocally,
   } = useProfile();
 
   const { hideTooltip } = useItemTooltip();
@@ -113,16 +115,6 @@ const CharacterView: React.FC<CharacterViewProps> = ({
       }));
     },
     []
-  );
-
-  // Handle equipping an item
-  const handleEquip = useCallback(
-    async (
-      itemInstanceId: string,
-    ) => {
-      equipItemLocally(characterId, itemInstanceId);
-    },
-    [characterId, equipItemLocally]
   );
 
   // Parses drag data: "st:hash:instanceId" (vault items) or "hash:instanceId:slot" (character items)
@@ -160,20 +152,14 @@ const CharacterView: React.FC<CharacterViewProps> = ({
   // Initialize equipment and currencies
   const initializeData = useCallback(() => {
     // Process currencies
-    if (profileCurrencies.length >= 3) {
-      const c: any[] = [];
-      const glimmers = profileCurrencies[0];
-      const brightDusts = profileCurrencies[2];
-      c.push({
-        item: itemDefinitions[glimmers.itemHash],
-        quantity: glimmers.quantity,
-      });
-      c.push({
-        item: itemDefinitions[brightDusts.itemHash],
-        quantity: brightDusts.quantity,
-      });
-      setCurrenciesData(c);
-    }
+    const c = [GLIMMER_HASH, BRIGHT_DUST_HASH]
+      .map((hash) => profileCurrencies.find((currency) => currency.itemHash === hash))
+      .filter((currency) => currency !== undefined)
+      .map((currency) => ({
+        item: itemDefinitions[currency.itemHash],
+        quantity: currency.quantity,
+      }));
+    setCurrenciesData(c);
 
     // Initialize equipment map
     const equipmentMap: Record<string, EquipmentItem> = {};
@@ -438,14 +424,6 @@ const CharacterView: React.FC<CharacterViewProps> = ({
             open={isOpen}
             right={isRightSide}
             armors={!isWeapon}
-            onEquip={
-              isWeapon
-                ? async (itemInstanceId) =>
-                  await handleEquip(
-                    itemInstanceId
-                  )
-                : undefined
-            }
             characterId={characterId}
           />
           <Item
@@ -461,7 +439,7 @@ const CharacterView: React.FC<CharacterViewProps> = ({
         </div>
       );
     },
-    [equipment, toggleEquipmentSection, handleEquip, characterId]
+    [equipment, toggleEquipmentSection, characterId]
   );
 
   return (

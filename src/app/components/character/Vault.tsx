@@ -74,8 +74,7 @@ const Vault: React.FC<VaultProps> = ({
 
   // Process inventory items into categories
   useEffect(() => {
-    if (!profileInventory || profileInventory.length === 0) return;
-
+    // An empty vault must still clear the grid, so don't return early here
     const weapons: ProcessedItem[] = [];
     const armor: ProcessedItem[] = [];
     const misc: ProcessedItem[] = [];
@@ -127,7 +126,7 @@ const Vault: React.FC<VaultProps> = ({
     });
 
     setWeaponTypes(types);
-  }, [profileInventory]);
+  }, [profileInventory, itemDefinitions, itemComponents]);
 
   // Handle item transfer from vault to character
   const handleTransfer = useCallback((item: any) => {

@@ -115,23 +115,23 @@ const Postmaster: React.FC<PostmasterProps> = ({
     if (!itemDefinition) return null;
 
     // Determine item rarity color
-    let rarityColor = "gray";
+    let rarityColor = "border-gray-500";
     if (itemDefinition.inventory?.tierType) {
       switch (itemDefinition.inventory.tierType) {
         case 6: // Exotic
-          rarityColor = "yellow-500";
+          rarityColor = "border-yellow-500";
           break;
         case 5: // Legendary
-          rarityColor = "purple-500";
+          rarityColor = "border-purple-500";
           break;
         case 4: // Rare
-          rarityColor = "blue-500";
+          rarityColor = "border-blue-500";
           break;
         case 3: // Uncommon
-          rarityColor = "green-500";
+          rarityColor = "border-green-500";
           break;
         default:
-          rarityColor = "gray-500";
+          rarityColor = "border-gray-500";
       }
     }
 
@@ -141,7 +141,7 @@ const Postmaster: React.FC<PostmasterProps> = ({
         className="relative w-12 h-12 flex items-center justify-center cursor-pointer group"
         onDoubleClick={() => collectItem(item)}
       >
-        <div className={`absolute inset-0 border border-${rarityColor} opacity-70`}></div>
+        <div className={`absolute inset-0 border ${rarityColor} opacity-70`}></div>
         <div className="w-full h-full flex items-center justify-center">
           {itemDefinition?.displayProperties?.icon && (
             <Image

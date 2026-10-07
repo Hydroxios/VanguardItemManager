@@ -259,6 +259,8 @@ footer {
   }
 }
 
-button {
-  cursor: pointer;
+@layer base {
+  button:not(:disabled) {
+    cursor: pointer;
+  }
 }
