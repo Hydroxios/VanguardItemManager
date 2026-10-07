@@ -1,7 +1,8 @@
 import React, { useMemo } from "react";
-import { useProfile, Item, Loadout } from "@/lib/hooks/useProfile";
+import { useProfile } from "@/lib/hooks/useProfile";
 import { useDefinitions } from "@/lib/hooks/useDefinitions";
 import ItemComponent from "./Item";
+import { Item, Loadout } from "@/lib/types";
 
 interface LoadoutViewerModalProps {
     open: boolean;

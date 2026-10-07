@@ -1,31 +1,6 @@
-import { Item } from './hooks/useProfile';
+import { BungieUser, Item } from "@/lib/types";
 
 const apiKey = process.env.NODE_ENV === 'production' ? process.env.NEXT_PUBLIC_BUNGIE_API_KEY! : process.env.NEXT_PUBLIC_BUNGIE_API_KEY_DEV!;
-
-export interface BungieUser {
-    uniqueName: string
-    membershipId: string
-    membershipType: number
-}
-
-export interface UserInfo {
-    displayName: string
-    iconPath: string
-    crossSaveOverride: number
-    isPublic: boolean
-    bungieGlobalDisplayNameCode: number
-}
-
-export interface Character {
-    characterId: string;
-    emblemHash: number;
-    emblemPath: string;
-    light: number;
-    classType: number;
-    raceType: number
-    classHash: number
-    raceHash: number
-}
 
 export interface ItemResponse {
     characterId: string
@@ -118,10 +93,13 @@ export type DestinyDefinitionTableName =
     | "DestinyRecordDefinition"
     | "DestinyLoadoutColorDefinition"
     | "DestinyLoadoutIconDefinition"
+    | "DestinyLoadoutNameDefinition"
     | "DestinyRaceDefinition"
     | "DestinyInventoryBucketDefinition"
     | "DestinyInventoryItemConstantsDefinition"
-    | "DestinySeasonDefinition";
+    | "DestinySeasonDefinition"
+    | "DestinySocketCategoryDefinition"
+    | "DestinyMaterialRequirementSetDefinition";
 
 interface DestinyManifest {
     jsonWorldContentPaths: Record<string, string>;
@@ -302,6 +280,26 @@ export const safeTransferItem = async (token: string, membershipType: number, it
     return null;
 }
 
+export interface EquipItemResult {
+    itemInstanceId: string
+    /** A PlatformErrorCodes value, 1 meaning success */
+    equipStatus: number
+}
+
+/** Equips several items at once; Bungie reports a status per item instead of failing the whole call. */
+export const equipItems = async (token: string, membershipType: number, characterId: string, itemIds: string[]) => {
+    const data = await bungie(`/Destiny2/Actions/Items/EquipItems/`, {
+        method: "POST",
+        body: JSON.stringify({
+            membershipType: membershipType,
+            characterId: characterId,
+            itemIds: itemIds
+        }),
+        token
+    });
+    return (data?.equipResults ?? []) as EquipItemResult[];
+}
+
 export const equipItem = async (token: string, membershipType: number, characterId: string, itemId: string) => {
     await bungie(`/Destiny2/Actions/Items/EquipItem/`, {
         method: "POST",
@@ -340,6 +338,77 @@ export const clearLoadout = async (
             membershipType: membershipType,
             characterId: characterId,
             loadoutIndex: loadoutIndex
+        }),
+        token
+    })
+}
+
+export interface LoadoutIdentifiers {
+    colorHash: number
+    iconHash: number
+    nameHash: number
+}
+
+/** Saves the character's currently equipped gear, subclass setup and mods into the loadout slot. */
+export const snapshotLoadout = async (
+    token: string,
+    membershipType: number,
+    characterId: string,
+    loadoutIndex: number,
+    identifiers: LoadoutIdentifiers
+) => {
+    await bungie(`/Destiny2/Actions/Loadouts/SnapshotLoadout/`, {
+        method: "POST",
+        body: JSON.stringify({
+            membershipType: membershipType,
+            characterId: characterId,
+            loadoutIndex: loadoutIndex,
+            ...identifiers
+        }),
+        token
+    })
+}
+
+/** Changes the loadout's name, color and icon without touching its items. */
+export const updateLoadoutIdentifiers = async (
+    token: string,
+    membershipType: number,
+    characterId: string,
+    loadoutIndex: number,
+    identifiers: LoadoutIdentifiers
+) => {
+    await bungie(`/Destiny2/Actions/Loadouts/UpdateLoadoutIdentifiers/`, {
+        method: "POST",
+        body: JSON.stringify({
+            membershipType: membershipType,
+            characterId: characterId,
+            loadoutIndex: loadoutIndex,
+            ...identifiers
+        }),
+        token
+    })
+}
+
+/**
+ * Inserts a plug (mod...) in an item socket. Only works for plugs that cost no materials,
+ * on items held by a character (not in the vault).
+ */
+export const insertSocketPlugFree = async (
+    token: string,
+    membershipType: number,
+    characterId: string,
+    itemInstanceId: string,
+    socketIndex: number,
+    plugItemHash: number
+) => {
+    await bungie(`/Destiny2/Actions/Items/InsertSocketPlugFree/`, {
+        method: "POST",
+        body: JSON.stringify({
+            // socketArrayType 0: the item's default sockets
+            plug: { socketIndex, socketArrayType: 0, plugItemHash },
+            itemId: itemInstanceId,
+            characterId: characterId,
+            membershipType: membershipType
         }),
         token
     })

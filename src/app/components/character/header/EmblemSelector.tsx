@@ -5,6 +5,7 @@ import { useMemo } from "react";
 import Item from '@/app/components/character/Item';
 import { equipItem } from "@/lib/bungie";
 import { useNotifications } from "@/app/components/NotificationsProvider";
+import { BUCKETS } from "@/lib/constants";
 
 interface EmblemSelectorProps {
     isOpen: boolean;
@@ -12,7 +13,6 @@ interface EmblemSelectorProps {
     characterId: string;
 }
 
-const EMBLEM_BUCKET_HASH = 4274335291;
 
 const EmblemSelector = ({ isOpen, onClose, characterId }: EmblemSelectorProps) => {
     const {
@@ -33,7 +33,7 @@ const EmblemSelector = ({ isOpen, onClose, characterId }: EmblemSelectorProps) =
         const processItems = (items: any[], sourceId: string) => {
             items.forEach((item) => {
                 const def = itemDefinitions[item.itemHash];
-                if (def && def.inventory && def.inventory.bucketTypeHash === EMBLEM_BUCKET_HASH) {
+                if (def && def.inventory && def.inventory.bucketTypeHash === BUCKETS.EMBLEM) {
                     allEmblems.push({
                         ...item,
                         sourceId,

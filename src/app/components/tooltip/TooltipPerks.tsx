@@ -1,8 +1,8 @@
 "use client";
 
-import { ItemDefinition } from "@/lib/hooks/useDefinitions";
 import Image from "next/image";
 import { useState } from "react";
+import { ItemDefinition } from "@/lib/types";
 
 type ItemType = "weapon" | "armor" | "subclass";
 

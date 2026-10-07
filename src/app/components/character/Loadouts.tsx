@@ -4,17 +4,45 @@ import {
   equipItem,
   equipLoadout,
   transferItem,
-  clearLoadout
+  clearLoadout,
+  snapshotLoadout,
+  LoadoutIdentifiers
 } from "@/lib/bungie";
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { defaultLoadoutIdentifiers, getLoadoutChoices } from "@/lib/helpers/loadouts";
 import { useNotifications } from "@/app/components/NotificationsProvider";
 import { useDefinitions } from "@/lib/hooks/useDefinitions";
 import useAuth from "@/lib/hooks/useAuth";
-import { Item, Loadout, useProfile } from "@/lib/hooks/useProfile";
+import { useProfile } from "@/lib/hooks/useProfile";
 import LoadoutViewerModal from "./LoadoutViewerModal";
+import LoadoutEditorModal from "./LoadoutEditorModal";
 import Image from "next/image";
+import { Item, Loadout } from "@/lib/types";
+import { ARMOR_SLOTS, BUCKETS, EQUIPMENT_SLOTS, WEAPON_SLOTS } from "@/lib/constants";
 
-const POSTMASTER_BUCKET_HASH = 215593132;
+// The equipment an in-game loadout records
+const LOADOUT_BUCKETS = [EQUIPMENT_SLOTS.SUBCLASS, ...WEAPON_SLOTS, ...ARMOR_SLOTS];
+
+// Paths of the context menu icons (24x24 outline)
+const MENU_ICONS = {
+  equip: ["M5 13l4 4L19 7"],
+  edit: ["M15.232 5.232l3.536 3.536M9 13l6.232-6.232a2.5 2.5 0 113.536 3.536L12.536 16.536 8 17.5l.964-4.5z"],
+  save: ["M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"],
+  view: [
+    "M15 12a3 3 0 11-6 0 3 3 0 016 0z",
+    "M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z",
+  ],
+  clear: ["M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"],
+  add: ["M12 4v16m8-8H4"],
+};
+
+interface MenuEntry {
+  label: string;
+  icon: string[];
+  color: string;
+  onClick: () => void;
+}
+
 
 interface LoadoutsProps {
   characterId: string;
@@ -26,14 +54,18 @@ const Loadouts = ({
   const [elements, setElements] = useState<any>();
   const [onCooldown, setOnCooldown] = useState(false);
   const [isContextMenuOpen, setIsContextMenuOpen] = useState<number | null>(null);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [loadoutToDelete, setLoadoutToDelete] = useState<number | null>(null);
+  // How far the open menu is moved up or down to stay inside the window
+  const [contextMenuShift, setContextMenuShift] = useState(0);
+  const contextMenuRef = useRef<HTMLDivElement>(null);
+  // Clearing a loadout and overwriting it with the equipped gear both ask first
+  const [pendingConfirm, setPendingConfirm] = useState<{ index: number, action: "clear" | "overwrite" } | null>(null);
   const [equipingLoadout, setEquipingLoadout] = useState<Loadout | null>(null)
   const [equipedItemIds, setEquipedItemIds] = useState<string[]>([]);
   const [viewingLoadoutIndex, setViewingLoadoutIndex] = useState<number | null>(null);
+  const [editingLoadoutIndex, setEditingLoadoutIndex] = useState<number | null>(null);
 
   const { addNotification } = useNotifications()
-  const { itemDefinitions, loadoutColorDefinitions, loadoutIconDefinitions } = useDefinitions()
+  const { itemDefinitions, loadoutColorDefinitions, loadoutIconDefinitions, loadoutNameDefinitions } = useDefinitions()
 
   const { token } = useAuth()
   const {
@@ -44,8 +76,14 @@ const Loadouts = ({
     characterEquipment,
     profileInventory,
     moveItem,
-    equipLoadoutLocally
+    equipLoadoutLocally,
+    updateLoadoutLocally
   } = useProfile()
+
+  const loadoutChoices = useMemo(
+    () => getLoadoutChoices(loadoutColorDefinitions, loadoutIconDefinitions, loadoutNameDefinitions),
+    [loadoutColorDefinitions, loadoutIconDefinitions, loadoutNameDefinitions]
+  );
 
   // Lookup used by the equipping overlay, built once per inventory change instead of per item
   const itemsByInstanceId = useMemo(() => {
@@ -62,10 +100,10 @@ const Loadouts = ({
       const l = characterLoadouts[characterId].loadouts[index];
       const color = loadoutColorDefinitions[l.colorHash];
       const icon = loadoutIconDefinitions[l.iconHash];
-      ls.push({ color: color?.colorImagePath, icon: icon?.iconImagePath });
+      ls.push({ color: color?.colorImagePath, icon: icon?.iconImagePath, name: loadoutNameDefinitions[l.nameHash]?.name });
     }
     setElements(() => ls);
-  }, [characterLoadouts, characterId, loadoutColorDefinitions, loadoutIconDefinitions]);
+  }, [characterLoadouts, characterId, loadoutColorDefinitions, loadoutIconDefinitions, loadoutNameDefinitions]);
 
   const handleEquip = async (index: number) => {
     setOnCooldown(() => true);
@@ -127,7 +165,7 @@ const Loadouts = ({
         const itemDef = itemDefinitions[item.itemHash];
         const validItem = (characterInventories[itemCharId]?.items ?? []).find((i) => {
           // Les objets du postmaster ne peuvent pas être équipés
-          if (!i.itemInstanceId || i.bucketHash === POSTMASTER_BUCKET_HASH || i.itemHash === item.itemHash) return false;
+          if (!i.itemInstanceId || i.bucketHash === BUCKETS.POSTMASTER || i.itemHash === item.itemHash) return false;
           const itemObject = itemDefinitions[i.itemHash];
           return !!itemObject?.equippingBlock
             && itemObject.equippingBlock.equipmentSlotTypeHash === itemDef?.equippingBlock?.equipmentSlotTypeHash
@@ -168,20 +206,57 @@ const Loadouts = ({
   const toggleContextMenu = (index: number, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    setContextMenuShift(0);
     setIsContextMenuOpen(isContextMenuOpen === index ? null : index);
   };
 
-  // Function to show clear confirmation
-  const handleClearConfirm = (index: number) => {
-    setLoadoutToDelete(index);
-    setShowDeleteConfirm(true);
+  // The menu opens next to its slot; for the bottom slots it would overflow the window, so it moves up.
+  // Measured from the slot and the layout height: the fade-in animation shifts and scales the menu itself
+  useLayoutEffect(() => {
+    const menu = contextMenuRef.current;
+    const slot = menu?.offsetParent;
+    if (isContextMenuOpen === null || !menu || !slot) return;
+    const margin = 8;
+    const naturalTop = slot.getBoundingClientRect().top - 8;
+    let shift = Math.min(0, window.innerHeight - margin - (naturalTop + menu.offsetHeight));
+    if (naturalTop + shift < margin) shift = margin - naturalTop;
+    setContextMenuShift(shift);
+  }, [isContextMenuOpen]);
+
+  const askConfirm = (index: number, action: "clear" | "overwrite") => {
+    setPendingConfirm({ index, action });
     setIsContextMenuOpen(null);
   };
 
-  // Function to clear a loadout
-  const handleClearLoadout = async () => {
-    if (loadoutToDelete === null) return;
+  /** Records what the character wears in the slot, like saving a loadout in game. Nothing moves. */
+  const handleSaveEquipped = async (index: number) => {
+    setIsContextMenuOpen(null);
+    const existing = characterLoadouts[characterId].loadouts[index];
+    const isEmpty = !loadoutIconDefinitions[existing?.iconHash]?.iconImagePath;
+    // An empty slot gets the default look; an existing loadout keeps its own
+    const identifiers: LoadoutIdentifiers = isEmpty
+      ? defaultLoadoutIdentifiers(loadoutChoices)
+      : { colorHash: existing.colorHash, iconHash: existing.iconHash, nameHash: existing.nameHash };
+    if (!identifiers.colorHash || !identifiers.iconHash || !identifiers.nameHash) {
+      addNotification("Loadout names, colors and icons are still loading", "Try again in a moment.", "error", "", 5000);
+      return;
+    }
 
+    const icon = loadoutIconDefinitions[identifiers.iconHash]?.iconImagePath;
+    try {
+      await snapshotLoadout(token as string, user.membershipType, characterId, index, identifiers);
+      const equipped = (characterEquipment[characterId]?.items ?? [])
+        .filter((item) => LOADOUT_BUCKETS.includes(itemDefinitions[item.itemHash]?.inventory?.bucketTypeHash ?? 0));
+      updateLoadoutLocally(characterId, index, { ...identifiers, items: equipped.map((item) => ({ itemInstanceId: item.itemInstanceId })) });
+      addNotification("Loadout saved", loadoutNameDefinitions[identifiers.nameHash]?.name ?? "", "success", icon ? `https://www.bungie.net${icon}` : "", 5000);
+      await refresh();
+    } catch (error) {
+      addNotification("Error while saving loadout", error instanceof Error ? error.message : "Failed to save loadout", "error", "", 5000);
+    }
+  };
+
+  // Function to clear a loadout
+  const handleClearLoadout = async (loadoutToDelete: number) => {
     try {
       await clearLoadout(
         token as string,
@@ -200,10 +275,35 @@ const Loadouts = ({
       await refresh();
     } catch (error: any) {
       addNotification("Error", error.message || "Failed to clear loadout", "error", "", 5000);
-    } finally {
-      setShowDeleteConfirm(false);
-      setLoadoutToDelete(null);
     }
+  };
+
+  const handleConfirm = () => {
+    if (!pendingConfirm) return;
+    const { index, action } = pendingConfirm;
+    setPendingConfirm(null);
+    if (action === "clear") handleClearLoadout(index);
+    else handleSaveEquipped(index);
+  };
+
+  const menuEntries = (index: number, isEmpty: boolean): MenuEntry[] => {
+    const closeAnd = (action: () => void) => () => {
+      setIsContextMenuOpen(null);
+      action();
+    };
+    if (isEmpty) {
+      return [
+        { label: "Create from equipped gear", icon: MENU_ICONS.save, color: "text-white", onClick: () => handleSaveEquipped(index) },
+        { label: "Create in editor", icon: MENU_ICONS.add, color: "text-[#b39ddb]", onClick: closeAnd(() => setEditingLoadoutIndex(index)) },
+      ];
+    }
+    return [
+      { label: "Equip", icon: MENU_ICONS.equip, color: "text-white", onClick: () => handleEquip(index) },
+      { label: "Edit", icon: MENU_ICONS.edit, color: "text-[#b39ddb]", onClick: closeAnd(() => setEditingLoadoutIndex(index)) },
+      { label: "Save equipped gear", icon: MENU_ICONS.save, color: "text-[#b39ddb]", onClick: () => askConfirm(index, "overwrite") },
+      { label: "View", icon: MENU_ICONS.view, color: "text-blue-400", onClick: closeAnd(() => setViewingLoadoutIndex(index)) },
+      { label: "Clear", icon: MENU_ICONS.clear, color: "text-red-400", onClick: () => askConfirm(index, "clear") },
+    ];
   };
 
   // Handle clicking outside to close context menu
@@ -282,11 +382,17 @@ const Loadouts = ({
                   style={{
                     border: "2px solid white",
                     boxShadow: "0 4px 8px rgba(0, 0, 0, 0.04)",
-                    cursor: element.icon && !onCooldown ? "pointer" : "",
+                    cursor: !onCooldown ? "pointer" : "",
                     position: "relative"
                   }}
-                  onClick={() => (element.icon && !onCooldown ? handleEquip(index) : "")}
-                  onContextMenu={(e) => (element.icon ? toggleContextMenu(index, e) : "")}
+                  title={element.icon ? element.name : "Create a loadout"}
+                  onClick={() => {
+                    if (onCooldown) return;
+                    // An empty slot opens the editor to create a loadout there
+                    if (element.icon) handleEquip(index);
+                    else setEditingLoadoutIndex(index);
+                  }}
+                  onContextMenu={(e) => (!onCooldown ? toggleContextMenu(index, e) : "")}
                 >
                   {onCooldown ? (
                     <div
@@ -317,60 +423,10 @@ const Loadouts = ({
                           <span className="absolute bottom-0 right-0.5 text-xs font-bold leading-none text-white pointer-events-none select-none [text-shadow:0_0_2px_#000,0_0_2px_#000]">
                             {index + 1}
                           </span>
-
-                          {isContextMenuOpen === index && (
-                            <div
-                              className="loadout-context-menu absolute top-[-8px] left-full ml-2 z-20 bg-[#1a1a2e] border border-[#7e57c2] rounded-md shadow-lg overflow-hidden min-w-40 animate-fade-in"
-                              onClick={(e) => e.stopPropagation()}
-                              style={{
-                                boxShadow: '0 5px 15px rgba(0,0,0,0.5)',
-                                transform: 'translateY(-25%)'
-                              }}
-                            >
-                              <div className="bg-[#2a2a40] py-2 px-3 border-b border-[#7e57c2] font-medium text-sm">
-                                Loadout Options
-                              </div>
-                              <div className="py-1">
-                                <button
-                                  className="flex items-center w-full text-left px-3 py-2 text-sm text-white hover:bg-[#3a3a50] transition-colors"
-                                  onClick={() => handleEquip(index)}
-                                >
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                  </svg>
-                                  Equip
-                                </button>
-                                <div className="border-t border-gray-700 my-1"></div>
-                                <button
-                                  className="flex items-center w-full text-left px-3 py-2 text-sm text-blue-400 hover:bg-[#3a3a50] transition-colors"
-                                  onClick={() => {
-                                    setViewingLoadoutIndex(index);
-                                    setIsContextMenuOpen(null);
-                                  }}
-                                >
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                  </svg>
-                                  View
-                                </button>
-                                <div className="border-t border-gray-700 my-1"></div>
-                                <button
-                                  className="flex items-center w-full text-left px-3 py-2 text-sm text-red-400 hover:bg-[#3a3a50] transition-colors"
-                                  onClick={() => handleClearConfirm(index)}
-                                >
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                  </svg>
-                                  Clear
-                                </button>
-                              </div>
-                            </div>
-                          )}
                         </>
                       ) : (
                         <div
-                          className="relative cursor-not-allowed bg-zinc-700/40 hover:bg-zinc-700/70"
+                          className="relative bg-zinc-700/40 hover:bg-zinc-700/70"
                         >
                           <Image
                             alt="new loadout"
@@ -378,6 +434,39 @@ const Loadouts = ({
                             height={48}
                             width={48}
                           />
+                        </div>
+                      )}
+
+                      {isContextMenuOpen === index && (
+                        <div
+                          ref={contextMenuRef}
+                          className="loadout-context-menu absolute left-full ml-2 z-20 bg-[#1a1a2e] border border-[#7e57c2] rounded-md shadow-lg overflow-hidden min-w-40 animate-fade-in"
+                          onClick={(e) => e.stopPropagation()}
+                          style={{
+                            boxShadow: '0 5px 15px rgba(0,0,0,0.5)',
+                            // Positioned with top: the fade-in animation owns transform
+                            top: -8 + contextMenuShift
+                          }}
+                        >
+                          <div className="bg-[#2a2a40] py-2 px-3 border-b border-[#7e57c2] font-medium text-sm whitespace-nowrap">
+                            {element.icon ? "Loadout Options" : "Empty Slot"}
+                          </div>
+                          <div className="py-1">
+                            {menuEntries(index, !element.icon).map((entry, entryIndex) => (
+                              <Fragment key={entry.label}>
+                                {entryIndex > 0 && <div className="border-t border-gray-700 my-1"></div>}
+                                <button
+                                  className={`flex items-center w-full text-left px-3 py-2 text-sm whitespace-nowrap ${entry.color} hover:bg-[#3a3a50] transition-colors`}
+                                  onClick={entry.onClick}
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    {entry.icon.map((d) => <path key={d} strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={d} />)}
+                                  </svg>
+                                  {entry.label}
+                                </button>
+                              </Fragment>
+                            ))}
+                          </div>
                         </div>
                       )}
                     </div>
@@ -388,41 +477,42 @@ const Loadouts = ({
         </div>
       </div>
 
-      {/* Delete Confirmation Modal */}
-      {showDeleteConfirm && loadoutToDelete !== null && characterLoadouts[characterId].loadouts[loadoutToDelete] && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-80">
-          <div className="bg-[#1a1a2e] border border-[#7e57c2] shadow-xl p-5 rounded w-[400px] animate-fade-in">
-            <div className="flex justify-between items-center mb-4 border-b border-gray-700 pb-2">
-              <h2 className="text-white text-xl font-semibold">
-                Clear Loadout
-              </h2>
-              <button
-                onClick={() => setShowDeleteConfirm(false)}
-                className="text-gray-400 hover:text-white"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
+      {/* Confirmation for clearing a loadout or overwriting it with the equipped gear */}
+      {pendingConfirm && characterLoadouts[characterId].loadouts[pendingConfirm.index] && (() => {
+        const loadout = characterLoadouts[characterId].loadouts[pendingConfirm.index];
+        const colorPath = loadoutColorDefinitions[loadout.colorHash]?.colorImagePath;
+        const iconPath = loadoutIconDefinitions[loadout.iconHash]?.iconImagePath;
+        const isClear = pendingConfirm.action === "clear";
+        return (
+          <div className="fixed inset-0 flex items-center justify-center z-[1003] bg-black/80" onClick={() => setPendingConfirm(null)}>
+            <div className="bg-[#1a1a2e] border border-[#7e57c2] shadow-xl p-5 rounded w-[400px] animate-fade-in" onClick={(e) => e.stopPropagation()}>
+              <div className="flex justify-between items-center mb-4 border-b border-gray-700 pb-2">
+                <h2 className="text-white text-xl font-semibold">
+                  {isClear ? "Clear Loadout" : "Save Equipped Gear"}
+                </h2>
+                <button
+                  onClick={() => setPendingConfirm(null)}
+                  className="text-gray-400 hover:text-white"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
 
-            <div className="mb-6">
-              <p className="text-gray-300 mb-4">
-                Are you sure you want to clear this loadout? This will remove all items from this loadout.
-              </p>
+              <div className="mb-6">
+                <p className="text-gray-300 mb-4">
+                  {isClear
+                    ? "Are you sure you want to clear this loadout? This will remove all items from this loadout."
+                    : "Replace this loadout with the gear, mods and subclass setup you have equipped right now? Its name, color and icon are kept."}
+                </p>
 
-              <div className="flex items-center justify-center mb-4">
-                {characterLoadouts[characterId].loadouts[loadoutToDelete].colorHash && (
+                <div className="flex items-center justify-center mb-4">
                   <div className="relative size-[64px]">
-                    <Image
-                      src={`https://www.bungie.net${loadoutColorDefinitions[characterLoadouts[characterId].loadouts[loadoutToDelete].colorHash].colorImagePath}`}
-                      height={64}
-                      width={64}
-                      alt="Loadout background"
-                    />
-                    {characterLoadouts[characterId].loadouts[loadoutToDelete].iconHash && (
+                    {colorPath && <Image src={`https://www.bungie.net${colorPath}`} height={64} width={64} alt="Loadout background" />}
+                    {iconPath && (
                       <Image
-                        src={`https://www.bungie.net${loadoutIconDefinitions[characterLoadouts[characterId].loadouts[loadoutToDelete].iconHash].iconImagePath}`}
+                        src={`https://www.bungie.net${iconPath}`}
                         height={64}
                         width={64}
                         style={{ position: "absolute", top: 0, left: 0 }}
@@ -430,26 +520,35 @@ const Loadouts = ({
                       />
                     )}
                   </div>
-                )}
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => setPendingConfirm(null)}
+                  className="px-4 py-2 bg-gray-700 text-white rounded hover:bg-gray-600"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConfirm}
+                  className={`px-4 py-2 text-white rounded ${isClear ? "bg-red-600 hover:bg-red-700" : "bg-[#7e57c2] hover:bg-[#6a46ad]"}`}
+                >
+                  {isClear ? "Clear" : "Save"}
+                </button>
               </div>
             </div>
-
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={() => setShowDeleteConfirm(false)}
-                className="px-4 py-2 bg-gray-700 text-white rounded hover:bg-gray-600"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleClearLoadout}
-                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
-              >
-                Clear
-              </button>
-            </div>
           </div>
-        </div>
+        );
+      })()}
+
+      {editingLoadoutIndex !== null && (
+        <LoadoutEditorModal
+          key={`${characterId}-${editingLoadoutIndex}`}
+          characterId={characterId}
+          loadoutIndex={editingLoadoutIndex}
+          onClose={() => setEditingLoadoutIndex(null)}
+        />
       )}
 
       <LoadoutViewerModal

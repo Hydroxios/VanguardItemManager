@@ -1,7 +1,9 @@
 import { useDefinitions } from "@/lib/hooks/useDefinitions";
-import { Item, useProfile } from "@/lib/hooks/useProfile";
+import { useProfile } from "@/lib/hooks/useProfile";
 import Image from "next/image";
 import React, { useEffect, useState } from "react";
+import { Item } from "@/lib/types";
+import { BUCKETS } from "@/lib/constants";
 
 const MAX_ENGRAMS = 10;
 
@@ -25,13 +27,12 @@ const Engrams: React.FC<EngramsProps> = ({
       const itemDefinition = itemDefinitions[item.itemHash];
       // Check if item is an engram (typically they have a specific category hash)
       // Filter out engrams in the postmaster (location 4)
-      // Postmaster bucket hash is 215593132
       return (
         itemDefinition &&
         itemDefinition.itemCategoryHashes &&
         itemDefinition.itemCategoryHashes.includes(34) &&
         item.location !== 4 && // Check location property
-        item.bucketHash !== 215593132 // Also check bucketHash to ensure it's not in postmaster
+        item.bucketHash !== BUCKETS.POSTMASTER // Also check bucketHash to ensure it's not in postmaster
       );
     }));
 

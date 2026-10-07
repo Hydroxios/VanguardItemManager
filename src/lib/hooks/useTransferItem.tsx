@@ -40,44 +40,61 @@ const useTransferItem = () => {
         return { equipped: false };
     };
 
-    const transfer = async ({ itemHash, itemInstanceId, toId, fromId, quantity = 1 }: TransferRequest): Promise<boolean> => {
+    const resolveSource = (itemInstanceId?: string, fromId?: string) => {
         const located = locateItem(itemInstanceId);
-        const sourceId = located.location ?? fromId;
+        return { sourceId: located.location ?? fromId, equipped: located.equipped };
+    };
+
+    /**
+     * Moves the item and updates the local state, without any notification.
+     * Throws when Bungie rejects a transfer; returns false when there is nothing to move.
+     */
+    const move = async ({ itemHash, itemInstanceId, toId, fromId, quantity = 1 }: TransferRequest): Promise<boolean> => {
+        const { sourceId, equipped } = resolveSource(itemInstanceId, fromId);
         if (!sourceId || sourceId === toId) return false;
 
-        const definition = itemDefinitions[itemHash];
+        const instanceId = itemInstanceId || "0";
+
+        if (sourceId === "vault") {
+            await transferItem(token as string, user.membershipType, itemHash, instanceId, toId, false, quantity);
+            moveItem(itemHash, itemInstanceId, "vault", toId, quantity);
+        } else if (equipped) {
+            const replacementItem = await safeTransferItem(token as string, user.membershipType, itemHash, instanceId, sourceId, toId, user.membershipId, itemDefinitions);
+            if (replacementItem) {
+                transferEquippedItem(itemHash, instanceId, sourceId, toId, replacementItem.itemInstanceId);
+            } else {
+                moveItem(itemHash, itemInstanceId, sourceId, toId, quantity);
+            }
+        } else {
+            await transferItem(token as string, user.membershipType, itemHash, instanceId, sourceId, true, quantity);
+            if (toId !== "vault") {
+                try {
+                    await transferItem(token as string, user.membershipType, itemHash, instanceId, toId, false, quantity);
+                } catch (error) {
+                    // The first hop succeeded, so the item now sits in the vault
+                    moveItem(itemHash, itemInstanceId, sourceId, "vault", quantity);
+                    throw error;
+                }
+            }
+            moveItem(itemHash, itemInstanceId, sourceId, toId, quantity);
+        }
+        return true;
+    };
+
+    /** Same as `move`, reporting progress and errors through notifications. */
+    const transfer = async (request: TransferRequest): Promise<boolean> => {
+        const { sourceId } = resolveSource(request.itemInstanceId, request.fromId);
+        if (!sourceId || sourceId === request.toId) return false;
+
+        const definition = itemDefinitions[request.itemHash];
         const name = definition?.displayProperties?.name ?? "item";
         const icon = definition?.displayProperties?.icon ? `https://www.bungie.net${definition.displayProperties.icon}` : "";
-        const instanceId = itemInstanceId || "0";
 
         const notificationId = addNotification("Transferring item...", name, "info", icon, 5000, true);
 
         try {
-            if (sourceId === "vault") {
-                await transferItem(token as string, user.membershipType, itemHash, instanceId, toId, false, quantity);
-                moveItem(itemHash, itemInstanceId, "vault", toId, quantity);
-            } else if (located.equipped) {
-                const replacementItem = await safeTransferItem(token as string, user.membershipType, itemHash, instanceId, sourceId, toId, user.membershipId, itemDefinitions);
-                if (replacementItem) {
-                    transferEquippedItem(itemHash, instanceId, sourceId, toId, replacementItem.itemInstanceId);
-                } else {
-                    moveItem(itemHash, itemInstanceId, sourceId, toId, quantity);
-                }
-            } else {
-                await transferItem(token as string, user.membershipType, itemHash, instanceId, sourceId, true, quantity);
-                if (toId !== "vault") {
-                    try {
-                        await transferItem(token as string, user.membershipType, itemHash, instanceId, toId, false, quantity);
-                    } catch (error) {
-                        // The first hop succeeded, so the item now sits in the vault
-                        moveItem(itemHash, itemInstanceId, sourceId, "vault", quantity);
-                        throw error;
-                    }
-                }
-                moveItem(itemHash, itemInstanceId, sourceId, toId, quantity);
-            }
-
-            updateNotification(notificationId, toId === "vault" ? "Item transferred to vault" : "Item transferred", name, "success", icon, 5000, false);
+            await move(request);
+            updateNotification(notificationId, request.toId === "vault" ? "Item transferred to vault" : "Item transferred", name, "success", icon, 5000, false);
             return true;
         } catch (error) {
             updateNotification(
@@ -93,7 +110,7 @@ const useTransferItem = () => {
         }
     };
 
-    return { transfer, locateItem };
+    return { transfer, move, locateItem };
 };
 
 export default useTransferItem;

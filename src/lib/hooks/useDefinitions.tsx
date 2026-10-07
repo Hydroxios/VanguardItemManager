@@ -1,124 +1,6 @@
 import { createContext, ReactNode, useContext, useEffect, useState, useMemo } from "react";
 import { DestinyDefinitionTableName, getDefinitions, getDefinitionTable } from "../bungie";
-import { DisplayPropertiesDefinition } from "../types";
-
-export interface ItemDefinition {
-    displayProperties: DisplayPropertiesDefinition
-    iconWatermark: string
-    itemTypeDisplayName: string
-    inventory: {
-        maxStackSize: number
-        bucketTypeHash: number
-        tierType: number
-    }
-    iconWatermarkShelved: string
-    iconWatermarkFeatured: string
-    secondaryIcon: string
-    secondaryOverlay: string
-    secondarySpecial: string
-    isFeaturedItem: boolean
-    equippingBlock: {
-        equipmentSlotTypeHash: number
-        ammoType: number
-    }
-    flavorText: string
-    itemCategoryHashes: number[]
-    itemType: number
-    itemSubType: number
-    defaultDamageType: number
-    hash: number
-    perks: {
-        perkHash: number
-        perkVisibility: number
-    }[]
-    plug?: {
-        plugCategoryIdentifier: string
-    }
-}
-
-export interface ClassDefinition {
-    displayProperties: DisplayPropertiesDefinition
-    classType: number
-    hash: number
-}
-
-export interface StatsDefinition {
-    displayProperties: DisplayPropertiesDefinition
-    statCategory: number
-    hash: number
-}
-
-export interface PerkDefinition {
-    displayProperties: DisplayPropertiesDefinition
-    perkIdentifier: string
-    isDisplayable: boolean
-    damageType: number
-    hash: number
-}
-
-export interface ObjectiveDefinition {
-    displayProperties: DisplayPropertiesDefinition
-    progressDescription?: string
-    completionValue?: number
-    hash: number
-}
-
-export interface RecordDefinition {
-    displayProperties: DisplayPropertiesDefinition
-    titleInfo: {
-        hasTitle: boolean
-        titlesByGender: Record<string, string>
-        titlesByGenderHash: Record<string, string>
-    }
-    hash: number
-}
-
-export interface LoadoutColorDefinition {
-    colorImagePath: string
-    hash: number
-}
-
-export interface LoadoutIconDefinition {
-    iconImagePath: string
-    hash: number
-}
-
-export interface RaceDefinition {
-    displayProperties: DisplayPropertiesDefinition
-    raceType: number
-}
-
-export interface BucketDefinition {
-    displayProperties: DisplayPropertiesDefinition
-    category: number
-    scope: number
-    itemCount: number
-    location: number
-}
-
-export interface ItemConstantsDefinition {
-    gearTierOverlayImagePaths: string[]
-    hash: number
-}
-
-export interface SeasonDefinition {
-    displayProperties: DisplayPropertiesDefinition
-    seasonNumber: number
-    hash: number
-}
-
-export type ItemDefinitions = Record<string, ItemDefinition>
-export type ClassDefinitions = Record<string, ClassDefinition>
-export type StatsDefinitions = Record<string, StatsDefinition>
-export type PerksDefinitions = Record<string, PerkDefinition>
-export type ObjectiveDefinitions = Record<string, ObjectiveDefinition>
-export type RecordsDefinitions = Record<string, RecordDefinition>
-export type LoadoutColorDefinitions = Record<string, LoadoutColorDefinition>
-export type LoadoutIconDefinitions = Record<string, LoadoutIconDefinition>
-export type RaceDefinitions = Record<string, RaceDefinition>
-export type BucketDefinitions = Record<string, BucketDefinition>
-export type ItemConstantsDefinitions = Record<string, ItemConstantsDefinition>
-export type SeasonDefinitions = Record<string, SeasonDefinition>
+import { BucketDefinitions, ClassDefinitions, ItemConstantsDefinitions, ItemDefinitions, LoadoutColorDefinitions, LoadoutIconDefinitions, LoadoutNameDefinitions, MaterialRequirementSetDefinitions, ObjectiveDefinitions, PerksDefinitions, RaceDefinitions, RecordsDefinitions, SeasonDefinitions, SocketCategoryDefinitions, StatsDefinitions } from "@/lib/types";
 
 interface DefinitionsAggregate {
     DestinyInventoryItemDefinition?: ItemDefinitions
@@ -129,10 +11,13 @@ interface DefinitionsAggregate {
     DestinyRecordDefinition?: RecordsDefinitions
     DestinyLoadoutColorDefinition?: LoadoutColorDefinitions
     DestinyLoadoutIconDefinition?: LoadoutIconDefinitions
+    DestinyLoadoutNameDefinition?: LoadoutNameDefinitions
     DestinyRaceDefinition?: RaceDefinitions
     DestinyInventoryBucketDefinition?: BucketDefinitions
     DestinyInventoryItemConstantsDefinition?: ItemConstantsDefinitions
     DestinySeasonDefinition?: SeasonDefinitions
+    DestinySocketCategoryDefinition?: SocketCategoryDefinitions
+    DestinyMaterialRequirementSetDefinition?: MaterialRequirementSetDefinitions
 }
 
 type DefinitionLoadState = Record<DestinyDefinitionTableName, boolean>
@@ -149,10 +34,13 @@ interface Definitions {
     recordsDefinitions: RecordsDefinitions;
     loadoutColorDefinitions: LoadoutColorDefinitions
     loadoutIconDefinitions: LoadoutIconDefinitions
+    loadoutNameDefinitions: LoadoutNameDefinitions
     raceDefinitions: RaceDefinitions
     bucketDefinitions: BucketDefinitions
     itemConstantsDefinitions: ItemConstantsDefinitions
     seasonDefinitions: SeasonDefinitions
+    socketCategoryDefinitions: SocketCategoryDefinitions
+    materialRequirementDefinitions: MaterialRequirementSetDefinitions
 }
 
 const DefinitionsContext = createContext<Definitions | undefined>(undefined)
@@ -166,10 +54,13 @@ const initialDefinitionsLoaded: DefinitionLoadState = {
     DestinyRecordDefinition: false,
     DestinyLoadoutColorDefinition: false,
     DestinyLoadoutIconDefinition: false,
+    DestinyLoadoutNameDefinition: false,
     DestinyRaceDefinition: false,
     DestinyInventoryBucketDefinition: false,
     DestinyInventoryItemConstantsDefinition: false,
     DestinySeasonDefinition: false,
+    DestinySocketCategoryDefinition: false,
+    DestinyMaterialRequirementSetDefinition: false,
 }
 
 export const DefinitionsProvider = ({ children }: { children: ReactNode }) => {
@@ -185,10 +76,13 @@ export const DefinitionsProvider = ({ children }: { children: ReactNode }) => {
     const [recordsDefinitions, setRecordsDefinitions] = useState<RecordsDefinitions>({})
     const [loadoutColorDefinitions, setLoadoutColorDefinitions] = useState<LoadoutColorDefinitions>({})
     const [loadoutIconDefinitions, setLoadoutIconDefinitions] = useState<LoadoutIconDefinitions>({})
+    const [loadoutNameDefinitions, setLoadoutNameDefinitions] = useState<LoadoutNameDefinitions>({})
     const [raceDefinitions, setRaceDefinitions] = useState<RaceDefinitions>({})
     const [bucketDefinitions, setBucketDefinitions] = useState<BucketDefinitions>({})
     const [itemConstantsDefinitions, setItemConstantsDefinitions] = useState<ItemConstantsDefinitions>({})
     const [seasonDefinitions, setSeasonDefinitions] = useState<SeasonDefinitions>({})
+    const [socketCategoryDefinitions, setSocketCategoryDefinitions] = useState<SocketCategoryDefinitions>({})
+    const [materialRequirementDefinitions, setMaterialRequirementDefinitions] = useState<MaterialRequirementSetDefinitions>({})
     useEffect(() => {
         let active = true;
         const locale = localStorage.getItem("locale") ?? "en";
@@ -213,10 +107,13 @@ export const DefinitionsProvider = ({ children }: { children: ReactNode }) => {
             setRecordsDefinitions(db.DestinyRecordDefinition ?? {})
             setLoadoutColorDefinitions(db.DestinyLoadoutColorDefinition ?? {})
             setLoadoutIconDefinitions(db.DestinyLoadoutIconDefinition ?? {})
+            setLoadoutNameDefinitions(db.DestinyLoadoutNameDefinition ?? {})
             setRaceDefinitions(db.DestinyRaceDefinition ?? {})
             setBucketDefinitions(db.DestinyInventoryBucketDefinition ?? {})
             setItemConstantsDefinitions(db.DestinyInventoryItemConstantsDefinition ?? {})
             setSeasonDefinitions(db.DestinySeasonDefinition ?? {})
+            setSocketCategoryDefinitions(db.DestinySocketCategoryDefinition ?? {})
+            setMaterialRequirementDefinitions(db.DestinyMaterialRequirementSetDefinition ?? {})
             setDefinitionsLoaded(Object.fromEntries(
                 Object.keys(initialDefinitionsLoaded).map((key) => [key, true])
             ) as DefinitionLoadState)
@@ -239,9 +136,12 @@ export const DefinitionsProvider = ({ children }: { children: ReactNode }) => {
                     loadTable<RecordsDefinitions>("DestinyRecordDefinition", setRecordsDefinitions),
                     loadTable<LoadoutColorDefinitions>("DestinyLoadoutColorDefinition", setLoadoutColorDefinitions),
                     loadTable<LoadoutIconDefinitions>("DestinyLoadoutIconDefinition", setLoadoutIconDefinitions),
+                    loadTable<LoadoutNameDefinitions>("DestinyLoadoutNameDefinition", setLoadoutNameDefinitions),
                     loadTable<BucketDefinitions>("DestinyInventoryBucketDefinition", setBucketDefinitions),
                     loadTable<ItemConstantsDefinitions>("DestinyInventoryItemConstantsDefinition", setItemConstantsDefinitions),
                     loadTable<SeasonDefinitions>("DestinySeasonDefinition", setSeasonDefinitions),
+                    loadTable<SocketCategoryDefinitions>("DestinySocketCategoryDefinition", setSocketCategoryDefinitions),
+                    loadTable<MaterialRequirementSetDefinitions>("DestinyMaterialRequirementSetDefinition", setMaterialRequirementDefinitions),
                 ]);
             } catch (error) {
                 console.error("Failed to load component definitions, falling back to aggregate manifest", error);
@@ -275,11 +175,14 @@ export const DefinitionsProvider = ({ children }: { children: ReactNode }) => {
         recordsDefinitions,
         loadoutColorDefinitions,
         loadoutIconDefinitions,
+        loadoutNameDefinitions,
         raceDefinitions,
         bucketDefinitions,
         itemConstantsDefinitions,
-        seasonDefinitions
-    }), [loading, loadError, definitionsLoaded, itemDefinitions, classDefinitions, statsDefinitions, perksDefinitions, objectiveDefinitions, recordsDefinitions, loadoutColorDefinitions, loadoutIconDefinitions, raceDefinitions, bucketDefinitions, itemConstantsDefinitions, seasonDefinitions]);
+        seasonDefinitions,
+        socketCategoryDefinitions,
+        materialRequirementDefinitions
+    }), [loading, loadError, definitionsLoaded, itemDefinitions, classDefinitions, statsDefinitions, perksDefinitions, objectiveDefinitions, recordsDefinitions, loadoutColorDefinitions, loadoutIconDefinitions, loadoutNameDefinitions, raceDefinitions, bucketDefinitions, itemConstantsDefinitions, seasonDefinitions, socketCategoryDefinitions, materialRequirementDefinitions]);
 
     return (
         <DefinitionsContext.Provider

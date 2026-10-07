@@ -2,34 +2,19 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import Item from "./Item";
-import { ItemDefinition, useDefinitions } from "@/lib/hooks/useDefinitions";
+import { useDefinitions } from "@/lib/hooks/useDefinitions";
 import useTransferItem from "@/lib/hooks/useTransferItem";
-import { Item as ItemInstance, ItemPerks, ItemStats, useProfile } from "@/lib/hooks/useProfile";
+import { useProfile } from "@/lib/hooks/useProfile";
 import { DamageType, getDamageType, getDamageTypeIcon, DAMAGE_TYPES_LIST } from "@/lib/helpers/damage-type";
 import Image from "next/image";
+import { ItemDefinition, Item as ItemInstance, ItemPerks, ItemStats } from "@/lib/types";
+import { ARMOR_SLOTS, WEAPON_SLOTS } from "@/lib/constants";
 
 interface VaultProps {
   isOpen: boolean;
   setIsOpen: (isOpen: boolean) => void;
   characterId: string;
 }
-
-// Group types for categorizing items
-const ITEM_TYPES = {
-  WEAPONS: [
-    1498876634, // Kinetic/Primary slot
-    2465295065, // Energy slot
-    953998645,  // Power/Heavy slot
-  ],
-  ARMOR: [
-    3448274439, // Helmet
-    3551918588, // Arms
-    14239492,   // Chest
-    20886954,   // Legs
-    1585787867, // Class item
-  ],
-  MISC: [] // Will contain everything else
-};
 
 
 
@@ -100,7 +85,7 @@ const Vault: React.FC<VaultProps> = ({
       if (item.itemInstanceId && itemDef.equippingBlock) {
         const slotHash = itemDef.equippingBlock.equipmentSlotTypeHash;
 
-        if (ITEM_TYPES.WEAPONS.includes(slotHash)) {
+        if (WEAPON_SLOTS.includes(slotHash)) {
           weapons.push(processedItem);
 
           // Track weapon types for filtering
@@ -108,7 +93,7 @@ const Vault: React.FC<VaultProps> = ({
             const typeName = itemDef.itemTypeDisplayName;
             types[typeName] = typeName;
           }
-        } else if (ITEM_TYPES.ARMOR.includes(slotHash)) {
+        } else if (ARMOR_SLOTS.includes(slotHash)) {
           armor.push(processedItem);
         } else {
           misc.push(processedItem);
@@ -603,7 +588,7 @@ const Vault: React.FC<VaultProps> = ({
                       perks={item.perks || {}}
                       stats={item.stats || {}}
                       characterId={characterId}
-                      armor={item.item.equippingBlock ? ITEM_TYPES.ARMOR.includes(item.item.equippingBlock?.equipmentSlotTypeHash) : false}
+                      armor={item.item.equippingBlock ? ARMOR_SLOTS.includes(item.item.equippingBlock?.equipmentSlotTypeHash) : false}
                       quantity={item.itemInstance.quantity || 1}
                       size={56}
                     />

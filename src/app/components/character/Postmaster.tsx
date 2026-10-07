@@ -2,11 +2,12 @@ import React, { useState } from "react";
 import { pullFromPostmaster } from "@/lib/bungie";
 import { useNotifications } from "@/app/components/NotificationsProvider";
 import { useDefinitions } from "@/lib/hooks/useDefinitions";
-import { Item, useProfile } from "@/lib/hooks/useProfile";
+import { useProfile } from "@/lib/hooks/useProfile";
 import useAuth from "@/lib/hooks/useAuth";
 import Image from "next/image";
+import { Item } from "@/lib/types";
+import { BUCKETS } from "@/lib/constants";
 
-const POSTMASTER_BUCKET_HASH = 215593132;
 
 interface PostmasterProps {
   characterId: string;
@@ -25,7 +26,7 @@ const Postmaster: React.FC<PostmasterProps> = ({
 
   // Filter for postmaster items from the current character's inventory
   const postmasterItems = characterInventories[characterId]?.items.filter(
-    (item) => item.bucketHash === POSTMASTER_BUCKET_HASH
+    (item) => item.bucketHash === BUCKETS.POSTMASTER
   ) || [];
 
 
@@ -68,8 +69,8 @@ const Postmaster: React.FC<PostmasterProps> = ({
           characterId,
           characterId,
           item.quantity ?? 1,
-          { bucketHash: itemDef.inventory?.bucketTypeHash || 138197802 }, // Default to general if unknown, but def should exist
-          POSTMASTER_BUCKET_HASH // Take the stack from the postmaster, not a matching stack already in the inventory
+          { bucketHash: itemDef.inventory?.bucketTypeHash || BUCKETS.GENERAL }, // Default to general if unknown, but def should exist
+          BUCKETS.POSTMASTER // Take the stack from the postmaster, not a matching stack already in the inventory
         );
       }
 

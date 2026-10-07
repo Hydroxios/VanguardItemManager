@@ -4,13 +4,14 @@ import { useLayoutEffect, useState } from "react";
 import { useItemTooltip } from "@/lib/hooks/useItemTooltip";
 import { useDebug } from "@/app/components/debug/DebugProvider";
 import DebugInfos from "@/app/components/debug/DebugInfos";
-import { ItemDefinition, useDefinitions } from "@/lib/hooks/useDefinitions";
+import { useDefinitions } from "@/lib/hooks/useDefinitions";
 import { useProfile } from "@/lib/hooks/useProfile";
 import TooltipHeader from "./tooltip/TooltipHeader";
 import TooltipStats from "./tooltip/TooltipStats";
 import TooltipPerks from "./tooltip/TooltipPerks";
 import TooltipActions from "./tooltip/TooltipActions";
 import TooltipSubclass from "./tooltip/TooltipSubclass";
+import { ItemDefinition } from "@/lib/types";
 
 const GlobalItemTooltip = () => {
   const { tooltipState, hideTooltip, keepOpen } = useItemTooltip();
