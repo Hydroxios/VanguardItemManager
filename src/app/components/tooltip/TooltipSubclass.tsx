@@ -191,6 +191,17 @@ const TooltipSubclass = ({ item, itemInstanceId }: TooltipSubclassProps) => {
         ? socketSubclassPerks
         : activePerks;
 
+    // Must stay above the early return below so the hook order never changes between renders
+    useLayoutEffect(() => {
+        if (!perkTooltip || !tooltipRef.current) return;
+
+        const rect = tooltipRef.current.getBoundingClientRect();
+        setTooltipSize({
+            width: rect.width,
+            height: rect.height,
+        });
+    }, [perkTooltip]);
+
     if (!displayedPerks.length) return null;
 
     const groupedPerks = displayedPerks.reduce<Record<SubclassSection, ActiveSubclassPerk[]>>(
@@ -234,16 +245,6 @@ const TooltipSubclass = ({ item, itemInstanceId }: TooltipSubclassProps) => {
     const hidePerkTooltip = () => {
         setPerkTooltip(null);
     };
-
-    useLayoutEffect(() => {
-        if (!perkTooltip || !tooltipRef.current) return;
-
-        const rect = tooltipRef.current.getBoundingClientRect();
-        setTooltipSize({
-            width: rect.width,
-            height: rect.height,
-        });
-    }, [perkTooltip]);
 
     const getPerkTooltipStyle = (tooltip: SubclassTooltipState) => {
         const viewportWidth = window.innerWidth;

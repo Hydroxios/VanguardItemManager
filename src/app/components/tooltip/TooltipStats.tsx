@@ -108,7 +108,7 @@ const TooltipStats = ({
     }
 
     const renderAmmoType = () => {
-        if (!item) return null;
+        if (!item?.equippingBlock) return null;
         const ammoType = item.equippingBlock.ammoType;
         let icon = "./primary.svg";
         let name = "Primary";

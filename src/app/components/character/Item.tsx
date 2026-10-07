@@ -86,7 +86,7 @@ const Item = ({
       ":" +
       itemInstanceId +
       ":" +
-      itemDefinitions[itemHash].equippingBlock.equipmentSlotTypeHash
+      (itemDefinitions[itemHash]?.equippingBlock?.equipmentSlotTypeHash ?? "")
     );
     event.dataTransfer.effectAllowed = "move";
   };

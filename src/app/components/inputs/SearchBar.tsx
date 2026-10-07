@@ -202,8 +202,7 @@ const SearchBar = ({ currentCharacterId, open, onClose }: { currentCharacterId?:
       ? itemDefinitions[result.overrideStyleItemHash].displayProperties.icon
       : result.item.displayProperties.icon;
     if (result.characterId) {
-      console.log(itemComponents.instances[result.itemInstanceId])
-      if (itemComponents.instances[result.itemInstanceId].isEquipped) {
+      if (itemComponents.instances[result.itemInstanceId]?.isEquipped) {
         const replacementItem = await safeTransferItem(
           token as string,
           user.membershipType,

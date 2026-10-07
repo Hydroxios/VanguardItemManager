@@ -59,7 +59,7 @@ const TooltipActions = ({
                                     5000,
                                     true
                                 );
-                                if (itemComponents.instances[itemInstanceId!].isEquipped) {
+                                if (itemComponents.instances[itemInstanceId!]?.isEquipped) {
                                     const replacementItem = await safeTransferItem(
                                         token as string,
                                         user.membershipType,

@@ -4,9 +4,20 @@ import Image from "next/image";
 import AppView from "./components/AppView";
 import useAuth from "@/lib/hooks/useAuth";
 import { DefinitionsProvider } from "@/lib/hooks/useDefinitions";
-import { ItemTooltipProvider } from "@/lib/hooks/useItemTooltip";
+import { ItemTooltipProvider, useItemTooltip } from "@/lib/hooks/useItemTooltip";
 import GlobalItemTooltip from "./components/GlobalItemTooltip";
 import { ProfileProvider } from "@/lib/hooks/useProfile";
+import ErrorBoundary from "./components/ErrorBoundary";
+
+// A crashing tooltip only hides itself and comes back on the next hovered item
+const SafeGlobalItemTooltip = () => {
+  const { tooltipState } = useItemTooltip();
+  return (
+    <ErrorBoundary fallback={null} resetKeys={[tooltipState.item, tooltipState.itemInstanceId]}>
+      <GlobalItemTooltip />
+    </ErrorBoundary>
+  );
+};
 
 export default function Home() {
   const { token } = useAuth();
@@ -40,14 +51,16 @@ export default function Home() {
           </div>
         </div>
       ) : (
-        <DefinitionsProvider>
-          <ProfileProvider>
-            <ItemTooltipProvider>
-              <AppView />
-              <GlobalItemTooltip />
-            </ItemTooltipProvider>
-          </ProfileProvider>
-        </DefinitionsProvider>
+        <ErrorBoundary>
+          <DefinitionsProvider>
+            <ProfileProvider>
+              <ItemTooltipProvider>
+                <AppView />
+                <SafeGlobalItemTooltip />
+              </ItemTooltipProvider>
+            </ProfileProvider>
+          </DefinitionsProvider>
+        </ErrorBoundary>
       )}
     </div>
   );
