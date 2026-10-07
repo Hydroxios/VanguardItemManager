@@ -2,6 +2,8 @@ import { createContext, ReactNode, useContext, useEffect, useState, useMemo, use
 import { BungieUser, getCurrentUser, getProfile, UserInfo } from "@/lib/bungie";
 import useAuth from "./useAuth";
 
+const EMBLEM_BUCKET_HASH = 4274335291;
+
 export interface Item {
     bucketHash: number
     itemHash: number
@@ -127,7 +129,7 @@ export interface Profile {
     setCharacterEquipment: (characterId: string, items: Item[]) => void;
     setCharacterInventory: (characterId: string, items: Item[]) => void;
     setProfileInventory: (items: Item[]) => void;
-    moveItem: (itemHash: number, itemInstanceId: string, fromId: string, toId: string, quantity: number, updates?: Partial<Item>) => void;
+    moveItem: (itemHash: number, itemInstanceId: string | undefined, fromId: string, toId: string, quantity: number, updates?: Partial<Item>, sourceBucketHash?: number) => void;
     changeEmblem: (characterId: string, emblemHash: number) => void;
     equipItemLocally: (characterId: string, itemInstanceId: string) => void;
     transferEquippedItem: (itemHash: number, itemInstanceId: string, fromId: string, toId: string, replacementItemInstanceId: string) => void;
@@ -238,34 +240,35 @@ export const ProfileProvider = ({ children }: ProfileProviderProps) => {
         fetchProfile()
     }, [])
 
+    // These setters update the refs synchronously so several local moves in a row
+    // always build on the latest state, whatever React does with the updates
     const setCharacterEquipment = (characterId: string, items: Item[]) => {
-        setCharacterEquipementState(prev => {
-            const newState = { ...prev, [characterId]: { items } };
-            characterEquipmentRef.current = newState;
-            return newState;
-        });
+        const newState = { ...characterEquipmentRef.current, [characterId]: { items } };
+        characterEquipmentRef.current = newState;
+        setCharacterEquipementState(newState);
     };
     const setCharacterInventory = (characterId: string, items: Item[]) => {
-        setCharacterInventoriesState(prev => {
-            const newState = { ...prev, [characterId]: { items } };
-            characterInventoriesRef.current = newState;
-            return newState;
-        });
+        const newState = { ...characterInventoriesRef.current, [characterId]: { items } };
+        characterInventoriesRef.current = newState;
+        setCharacterInventoriesState(newState);
     };
     const setProfileInventory = (items: Item[]) => {
         setProfileInventoryState(items)
         profileInventoryRef.current = items;
     };
 
-    const moveItem = (itemHash: number, itemInstanceId: string, fromId: string, toId: string, quantity: number, updates?: Partial<Item>) => {
+    const moveItem = (itemHash: number, itemInstanceId: string | undefined, fromId: string, toId: string, quantity: number, updates?: Partial<Item>, sourceBucketHash?: number) => {
         // Use refs for current state
         const currentProfileInventory = profileInventoryRef.current;
         const currentCharacterInventories = characterInventoriesRef.current;
         const currentCharacterEquipment = characterEquipmentRef.current;
 
         // Helper to find and remove item from a list
-        const removeItem = (items: Item[], instanceId: string, qty: number): { item: Item | undefined, newItems: Item[] } => {
-            const index = items.findIndex(i => i.itemInstanceId === instanceId || (i.itemHash === itemHash && !i.itemInstanceId));
+        const removeItem = (items: Item[], instanceId: string | undefined, qty: number): { item: Item | undefined, newItems: Item[] } => {
+            // Instanced items match by instance id only; stacks match by hash (and bucket when given)
+            const index = instanceId && instanceId !== "0"
+                ? items.findIndex(i => i.itemInstanceId === instanceId)
+                : items.findIndex(i => i.itemHash === itemHash && !i.itemInstanceId && (sourceBucketHash === undefined || i.bucketHash === sourceBucketHash));
             if (index === -1) return { item: undefined, newItems: items };
 
             const item = { ...items[index] };
@@ -286,7 +289,7 @@ export const ProfileProvider = ({ children }: ProfileProviderProps) => {
         const addItem = (items: Item[], item: Item): Item[] => {
             const newItems = [...items];
             // Check if stackable item already exists
-            const existingIndex = newItems.findIndex(i => i.itemHash === item.itemHash && i.itemInstanceId === item.itemInstanceId);
+            const existingIndex = newItems.findIndex(i => i.itemHash === item.itemHash && i.itemInstanceId === item.itemInstanceId && i.bucketHash === item.bucketHash);
 
             if (existingIndex !== -1 && !item.itemInstanceId) {
                 newItems[existingIndex] = { ...newItems[existingIndex], quantity: newItems[existingIndex].quantity + item.quantity };
@@ -337,13 +340,8 @@ export const ProfileProvider = ({ children }: ProfileProviderProps) => {
         const movedItem = { ...itemToMove, ...updates };
         if (toId === "vault") {
             movedItem.location = 2; // Vault location
-            setProfileInventory(addItem(profileInventoryRef.current, movedItem)); // Use ref again to be safe? actually we just updated it via setter but setter is async. 
-            // Wait, if we called setProfileInventory above, profileInventoryRef.current is NOT updated yet because the setter updater function hasn't run or the effect hasn't run.
-            // BUT, we manually updated the ref in our custom setters! 
-            // So profileInventoryRef.current IS updated if we used our custom setters.
-            // HOWEVER, we called setProfileInventory(result.newItems) which calls setProfileInventoryState.
-            // Our custom wrapper `setProfileInventory` updates the ref.
-            // So yes, it should be safe.
+            // The custom setters update the refs synchronously, so this sees the removal above
+            setProfileInventory(addItem(profileInventoryRef.current, movedItem));
         } else {
             movedItem.location = 1; // Character location
             const targetInventory = characterInventoriesRef.current[toId]?.items || [];
@@ -367,7 +365,7 @@ export const ProfileProvider = ({ children }: ProfileProviderProps) => {
 
         if (newEmblemIndex !== -1) {
             const newEmblemItem = currentInventory[newEmblemIndex];
-            const oldEmblemIndex = currentEquipment.findIndex(i => i.bucketHash === 28);
+            const oldEmblemIndex = currentEquipment.findIndex(i => i.bucketHash === EMBLEM_BUCKET_HASH);
 
             if (oldEmblemIndex !== -1) {
                 const oldEmblemItem = currentEquipment[oldEmblemIndex];
