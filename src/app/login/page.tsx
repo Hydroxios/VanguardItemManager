@@ -18,10 +18,8 @@ const Login = () => {
     })
       .then((response) => response.json())
       .then((data) => {
+        // The route stored the refresh token in an httpOnly cookie; the home page gets an access token from it
         if (data.access_token) {
-          localStorage.setItem("token", data.access_token)
-          localStorage.setItem("rtoken", data.refresh_token)
-          localStorage.setItem("lastUpdate", Date.now().toString())
           window.location.assign("/")
         } else {
           console.error("Failed to retrieve access token:", data);

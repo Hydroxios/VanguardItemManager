@@ -20,7 +20,10 @@ const SafeGlobalItemTooltip = () => {
 };
 
 export default function Home() {
-  const { token } = useAuth();
+  const { token, isTokenLoading } = useAuth();
+
+  // Avoid flashing the login screen while the session is restored from the cookie
+  if (isTokenLoading) return null;
 
   return (
     <div className="flex items-center justify-center text-center min-h-screen p-8 ">

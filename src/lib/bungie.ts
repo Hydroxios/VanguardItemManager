@@ -68,24 +68,24 @@ const bungie = async (url: string, init: BungieFetchData) => {
 /** Thrown when Bungie rejects the refresh token itself, meaning the user has to log in again. */
 export class InvalidRefreshTokenError extends Error { }
 
-export const refreshToken = async (refreshToken: string) => {
+/**
+ * Gets a fresh access token. The refresh token is sent by the browser as an httpOnly cookie;
+ * `legacyRefreshToken` only migrates a session stored in localStorage by older versions.
+ */
+export const refreshToken = async (legacyRefreshToken?: string) => {
     const response = await fetch(`/api/token`, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
         },
-        body: JSON.stringify({ refresh_token: refreshToken }),
+        body: JSON.stringify(legacyRefreshToken ? { refresh_token: legacyRefreshToken } : {}),
     });
 
     const data = await response.json().catch(() => ({}));
     if (response.status === 400 || response.status === 401) {
-        console.error("Refresh token rejected:", data);
         throw new InvalidRefreshTokenError("Refresh token rejected");
     }
     if (data.access_token) {
-        localStorage.setItem("token", data.access_token);
-        localStorage.setItem("rtoken", data.refresh_token);
-        localStorage.setItem("lastUpdate", Date.now().toString());
         return data.access_token as string;
     } else {
         console.error("Failed to refresh access token:", data);

@@ -19,25 +19,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isTokenRefreshing, setIsTokenRefreshing] = useState<boolean>(false);
   const [lastUpdate, setLastUpdate] = useState(0)
 
+  // The access token only lives in memory; the refresh token is an httpOnly cookie sent to /api/token
   const doRefresh = async (): Promise<string | null> => {
-    const refreshTokenValue = localStorage.getItem("rtoken");
-    if (!refreshTokenValue) return null;
+    // Sessions from older versions kept the refresh token in localStorage: hand it over once so the
+    // route moves it into the cookie, then wipe it
+    const legacyRefreshToken = localStorage.getItem("rtoken") ?? undefined;
+    localStorage.removeItem("token");
+    localStorage.removeItem("rtoken");
+    localStorage.removeItem("lastUpdate");
 
     setIsTokenRefreshing(true);
     try {
-      const t = await refreshToken(refreshTokenValue);
-      setToken(localStorage.getItem("token"));
+      const t = await refreshToken(legacyRefreshToken);
+      setToken(t);
       setLastUpdate(Date.now())
       return t;
     } catch (error) {
-      console.error("Failed to refresh token:", error);
-      // Only drop the session when Bungie rejected the refresh token; a network
-      // hiccup or a 5xx keeps the stored tokens so the next attempt can succeed
+      // Only drop the session when there is no valid refresh token; a network
+      // hiccup or a 5xx keeps the cookie so the next attempt can succeed
       if (error instanceof InvalidRefreshTokenError) {
-        localStorage.removeItem("token");
-        localStorage.removeItem("rtoken");
-        localStorage.removeItem("lastUpdate");
         setToken(null);
+      } else {
+        console.error("Failed to refresh token:", error);
       }
       return null;
     } finally {
@@ -58,29 +61,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   useEffect(() => {
-    // Get token from local storage on mount
-    const storedToken = localStorage.getItem("token");
-    // Check if token needs refreshing
-    if (localStorage.getItem("lastUpdate")) {
-      const now = Date.now();
-      const lu = new Date(
-        Number(localStorage.getItem("lastUpdate"))
-      ).getTime();
-
-      if (now - lu > 3600 * 1000) {
-        // Token is older than 1 hour, refresh it
-        refreshUserToken();
-      } else {
-        // Token is still valid
-        setLastUpdate(lu)
-        setToken(storedToken);
-      }
-    } else {
-      // No lastUpdate timestamp, just set the token as is
-      setToken(storedToken);
-    }
-
-    setIsTokenLoading(false);
+    // Nothing is stored client side: restore the session from the refresh cookie on every load
+    refreshUserToken().finally(() => setIsTokenLoading(false));
   }, [refreshUserToken]);
 
   const value: UseAuthResult = {

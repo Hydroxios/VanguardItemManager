@@ -30,10 +30,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose, debugMode,
 
   if (!open) return null;
 
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("rtoken");
-    localStorage.removeItem("lastUpdate");
+  const handleLogout = async () => {
+    await fetch("/api/token", { method: "DELETE" }).catch(() => undefined);
     window.location.reload();
   };
 
