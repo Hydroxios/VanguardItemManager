@@ -10,6 +10,8 @@ interface UseAuthResult {
   token: string | null;
   isTokenLoading: boolean;
   isTokenRefreshing: boolean;
+  /** Why the session couldn't be restored although it may still be valid (Bungie down, offline...) */
+  sessionError?: string;
 }
 
 const AuthContext = createContext<UseAuthResult | undefined>(undefined);
@@ -18,6 +20,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [token, setToken] = useState<string | null>(null);
   const [isTokenLoading, setIsTokenLoading] = useState<boolean>(true);
   const [isTokenRefreshing, setIsTokenRefreshing] = useState<boolean>(false);
+  const [sessionError, setSessionError] = useState<string>();
 
   // Also read by the API layer, between renders
   const tokenRef = useRef<AccessToken | null>(null);
@@ -36,6 +39,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const t = await refreshToken(legacyRefreshToken);
       tokenRef.current = t;
       setToken(t.value);
+      setSessionError(undefined);
       return t.value;
     } catch (error) {
       // Only drop the session when there is no valid refresh token; a network
@@ -43,8 +47,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (error instanceof InvalidRefreshTokenError) {
         tokenRef.current = null;
         setToken(null);
+        setSessionError(undefined);
       } else {
         console.error("Failed to refresh token:", error);
+        setSessionError(error instanceof Error ? error.message : "Could not restore your session.");
       }
       return null;
     } finally {
@@ -92,6 +98,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     token,
     isTokenLoading,
     isTokenRefreshing,
+    sessionError,
   };
 
   return (

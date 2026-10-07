@@ -31,14 +31,61 @@ export const setTokenSource = (source: TokenSource | undefined) => {
     tokenSource = source;
 }
 
+/** Why a Bungie call failed, for the cases the user can do something about. */
+export type BungieErrorKind = "maintenance" | "throttled" | "auth" | "network" | "api";
+
+/** A failed Bungie call, with a message meant for the user. */
+export class BungieApiError extends Error {
+    kind: BungieErrorKind;
+    /** Bungie's `ErrorStatus` (PlatformErrorCodes name), when it sent one */
+    errorStatus?: string;
+
+    constructor(kind: BungieErrorKind, message: string, errorStatus?: string) {
+        super(message);
+        this.name = "BungieApiError";
+        this.kind = kind;
+        this.errorStatus = errorStatus;
+    }
+}
+
+const MAINTENANCE_MESSAGE = "Bungie.net is down for maintenance or unavailable. Try again later.";
+
 // What Bungie answers when the access token is missing, expired or revoked
 const AUTH_ERROR_STATUSES = ["WebAuthRequired", "AccessTokenHasExpired", "AuthorizationRecordExpired", "AuthorizationRecordRevoked"];
+
+interface BungieResponse {
+    Response?: unknown
+    ErrorCode?: number
+    ErrorStatus?: string
+    Message?: string
+    ThrottleSeconds?: number
+}
+
+const isAuthError = (response: Response, data?: BungieResponse) =>
+    response.status === 401 || AUTH_ERROR_STATUSES.includes(data?.ErrorStatus ?? "");
+
+/** Turns a failed response into an error the user can act on. */
+const toBungieError = (response: Response, data?: BungieResponse) => {
+    const status = data?.ErrorStatus;
+    if (status === "SystemDisabled" || response.status === 503) {
+        return new BungieApiError("maintenance", MAINTENANCE_MESSAGE, status);
+    }
+    // ThrottleLimitExceeded, PerEndpointRequestThrottleExceeded, DestinyThrottledByGameServer...
+    if (status?.includes("Throttl") || response.status === 429) {
+        const wait = data?.ThrottleSeconds ? `${data.ThrottleSeconds} seconds` : "a few seconds";
+        return new BungieApiError("throttled", `Too many requests to Bungie. Wait ${wait} and try again.`, status);
+    }
+    if (isAuthError(response, data)) {
+        return new BungieApiError("auth", "Your Bungie session has expired. Log in again.", status);
+    }
+    return new BungieApiError("api", data?.Message ?? `Bungie request failed (${response.status}).`, status);
+}
 
 const baseUrl = "https://www.bungie.net/Platform"
 
 /**
  * Calls the Bungie API and returns `Response`.
- * Throws with Bungie's message when the HTTP call or the API reports an error.
+ * Throws a `BungieApiError` when the HTTP call or the API reports an error.
  */
 const bungie = async (url: string, init: BungieFetchData) => {
 
@@ -47,21 +94,27 @@ const bungie = async (url: string, init: BungieFetchData) => {
         if (token) headers["Authorization"] = `Bearer ${token}`;
         if (init.method === "POST") headers["Content-Type"] = "application/json"
 
-        const response = await fetch(`${baseUrl}${url}`, {
-            method: init.method ?? "GET",
-            headers,
-            body: init.body ?? undefined
-        })
+        let response: Response;
+        try {
+            response = await fetch(`${baseUrl}${url}`, {
+                method: init.method ?? "GET",
+                headers,
+                body: init.body ?? undefined
+            })
+        } catch {
+            // Offline, or Bungie answering without CORS headers, which happens when it is down
+            throw new BungieApiError("network", "Could not reach Bungie.net. Check your connection, Bungie may also be down.");
+        }
         return { response, data: await response.json().catch(() => undefined) }
     }
 
     let result;
     if (init.auth) {
         const token = await tokenSource?.getToken();
-        if (!token) throw new Error("Could not authenticate with Bungie, try logging in again.");
+        if (!token) throw new BungieApiError("auth", "Could not authenticate with Bungie, try logging in again.");
         result = await send(token);
         // A rejected token means the request wasn't processed, so it is safe to send it once more with a new one
-        if (result.response.status === 401 || AUTH_ERROR_STATUSES.includes(result.data?.ErrorStatus)) {
+        if (isAuthError(result.response, result.data)) {
             const newToken = await tokenSource?.renewToken(token);
             if (newToken) result = await send(newToken);
         }
@@ -72,7 +125,7 @@ const bungie = async (url: string, init: BungieFetchData) => {
     const { response, data } = result;
     // ErrorCode 1 is "Success"; anything else is an API level failure even on HTTP 200
     if (!response.ok || !data || (data.ErrorCode !== undefined && data.ErrorCode !== 1)) {
-        throw new Error(data?.Message ?? `Bungie request failed (${response.status})`)
+        throw toBungieError(response, data);
     }
     return data.Response
 }
@@ -91,13 +144,18 @@ export interface AccessToken {
  * `legacyRefreshToken` only migrates a session stored in localStorage by older versions.
  */
 export const refreshToken = async (legacyRefreshToken?: string): Promise<AccessToken> => {
-    const response = await fetch(`/api/token`, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-        },
-        body: JSON.stringify(legacyRefreshToken ? { refresh_token: legacyRefreshToken } : {}),
-    });
+    let response: Response;
+    try {
+        response = await fetch(`/api/token`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(legacyRefreshToken ? { refresh_token: legacyRefreshToken } : {}),
+        });
+    } catch {
+        throw new BungieApiError("network", "Could not reach the server to restore your session. Check your connection.");
+    }
 
     const data = await response.json().catch(() => ({}));
     if (response.status === 400 || response.status === 401) {
@@ -106,10 +164,13 @@ export const refreshToken = async (legacyRefreshToken?: string): Promise<AccessT
     if (data.access_token) {
         // Bungie access tokens last an hour
         return { value: data.access_token as string, expiresAt: Date.now() + (data.expires_in ?? 3600) * 1000 };
-    } else {
-        console.error("Failed to refresh access token:", data);
-        throw new Error("Failed to refresh token");
     }
+    console.error("Failed to refresh access token:", data);
+    // The route answers 502 when Bungie's token endpoint is unreachable, and passes Bungie's own failures through
+    if (response.status === 502 || response.status === 503 || data.ErrorStatus === "SystemDisabled") {
+        throw new BungieApiError("maintenance", MAINTENANCE_MESSAGE, data.ErrorStatus);
+    }
+    throw new BungieApiError("api", `Could not restore your Bungie session (${data.error ?? response.status}).`, data.ErrorStatus);
 }
 
 export const getCurrentUser = async () => {

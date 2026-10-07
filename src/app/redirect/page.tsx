@@ -5,11 +5,8 @@ import { useEffect } from "react";
 const Redirect = () => {
 
     useEffect(() => {
-        const url = new URL(window.location.href);
-        const code = url.searchParams.get("code") || "";
-        if (code) {
-            window.location.href = `${window.location.origin}/login?code=${encodeURIComponent(code)}`;
-        }
+        // Forward everything Bungie sent back (code, state...) to the login page
+        window.location.replace(`/login${window.location.search}`);
     }, []);
 
     return <div>Redirecting...</div>;
