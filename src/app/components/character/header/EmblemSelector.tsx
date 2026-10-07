@@ -1,10 +1,11 @@
 import { useDefinitions } from "@/lib/hooks/useDefinitions";
 import { useProfile } from "@/lib/hooks/useProfile";
-import useAuth from "@/lib/hooks/useAuth";
 import { useMemo } from "react";
 import Item from '@/app/components/character/Item';
 import { equipItem } from "@/lib/bungie";
 import { useNotifications } from "@/app/components/NotificationsProvider";
+import { BUCKETS } from "@/lib/constants";
+import { Item as ProfileItem } from "@/lib/types";
 
 interface EmblemSelectorProps {
     isOpen: boolean;
@@ -12,7 +13,6 @@ interface EmblemSelectorProps {
     characterId: string;
 }
 
-const EMBLEM_BUCKET_HASH = 4274335291;
 
 const EmblemSelector = ({ isOpen, onClose, characterId }: EmblemSelectorProps) => {
     const {
@@ -21,41 +21,35 @@ const EmblemSelector = ({ isOpen, onClose, characterId }: EmblemSelectorProps) =
         changeEmblem
     } = useProfile();
 
-    const { token } = useAuth();
     const { itemDefinitions } = useDefinitions();
 
     const { addNotification } = useNotifications();
 
     const emblems = useMemo(() => {
-        const allEmblems: any[] = [];
+        const allEmblems: ProfileItem[] = [];
 
         // Helper to process items
-        const processItems = (items: any[], sourceId: string) => {
+        const processItems = (items: ProfileItem[]) => {
             items.forEach((item) => {
                 const def = itemDefinitions[item.itemHash];
-                if (def && def.inventory && def.inventory.bucketTypeHash === EMBLEM_BUCKET_HASH) {
-                    allEmblems.push({
-                        ...item,
-                        sourceId,
-                        def
-                    });
+                if (def && def.inventory && def.inventory.bucketTypeHash === BUCKETS.EMBLEM) {
+                    allEmblems.push(item);
                 }
             });
         };
 
         // Check character inventories
         if (characterInventories[characterId]) {
-            processItems(characterInventories[characterId].items, characterId);
+            processItems(characterInventories[characterId].items);
         }
 
         return allEmblems;
     }, [characterInventories, characterId, itemDefinitions]);
 
-    const handleEmblemClick = async (emblem: any) => {
+    const handleEmblemClick = async (emblem: ProfileItem) => {
         try {
             // Equip the emblem
             await equipItem(
-                token as string,
                 user.membershipType,
                 characterId,
                 emblem.itemInstanceId
@@ -65,8 +59,8 @@ const EmblemSelector = ({ isOpen, onClose, characterId }: EmblemSelectorProps) =
             addNotification("Emblem equipped", "The emblem has been successfully equipped.", "success");
             onClose();
 
-        } catch (error: any) {
-            addNotification("Error equipping emblem", error.message, "error");
+        } catch (error) {
+            addNotification("Error equipping emblem", error instanceof Error ? error.message : "", "error");
         }
     };
 

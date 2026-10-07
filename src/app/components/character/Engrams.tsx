@@ -1,7 +1,9 @@
 import { useDefinitions } from "@/lib/hooks/useDefinitions";
-import { Item, useProfile } from "@/lib/hooks/useProfile";
+import { useProfile } from "@/lib/hooks/useProfile";
 import Image from "next/image";
-import React, { useEffect, useState } from "react";
+import React, { useMemo } from "react";
+import { Item } from "@/lib/types";
+import { BUCKETS } from "@/lib/constants";
 
 const MAX_ENGRAMS = 10;
 
@@ -13,29 +15,22 @@ const Engrams: React.FC<EngramsProps> = ({
   characterId,
 }) => {
 
-  const [engrams, setEngrams] = useState<Item[]>([])
-
   const { itemDefinitions } = useDefinitions()
 
   const { characterInventories } = useProfile()
 
-  // Log all items to check their structure
-  useEffect(() => {
-    setEngrams(() => characterInventories[characterId].items.filter((item) => {
-      const itemDefinition = itemDefinitions[item.itemHash];
-      // Check if item is an engram (typically they have a specific category hash)
-      // Filter out engrams in the postmaster (location 4)
-      // Postmaster bucket hash is 215593132
-      return (
-        itemDefinition &&
-        itemDefinition.itemCategoryHashes &&
-        itemDefinition.itemCategoryHashes.includes(34) &&
-        item.location !== 4 && // Check location property
-        item.bucketHash !== 215593132 // Also check bucketHash to ensure it's not in postmaster
-      );
-    }));
-
-  }, [characterInventories, characterId]);
+  const engrams = useMemo(() => characterInventories[characterId].items.filter((item) => {
+    const itemDefinition = itemDefinitions[item.itemHash];
+    // Check if item is an engram (typically they have a specific category hash)
+    // Filter out engrams in the postmaster (location 4)
+    return (
+      itemDefinition &&
+      itemDefinition.itemCategoryHashes &&
+      itemDefinition.itemCategoryHashes.includes(34) &&
+      item.location !== 4 && // Check location property
+      item.bucketHash !== BUCKETS.POSTMASTER // Also check bucketHash to ensure it's not in postmaster
+    );
+  }), [characterInventories, characterId, itemDefinitions]);
 
   // Render an empty engram slot
   const renderEmptySlot = (index: number) => {
@@ -75,7 +70,7 @@ const Engrams: React.FC<EngramsProps> = ({
   };
 
   // Custom rendering function for engram items
-  const renderEngramItem = (engram: any, index: number) => {
+  const renderEngramItem = (engram: Item, index: number) => {
     const itemDefinition = itemDefinitions[engram.itemHash];
 
     return (

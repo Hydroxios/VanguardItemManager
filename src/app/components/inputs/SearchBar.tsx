@@ -1,19 +1,14 @@
 "use client"
 
-import { safeTransferItem, transferItem } from "@/lib/bungie";
 import Item from "../character/Item";
-import {
-  ItemDefinition,
-  useDefinitions,
-} from "@/lib/hooks/useDefinitions";
+import { useDefinitions } from "@/lib/hooks/useDefinitions";
 import { useProfile } from "@/lib/hooks/useProfile";
-import { useEffect, useState } from "react";
-import { useAuth } from "@/lib/hooks/useAuth";
-import { ItemPerks, ItemStats } from "@/lib/hooks/useProfile";
-import { Perk } from "@/lib/hooks/useProfile";
-import { useNotifications } from "../NotificationsProvider";
+import { useMemo, useState } from "react";
+import useTransferItem from "@/lib/hooks/useTransferItem";
 import { getDamageTypeIcon } from "@/lib/helpers/damage-type";
 import Image from "next/image";
+import { Item as ProfileItem, ItemDefinition, ItemPerks, ItemStats } from "@/lib/types";
+import { findDupes, isEmptySearch, matchesSearch, parseSearch, SearchableItem } from "@/lib/search";
 
 interface SearchResult {
   item: ItemDefinition;
@@ -29,7 +24,6 @@ interface SearchResult {
 const typeBlacklist = [14, 24, 26, 17, 0, 16, 19, 25, 28, 29, 22, 21, 8, 12]
 
 const SearchBar = ({ currentCharacterId, open, onClose }: { currentCharacterId?: string, open: boolean, onClose: () => void }) => {
-  const [results, setResults] = useState<SearchResult[]>([]); // State to store search results
   const [search, setSearch] = useState(""); // State for the search input value
   const [isFocused, setIsFocused] = useState(false); // State to track if the search bar is focused
 
@@ -40,134 +34,35 @@ const SearchBar = ({ currentCharacterId, open, onClose }: { currentCharacterId?:
     characterInventories,
     itemComponents,
     profileInventory,
-    moveItem,
-    transferEquippedItem,
-    user,
   } = useProfile();
 
-  useEffect(() => handleSearch(search), [characters, characterEquipment, characterInventories, profileInventory]);
-  const { token } = useAuth();
-  const { addNotification, updateNotification } = useNotifications();
+  const { transfer } = useTransferItem();
 
-  const handleSearch = (search: string) => {
-    setSearch(search);
-    if (search.length === 0) {
-      setResults([]);
-      return;
-    }
+  // Recomputed as you type and whenever items move, only while the search is shown
+  const results = useMemo<SearchResult[]>(() => {
+    if (!open || search.length === 0) return [];
 
-    const query = search.toLowerCase().trim();
-    const searchTerms = query.split(' ').filter(term => term.length > 0);
+    const parsed = parseSearch(search);
+    if (isEmptySearch(parsed)) return [];
 
-    const filters = {
-      perk: searchTerms.find(term => term.startsWith('perk:'))?.substring(5),
-      tier: searchTerms.find(term => term.startsWith('tier:'))?.substring(5),
-      is: searchTerms.find(term => term.startsWith('is:'))?.substring(3),
-      power: searchTerms.find(term => term.startsWith('>='))?.substring(2),
-      name: searchTerms.filter(term => !term.includes(':') && !term.startsWith('>=')).join(' ')
-    };
-
-    const allItems: { item: any, location: string, characterId: string }[] = [];
-
-    // Add equipped items
-    Object.keys(characterEquipment).forEach((char: string) => {
-      characterEquipment[char].items.forEach((item) => {
-        if (item.itemInstanceId) {
-          const i = itemDefinitions[item.itemHash];
-          allItems.push({
-            item: { ...item, itemDef: i }, // Attach item definition for easier access
-            location: classDefinitions[characters[char].classHash].displayProperties.name,
-            characterId: char,
-          });
-        }
-      });
+    const allItems: (SearchableItem & { location: string, characterId: string })[] = [];
+    const add = (items: ProfileItem[], location: string, characterId: string) => items.forEach((item) => {
+      const definition = itemDefinitions[item.itemHash];
+      if (item.itemInstanceId && definition?.displayProperties?.name && !typeBlacklist.includes(definition.itemType)) {
+        allItems.push({ item, definition, location, characterId });
+      }
     });
-
-    // Add inventory items
+    Object.keys(characterEquipment).forEach((char) => {
+      add(characterEquipment[char].items, classDefinitions[characters[char].classHash].displayProperties.name, char);
+    });
     Object.keys(characterInventories).forEach((char) => {
-      characterInventories[char].items.forEach((item) => {
-        if (item.itemInstanceId) {
-          const i = itemDefinitions[item.itemHash];
-          allItems.push({
-            item: { ...item, itemDef: i },
-            location: classDefinitions[characters[char].classHash].displayProperties.name,
-            characterId: char,
-          });
-        }
-      });
+      add(characterInventories[char].items, classDefinitions[characters[char].classHash].displayProperties.name, char);
     });
+    add(profileInventory, "Vault", "");
 
-    // Add vault items
-    profileInventory.forEach((item) => {
-      if (item.itemInstanceId) {
-        const i = itemDefinitions[item.itemHash];
-        allItems.push({
-          item: { ...item, itemDef: i },
-          location: "Vault",
-          characterId: "",
-        });
-      }
-    });
-
-    const filteredResults = allItems.filter(({ item }) => {
-      const i: ItemDefinition = item.itemDef;
-      const state = item.state;
-      if (!i || !i.displayProperties || !i.displayProperties.name) return false;
-      if (typeBlacklist.includes(i.itemType)) return false;
-
-      // Name filter
-      if (filters.name && !i.displayProperties.name.toLowerCase().includes(filters.name)) {
-        return false;
-      }
-
-      // Perk filter
-      if (filters.perk) {
-        const perkQuery = filters.perk;
-        const itemPerkData = item.itemInstanceId ? itemComponents.perks[item.itemInstanceId] : null;
-
-        const hasMatchingPerk = itemPerkData?.perks.some((perk: Perk) =>
-          perk.visible &&
-          perk.isActive &&
-          perksDefinitions[perk.perkHash]?.displayProperties?.name?.toLowerCase().includes(perkQuery)
-        );
-
-        if (!hasMatchingPerk) {
-          // Fallback to checking item name for perk as a convenience
-          if (!i.displayProperties.name.toLowerCase().includes(perkQuery)) {
-            return false;
-          }
-        }
-      }
-
-      // Tier filter
-      if (filters.tier) {
-        const tierQuery = parseInt(filters.tier, 10);
-        if (isNaN(tierQuery) || itemComponents.instances[item.itemInstanceId]?.gearTier !== tierQuery) {
-          return false;
-        }
-      }
-
-      // 'is:' filter
-      if (filters.is) {
-        const q = filters.is;
-        if (q === "featured" && !i.isFeaturedItem) return false;
-        if (q === "unfeatured" && i.isFeaturedItem) return false;
-        if (q === "exotic" && i.inventory?.tierType !== 6) return false;
-        if (q === "crafted" && !(state & 8)) return false;
-      }
-
-      // Power filter
-      if (filters.power) {
-        const powerQuery = parseInt(filters.power, 10);
-        const itemPower = itemComponents.instances[item.itemInstanceId]?.primaryStat?.value;
-        if (isNaN(powerQuery) || !itemPower || itemPower < powerQuery) {
-          return false;
-        }
-      }
-
-      return true;
-    }).map(({ item, location, characterId }) => ({
-      item: item.itemDef,
+    const context = { itemComponents, perksDefinitions, dupes: findDupes(allItems) };
+    return allItems.filter((searchable) => matchesSearch(parsed, searchable, context)).map(({ item, definition, location, characterId }) => ({
+      item: definition,
       location: location,
       itemInstanceId: item.itemInstanceId,
       characterId: characterId,
@@ -176,83 +71,22 @@ const SearchBar = ({ currentCharacterId, open, onClose }: { currentCharacterId?:
       perks: itemComponents.perks[item.itemInstanceId],
       stats: itemComponents.stats[item.itemInstanceId],
     }));
-
-    setResults(filteredResults);
-  };
-
+  }, [open, search, characters, characterEquipment, characterInventories, profileInventory, itemComponents, itemDefinitions, classDefinitions, perksDefinitions]);
 
   // Clear search input and results
   const handleClearSearch = () => {
     setSearch("");
-    setResults([]);
   };
 
-  // Handle double click to transfer item
-  const handleDoubleClick = async (result: SearchResult) => {
+  // Handle double click to transfer item to the current character
+  const handleDoubleClick = (result: SearchResult) => {
     if (!currentCharacterId) return;
-    const notificationId = addNotification(
-      "Transferring item...",
-      result.item.displayProperties.name,
-      "info",
-      "",
-      5000,
-      true
-    );
-    const icon = result.overrideStyleItemHash
-      ? itemDefinitions[result.overrideStyleItemHash].displayProperties.icon
-      : result.item.displayProperties.icon;
-    if (result.characterId) {
-      console.log(itemComponents.instances[result.itemInstanceId])
-      if (itemComponents.instances[result.itemInstanceId].isEquipped) {
-        const replacementItem = await safeTransferItem(
-          token as string,
-          user.membershipType,
-          result.item.hash,
-          result.itemInstanceId,
-          result.characterId,
-          currentCharacterId,
-          user.membershipId,
-          itemDefinitions
-        );
-        if (replacementItem) {
-          transferEquippedItem(result.item.hash, result.itemInstanceId, result.characterId, currentCharacterId, replacementItem.itemInstanceId);
-        } else {
-          moveItem(result.item.hash, result.itemInstanceId, result.characterId, currentCharacterId, 1);
-        }
-      } else {
-        await transferItem(token as string, user.membershipType, result.item.hash, result.itemInstanceId, result.characterId, true)
-        await transferItem(token as string, user.membershipType, result.item.hash, result.itemInstanceId, currentCharacterId, false)
-        moveItem(result.item.hash, result.itemInstanceId, result.characterId, currentCharacterId, 1);
-      }
-
-      updateNotification(
-        notificationId,
-        "Item transfered to your character",
-        undefined,
-        "success",
-        "https://www.bungie.net" + icon,
-        5000
-      );
-
-    } else {
-      await transferItem(
-        token as string,
-        user.membershipType,
-        result.item.hash,
-        result.itemInstanceId,
-        currentCharacterId,
-        false
-      );
-      moveItem(result.item.hash, result.itemInstanceId, "vault", currentCharacterId, 1);
-      updateNotification(
-        notificationId,
-        "Item transfered from your vault",
-        result.item.displayProperties.name,
-        "success",
-        "https://www.bungie.net" + icon,
-        5000
-      );
-    }
+    transfer({
+      itemHash: result.item.hash,
+      itemInstanceId: result.itemInstanceId,
+      toId: currentCharacterId,
+      fromId: result.characterId || "vault",
+    });
   };
 
   // If search bar is not open, don't render it
@@ -279,7 +113,7 @@ const SearchBar = ({ currentCharacterId, open, onClose }: { currentCharacterId?:
             placeholder="Search for items, perks, tiers..."
             className="flex-grow p-2 bg-transparent text-white text-xl placeholder-gray-500 focus:outline-none font-medium"
             value={search}
-            onChange={(e) => handleSearch(e.target.value)}
+            onChange={(e) => setSearch(e.target.value)}
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
             autoFocus
@@ -322,9 +156,29 @@ const SearchBar = ({ currentCharacterId, open, onClose }: { currentCharacterId?:
                 </li>
                 <li>
                   <code className="text-green-400 bg-green-400/10 px-1 rounded">is:type</code>
-                  <span className="block text-xs mt-0.5">featured, unfeatured, exotic</span>
+                  <span className="block text-xs mt-0.5">weapon, armor, exotic, locked, dupe, crafted...</span>
+                </li>
+                <li>
+                  <code className="text-pink-400 bg-pink-400/10 px-1 rounded">slot:name</code>
+                  <span className="block text-xs mt-0.5">kinetic, energy, power, helmet, arms...</span>
+                </li>
+                <li>
+                  <code className="text-yellow-400 bg-yellow-400/10 px-1 rounded">element:name</code>
+                  <span className="block text-xs mt-0.5">solar, arc, void, stasis, strand, kinetic</span>
+                </li>
+                <li>
+                  <code className="text-cyan-400 bg-cyan-400/10 px-1 rounded">stat:name&gt;=number</code>
+                  <span className="block text-xs mt-0.5">Armor stat, or total</span>
                 </li>
               </ul>
+              <a
+                href="/docs/search"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-4 block border-t border-white/10 pt-3 text-right text-xs font-semibold text-purple-300 transition-colors hover:text-white"
+              >
+                View more
+              </a>
             </div>
           </div>
         </div>
@@ -355,8 +209,8 @@ const SearchBar = ({ currentCharacterId, open, onClose }: { currentCharacterId?:
                         itemInstanceId={result.itemInstanceId}
                         ornamentItem={result.overrideStyleItemHash ? itemDefinitions[result.overrideStyleItemHash] : undefined}
                         state={result.state}
-                        perks={result.perks || {}}
-                        stats={result.stats || {}}
+                        perks={result.perks}
+                        stats={result.stats}
                         characterId={result.characterId}
                         armor={false}
                         quantity={1}

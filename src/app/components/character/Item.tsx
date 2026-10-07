@@ -1,20 +1,21 @@
 "use client"
 
 import React, { useState, useRef, useEffect } from "react";
-import { useItemTooltip } from "@/lib/hooks/useItemTooltip";
+import { useItemTooltipActions } from "@/lib/hooks/useItemTooltip";
 import { useDefinitions } from "@/lib/hooks/useDefinitions";
 import { useProfile } from "@/lib/hooks/useProfile";
 import ItemContextMenu from "./ItemContextMenu";
 import Image from "next/image";
+import { ItemDefinition, ItemPerks, ItemStats } from "@/lib/types";
 
 interface ItemProps {
   itemHash: number;
   itemInstanceId: string;
-  ornamentItem?: any | undefined;
+  ornamentItem?: ItemDefinition;
   state: number;
-  perks: any;
-  stats: any;
-  characterId: any;
+  perks?: ItemPerks;
+  stats?: ItemStats;
+  characterId: string;
   armor: boolean
   onDoubleClick?: () => void;
   quantity?: number;
@@ -35,7 +36,7 @@ const Item = ({
   tooltipDisabled = false
 }: ItemProps) => {
 
-  const { showTooltip, hideTooltip } = useItemTooltip();
+  const { showTooltip, hideTooltip } = useItemTooltipActions();
   const [tooltipVisible, setTooltipVisible] = useState(false);
   const itemRef = useRef<HTMLDivElement>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
@@ -86,7 +87,7 @@ const Item = ({
       ":" +
       itemInstanceId +
       ":" +
-      itemDefinitions[itemHash].equippingBlock.equipmentSlotTypeHash
+      (itemDefinitions[itemHash]?.equippingBlock?.equipmentSlotTypeHash ?? "")
     );
     event.dataTransfer.effectAllowed = "move";
   };
@@ -223,7 +224,7 @@ const Item = ({
                 draggable={false}
                 alt="Watermark"
               />
-              {itemComponents.instances[itemInstanceId] && itemComponents.instances[itemInstanceId].gearTier ? (
+              {itemComponents.instances[itemInstanceId] && itemComponents.instances[itemInstanceId].gearTier && itemConstantsDefinitions["1"] ? (
                 <Image
                   src={"https://www.bungie.net" + itemConstantsDefinitions["1"].gearTierOverlayImagePaths[Math.max(itemComponents.instances[itemInstanceId].gearTier - 1, 0)]}
                   height={size * 0.875} // Scale overlay relative to size (56/64 = 0.875)

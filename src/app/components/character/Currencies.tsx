@@ -1,7 +1,8 @@
 import Image from "next/image";
+import { ItemDefinition } from "@/lib/types";
 
 interface CurrenciesProps {
-  currencies: any[];
+  currencies: { item: ItemDefinition, quantity: number }[];
 }
 
 const Currencies = ({ currencies }: CurrenciesProps) => {

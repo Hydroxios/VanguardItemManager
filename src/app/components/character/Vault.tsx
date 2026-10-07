@@ -1,38 +1,21 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { transferItem } from "@/lib/bungie";
 import Item from "./Item";
-import { useNotifications } from "@/app/components/NotificationsProvider";
-import { ItemDefinition, useDefinitions } from "@/lib/hooks/useDefinitions";
-import useAuth from "@/lib/hooks/useAuth";
-import { Item as ItemInstance, ItemPerks, ItemStats, useProfile } from "@/lib/hooks/useProfile";
+import { useDefinitions } from "@/lib/hooks/useDefinitions";
+import useTransferItem from "@/lib/hooks/useTransferItem";
+import { useProfile } from "@/lib/hooks/useProfile";
 import { DamageType, getDamageType, getDamageTypeIcon, DAMAGE_TYPES_LIST } from "@/lib/helpers/damage-type";
 import Image from "next/image";
+import { ItemDefinition, Item as ItemInstance, ItemPerks, ItemStats } from "@/lib/types";
+import { ARMOR_SLOTS, WEAPON_SLOTS } from "@/lib/constants";
+import { findDupes, isEmptySearch, matchesSearch, parseSearch } from "@/lib/search";
 
 interface VaultProps {
   isOpen: boolean;
   setIsOpen: (isOpen: boolean) => void;
   characterId: string;
-  refresh: () => Promise<void>;
 }
-
-// Group types for categorizing items
-const ITEM_TYPES = {
-  WEAPONS: [
-    1498876634, // Kinetic/Primary slot
-    2465295065, // Energy slot
-    953998645,  // Power/Heavy slot
-  ],
-  ARMOR: [
-    3448274439, // Helmet
-    3551918588, // Arms
-    14239492,   // Chest
-    20886954,   // Legs
-    1585787867, // Class item
-  ],
-  MISC: [] // Will contain everything else
-};
 
 
 
@@ -49,38 +32,29 @@ const Vault: React.FC<VaultProps> = ({
   isOpen,
   setIsOpen,
   characterId,
-  refresh
 }) => {
-  const [processedItems, setProcessedItems] = useState<{
-    weapons: ProcessedItem[],
-    armor: ProcessedItem[],
-    misc: ProcessedItem[]
-  }>({ weapons: [], armor: [], misc: [] });
-
   const [activeTab, setActiveTab] = useState<'weapons' | 'armor' | 'misc'>('weapons');
   const [weaponTypeFilter, setWeaponTypeFilter] = useState<string>('all');
   const [elementFilter, setElementFilter] = useState<DamageType | 'all'>('all');
-  const [weaponTypes, setWeaponTypes] = useState<{ [key: string]: string }>({});
   const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState<boolean>(false);
   const [isElementDropdownOpen, setIsElementDropdownOpen] = useState<boolean>(false);
   const [showDuplicates, setShowDuplicates] = useState<boolean>(false);
   const [isAnimatingOut, setIsAnimatingOut] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const [vaultHeight, setVaultHeight] = useState<number>(50); // Default height in vh
+  // Height in vh, as last resized; the vault only renders on the client, after login
+  const [vaultHeight, setVaultHeight] = useState<number>(() => Number(localStorage.getItem('vaultHeight')) || 50);
   const [isResizing, setIsResizing] = useState<boolean>(false);
 
   const resizeRef = useRef<HTMLDivElement>(null);
 
-  const { addNotification, updateNotification } = useNotifications();
   const { itemDefinitions, perksDefinitions } = useDefinitions()
 
-  const { token } = useAuth()
-  const { user, profileInventory, itemComponents, moveItem } = useProfile()
+  const { profileInventory, itemComponents } = useProfile()
+  const { transfer } = useTransferItem()
 
-  // Process inventory items into categories
-  useEffect(() => {
-    if (!profileInventory || profileInventory.length === 0) return;
-
+  // Vault items sorted by category, and the weapon types found for the type filter
+  const { processedItems, weaponTypes } = useMemo(() => {
+    // An empty vault must still clear the grid, so don't return early here
     const weapons: ProcessedItem[] = [];
     const armor: ProcessedItem[] = [];
     const misc: ProcessedItem[] = [];
@@ -106,7 +80,7 @@ const Vault: React.FC<VaultProps> = ({
       if (item.itemInstanceId && itemDef.equippingBlock) {
         const slotHash = itemDef.equippingBlock.equipmentSlotTypeHash;
 
-        if (ITEM_TYPES.WEAPONS.includes(slotHash)) {
+        if (WEAPON_SLOTS.includes(slotHash)) {
           weapons.push(processedItem);
 
           // Track weapon types for filtering
@@ -114,7 +88,7 @@ const Vault: React.FC<VaultProps> = ({
             const typeName = itemDef.itemTypeDisplayName;
             types[typeName] = typeName;
           }
-        } else if (ITEM_TYPES.ARMOR.includes(slotHash)) {
+        } else if (ARMOR_SLOTS.includes(slotHash)) {
           armor.push(processedItem);
         } else {
           misc.push(processedItem);
@@ -125,63 +99,28 @@ const Vault: React.FC<VaultProps> = ({
       }
     });
 
-    setProcessedItems({
-      weapons: weapons.sort((a, b) => a.item.displayProperties.name.localeCompare(b.item.displayProperties.name)),
-      armor: armor.sort((a, b) => a.item.displayProperties.name.localeCompare(b.item.displayProperties.name)),
-      misc: misc.sort((a, b) => a.item.displayProperties.name.localeCompare(b.item.displayProperties.name))
-    });
-
-    setWeaponTypes(types);
-  }, [profileInventory]);
+    const byName = (a: ProcessedItem, b: ProcessedItem) => a.item.displayProperties.name.localeCompare(b.item.displayProperties.name);
+    return {
+      processedItems: { weapons: weapons.sort(byName), armor: armor.sort(byName), misc: misc.sort(byName) },
+      weaponTypes: types,
+    };
+  }, [profileInventory, itemDefinitions, itemComponents]);
 
   // Handle item transfer from vault to character
-  const handleTransfer = useCallback(async (item: any) => {
-    const notificationId = addNotification(
-      `Transferring ${item.item.displayProperties.name}...`,
-      "Moving item to your character",
-      "info",
-      `https://www.bungie.net${item.item.displayProperties.icon}`,
-      3000,
-      true
-    );
-
-    try {
-      // For materials and other stackable items
-      if (item.item.inventory && item.item.inventory.stackUniqueLabel) {
-        const quantity = item.itemInstance.quantity || 1;
-        await transferItem(token as string, user.membershipType, item.item.hash, item.itemInstance.itemInstanceId || '0', characterId, false, quantity);
-        moveItem(item.item.hash, item.itemInstance.itemInstanceId || '0', "vault", characterId, quantity);
-      } else {
-        // For weapons, armor and other non-stackable items
-        await transferItem(token as string, user.membershipType, item.item.hash, item.itemInstance.itemInstanceId, characterId, false);
-        moveItem(item.item.hash, item.itemInstance.itemInstanceId, "vault", characterId, 1);
-      }
-
-      updateNotification(
-        notificationId,
-        `Transferred ${item.item.displayProperties.name}`,
-        "Item moved to your character",
-        "success",
-        `https://www.bungie.net${item.item.displayProperties.icon}`,
-        3000,
-        false
-      );
-      // await refresh(); // Removed to prevent slow re-fetch
-    } catch (err: any) {
-      updateNotification(
-        notificationId,
-        `Error transferring ${item.item.displayProperties.name}`,
-        err.message,
-        "error",
-        `https://www.bungie.net${item.item.displayProperties.icon}`,
-        5000,
-        false
-      );
-    }
-  }, [characterId, addNotification, updateNotification, refresh, moveItem, token, user]);
+  const handleTransfer = useCallback((item: ProcessedItem) => {
+    const instanceId = item.itemInstance.itemInstanceId;
+    transfer({
+      itemHash: item.item.hash,
+      itemInstanceId: instanceId,
+      toId: characterId,
+      fromId: "vault",
+      // Stacks (materials, consumables) move as a whole
+      quantity: instanceId ? 1 : item.itemInstance.quantity || 1,
+    });
+  }, [characterId, transfer]);
 
   // Handle drag start for items
-  const handleDragStart = useCallback((event: React.DragEvent, item: any) => {
+  const handleDragStart = useCallback((event: React.DragEvent, item: ProcessedItem) => {
     event.dataTransfer.setData(
       "text/plain",
       "st:" + item.item.hash + ":" + (item.itemInstance.itemInstanceId || '0')
@@ -223,76 +162,15 @@ const Vault: React.FC<VaultProps> = ({
     }
 
     // Apply search filter if search query exists
-    if (searchQuery.trim() === "") {
-      return itemsToFilter;
-    }
+    const search = parseSearch(searchQuery);
+    if (isEmptySearch(search)) return itemsToFilter;
 
-    const query = searchQuery.toLowerCase().trim();
-    const searchTerms = query.split(' ').filter(term => term.length > 0);
-
-    const filters = {
-      perk: searchTerms.find(term => term.startsWith('perk:'))?.substring(5),
-      tier: searchTerms.find(term => term.startsWith('tier:'))?.substring(5),
-      is: searchTerms.find(term => term.startsWith('is:'))?.substring(3),
-      name: searchTerms.filter(term => !term.includes(':')).join(' ')
-    };
-
-    return itemsToFilter.filter(item => {
-      if (filters.name && !item.item.displayProperties.name.toLowerCase().includes(filters.name)) {
-        return false;
-      }
-
-      if (filters.perk) {
-        const perkQuery = filters.perk;
-        const instanceId = item.itemInstance.itemInstanceId;
-        const itemPerkData = instanceId ? itemComponents.perks[instanceId] : null;
-
-        const hasMatchingPerk = itemPerkData?.perks.some((perk: any) =>
-          perk.visible &&
-          perk.isActive &&
-          perksDefinitions[perk.perkHash]?.displayProperties?.name?.toLowerCase().includes(perkQuery)
-        );
-
-        if (!hasMatchingPerk) {
-          // Fallback to checking item name for perk as a convenience
-          if (!item.item.displayProperties.name.toLowerCase().includes(perkQuery)) {
-            return false;
-          }
-        }
-      }
-
-      if (filters.tier) {
-        const tierQuery = parseInt(filters.tier, 10);
-        if (isNaN(tierQuery) || itemComponents.instances[item.itemInstance.itemInstanceId]?.gearTier !== tierQuery) {
-          return false;
-        }
-      }
-
-      if (filters.is) {
-        const q = filters.is;
-        if (q === "featured" && !item.item.isFeaturedItem) {
-          return false;
-        }
-        if (q === "unfeatured" && item.item.isFeaturedItem) {
-          return false;
-        }
-        if (q === "exotic" && item.item.inventory.tierType !== 6) {
-          return false;
-        }
-      }
-
-      return true;
-    });
+    const searchable = (item: ProcessedItem) => ({ item: item.itemInstance, definition: item.item });
+    const allItems = [...processedItems.weapons, ...processedItems.armor, ...processedItems.misc].map(searchable);
+    const context = { itemComponents, perksDefinitions, dupes: findDupes(allItems) };
+    return itemsToFilter.filter((item) => matchesSearch(search, searchable(item), context));
 
   }, [activeTab, processedItems, weaponTypeFilter, elementFilter, searchQuery, itemComponents, perksDefinitions, showDuplicates]);
-
-  // Reset filters when changing tabs
-  useEffect(() => {
-    if (activeTab !== 'weapons') {
-      setWeaponTypeFilter('all');
-      setElementFilter('all');
-    }
-  }, [activeTab]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -329,6 +207,15 @@ const Vault: React.FC<VaultProps> = ({
     };
   }, [isOpen, isAnimatingOut]);
 
+  // The weapon filters only apply to the weapons tab: leaving it resets them
+  const changeTab = (tab: typeof activeTab) => {
+    setActiveTab(tab);
+    if (tab !== 'weapons') {
+      setWeaponTypeFilter('all');
+      setElementFilter('all');
+    }
+  };
+
   // Close with animation
   const handleClose = useCallback(() => {
     setIsAnimatingOut(true);
@@ -337,16 +224,6 @@ const Vault: React.FC<VaultProps> = ({
       setIsAnimatingOut(false);
     }, 300); // Match the animation duration
   }, [setIsOpen]);
-
-  // Load saved height from localStorage or use default
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const savedHeight = localStorage.getItem('vaultHeight');
-      if (savedHeight) {
-        setVaultHeight(Number(savedHeight));
-      }
-    }
-  }, []);
 
   // Handle resize functionality
   useEffect(() => {
@@ -434,7 +311,7 @@ const Vault: React.FC<VaultProps> = ({
                 ? 'bg-purple-600 text-white shadow-lg shadow-purple-900/20'
                 : 'text-gray-400 hover:text-white hover:bg-white/5'
                 }`}
-              onClick={() => setActiveTab(tab)}
+              onClick={() => changeTab(tab)}
             >
               {tab.charAt(0).toUpperCase() + tab.slice(1)}
               <span className={`ml-2 text-xs ${activeTab === tab ? 'text-purple-200' : 'text-gray-600'}`}>
@@ -642,7 +519,7 @@ const Vault: React.FC<VaultProps> = ({
                       perks={item.perks || {}}
                       stats={item.stats || {}}
                       characterId={characterId}
-                      armor={item.item.equippingBlock ? ITEM_TYPES.ARMOR.includes(item.item.equippingBlock?.equipmentSlotTypeHash) : false}
+                      armor={item.item.equippingBlock ? ARMOR_SLOTS.includes(item.item.equippingBlock?.equipmentSlotTypeHash) : false}
                       quantity={item.itemInstance.quantity || 1}
                       size={56}
                     />

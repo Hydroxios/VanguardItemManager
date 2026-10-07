@@ -54,4 +54,5 @@ destiny_ui/
 .env*.local
 
 GIT_GUIDE.md
-package-lock.json
+V1.md
+TODO.md

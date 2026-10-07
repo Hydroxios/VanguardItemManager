@@ -1,14 +1,17 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useContext, createContext, ReactNode } from 'react';
-import { refreshToken } from '../bungie';
+import React, { useState, useEffect, useCallback, useContext, createContext, ReactNode, useRef } from 'react';
+import { AccessToken, InvalidRefreshTokenError, refreshToken, setTokenSource } from '../bungie';
+
+// Renew the access token this long before it expires, so no request leaves with a token about to expire
+const EXPIRY_MARGIN = 5 * 60 * 1000;
 
 interface UseAuthResult {
   token: string | null;
-  lastUpdate: number
   isTokenLoading: boolean;
   isTokenRefreshing: boolean;
-  refreshUserToken: () => Promise<string | null>;
+  /** Why the session couldn't be restored although it may still be valid (Bungie down, offline...) */
+  sessionError?: string;
 }
 
 const AuthContext = createContext<UseAuthResult | undefined>(undefined);
@@ -17,63 +20,85 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [token, setToken] = useState<string | null>(null);
   const [isTokenLoading, setIsTokenLoading] = useState<boolean>(true);
   const [isTokenRefreshing, setIsTokenRefreshing] = useState<boolean>(false);
-  const [lastUpdate, setLastUpdate] = useState(0)
+  const [sessionError, setSessionError] = useState<string>();
 
-  const refreshUserToken = useCallback(async (): Promise<string | null> => {
-    const refreshTokenValue = localStorage.getItem("rtoken");
-    if (!refreshTokenValue) return null;
+  // Also read by the API layer, between renders
+  const tokenRef = useRef<AccessToken | null>(null);
+
+  // The access token only lives in memory; the refresh token is an httpOnly cookie sent to /api/token
+  const doRefresh = async (): Promise<string | null> => {
+    // Sessions from older versions kept the refresh token in localStorage: hand it over once so the
+    // route moves it into the cookie, then wipe it
+    const legacyRefreshToken = localStorage.getItem("rtoken") ?? undefined;
+    localStorage.removeItem("token");
+    localStorage.removeItem("rtoken");
+    localStorage.removeItem("lastUpdate");
 
     setIsTokenRefreshing(true);
     try {
-      const t = await refreshToken(refreshTokenValue);
-      setToken(localStorage.getItem("token"));
-      setLastUpdate(Date.now())
-      return t;
+      const t = await refreshToken(legacyRefreshToken);
+      tokenRef.current = t;
+      setToken(t.value);
+      setSessionError(undefined);
+      return t.value;
     } catch (error) {
-      console.error("Failed to refresh token:", error);
-      // If refresh fails, clear stored tokens to prompt re-login
-      localStorage.removeItem("token");
-      localStorage.removeItem("rtoken");
-      localStorage.removeItem("lastUpdate");
-      setToken(null);
+      // Only drop the session when there is no valid refresh token; a network
+      // hiccup or a 5xx keeps the cookie so the next attempt can succeed
+      if (error instanceof InvalidRefreshTokenError) {
+        tokenRef.current = null;
+        setToken(null);
+        setSessionError(undefined);
+      } else {
+        console.error("Failed to refresh token:", error);
+        setSessionError(error instanceof Error ? error.message : "Could not restore your session.");
+      }
       return null;
     } finally {
       setIsTokenRefreshing(false);
     }
+  };
+
+  // Shared in-flight refresh so concurrent callers don't race with the same refresh token
+  const refreshPromiseRef = useRef<Promise<string | null> | null>(null);
+
+  const refreshUserToken = useCallback((): Promise<string | null> => {
+    if (!refreshPromiseRef.current) {
+      refreshPromiseRef.current = doRefresh().finally(() => {
+        refreshPromiseRef.current = null;
+      });
+    }
+    return refreshPromiseRef.current;
   }, []);
 
   useEffect(() => {
-    // Get token from local storage on mount
-    const storedToken = localStorage.getItem("token");
-    // Check if token needs refreshing
-    if (localStorage.getItem("lastUpdate")) {
-      const now = Date.now();
-      const lu = new Date(
-        Number(localStorage.getItem("lastUpdate"))
-      ).getTime();
+    // Every authenticated Bungie call asks for its token here, right before it is sent
+    setTokenSource({
+      getToken: async () => {
+        const current = tokenRef.current;
+        if (current && Date.now() < current.expiresAt - EXPIRY_MARGIN) return current.value;
+        // When the renewal fails (network...), the current token still works until it really expires
+        const renewed = await refreshUserToken();
+        return renewed ?? (current && Date.now() < current.expiresAt ? current.value : null);
+      },
+      renewToken: async (rejectedToken) => {
+        // Another request may already have replaced the rejected token
+        const current = tokenRef.current;
+        if (current && current.value !== rejectedToken) return current.value;
+        return refreshUserToken();
+      },
+    });
 
-      if (now - lu > 3600 * 1000) {
-        // Token is older than 1 hour, refresh it
-        refreshUserToken();
-      } else {
-        // Token is still valid
-        setLastUpdate(lu)
-        setToken(storedToken);
-      }
-    } else {
-      // No lastUpdate timestamp, just set the token as is
-      setToken(storedToken);
-    }
+    // Nothing is stored client side: restore the session from the refresh cookie on every load
+    refreshUserToken().finally(() => setIsTokenLoading(false));
 
-    setIsTokenLoading(false);
+    return () => setTokenSource(undefined);
   }, [refreshUserToken]);
 
   const value: UseAuthResult = {
     token,
-    lastUpdate,
     isTokenLoading,
     isTokenRefreshing,
-    refreshUserToken
+    sessionError,
   };
 
   return (
@@ -91,4 +116,4 @@ export const useAuth = (): UseAuthResult => {
   return context;
 };
 
-export default useAuth; 
+export default useAuth;

@@ -1,11 +1,17 @@
-import { ItemDefinition } from "@/lib/hooks/useDefinitions";
+import { useDefinitions } from "@/lib/hooks/useDefinitions";
+import { getWeaponKillCounter } from "@/lib/helpers/kill-counter";
 import Image from "next/image";
+import { useMemo } from "react";
+import { ItemComponents, ItemConstantsDefinitions, ItemDefinition, ObjectiveDefinitions } from "@/lib/types";
+
+const numberFormat = new Intl.NumberFormat();
 
 interface TooltipHeaderProps {
     item: ItemDefinition;
     itemInstanceId?: string;
-    itemComponents: any;
-    itemConstantsDefinitions: any;
+    itemComponents: ItemComponents;
+    itemConstantsDefinitions: ItemConstantsDefinitions;
+    objectiveDefinitions: ObjectiveDefinitions;
     state: number;
 }
 
@@ -14,10 +20,16 @@ const TooltipHeader = ({
     itemInstanceId,
     itemComponents,
     itemConstantsDefinitions,
+    objectiveDefinitions,
     state,
 }: TooltipHeaderProps) => {
+    const { itemDefinitions } = useDefinitions();
+    const killCounter = useMemo(() => item.itemType === 3
+        ? getWeaponKillCounter(itemInstanceId, itemComponents, itemDefinitions, objectiveDefinitions)
+        : undefined,
+        [item.itemType, itemInstanceId, itemComponents, itemDefinitions, objectiveDefinitions]);
+
     const getBackgroundColor = () => {
-        if (!item) return "";
         switch (item.inventory.tierType) {
             case 6:
                 return "#ccad30";
@@ -43,13 +55,36 @@ const TooltipHeader = ({
                     height: "75px",
                 }}
             >
-                <div className="flex justify-between items-center w-full">
-                    <div className="text-lg font-bold">
+                <div className="flex justify-between items-center gap-3 w-full pr-5">
+                    <div className="min-w-0 text-lg font-bold">
                         {item.displayProperties.name.toUpperCase()}
                         <div className="text-gray-300 text-md !font-normal">
                             {item.itemTypeDisplayName}
                         </div>
                     </div>
+                    {killCounter && (
+                        <div
+                            className="self-end shrink-0 flex items-center gap-1.5 text-white"
+                            title={killCounter.label}
+                        >
+                            <svg
+                                viewBox="0 0 24 24"
+                                className="h-4 w-4 text-white/85"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                aria-hidden
+                            >
+                                <circle cx="12" cy="12" r="6" />
+                                <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
+                                <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none" />
+                            </svg>
+                            <span className="text-lg font-bold leading-none">
+                                {numberFormat.format(killCounter.objective.progress)}
+                            </span>
+                        </div>
+                    )}
                     {item.isFeaturedItem && item.iconWatermarkShelved ? (
                         <Image
                             src={`https://www.bungie.net${item.iconWatermarkShelved}`}
@@ -69,7 +104,8 @@ const TooltipHeader = ({
                     ) : null}
                     {itemInstanceId &&
                         itemComponents.instances[itemInstanceId] &&
-                        itemComponents.instances[itemInstanceId!].gearTier > 0 ? (
+                        itemComponents.instances[itemInstanceId!].gearTier > 0 &&
+                        itemConstantsDefinitions["1"] ? (
                         <Image
                             src={`https://www.bungie.net${itemConstantsDefinitions["1"].gearTierOverlayImagePaths[
                                 Math.max(

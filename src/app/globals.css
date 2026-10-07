@@ -258,3 +258,9 @@ footer {
     left: 120%;
   }
 }
+
+@layer base {
+  button:not(:disabled) {
+    cursor: pointer;
+  }
+}

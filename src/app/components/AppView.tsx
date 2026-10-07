@@ -10,9 +10,12 @@ import { useProfile } from "@/lib/hooks/useProfile";
 import { useItemTooltip } from "@/lib/hooks/useItemTooltip";
 import LoadingStatus from "./LoadingStatus";
 import SettingsModal from "./SettingsModal";
-import { Alert } from "@/lib/types";
 import Image from "next/image";
-import { useAuth } from "@/lib/hooks/useAuth";
+import { Alert } from "@/lib/types";
+
+// Bungie alerts are HTML snippets; show their text without rendering untrusted markup
+const htmlToText = (html: string) =>
+  new DOMParser().parseFromString(html, "text/html").body.textContent ?? "";
 
 const AppView = () => {
   const [currentCharacter, setCurrentCharacter] = useState<string | undefined>();
@@ -21,27 +24,23 @@ const AppView = () => {
 
   const { debugMode, handleDebugModeChange } = useDebug()
 
-  const { lastUpdate, refreshUserToken } = useAuth();
-
   const { loadingDefinitions } = useDefinitions()
   const { loadingProfile, profile, lastRefresh, refresh } = useProfile()
   const { keepOpen, setKeepOpen } = useItemTooltip()
   const [settingsOpen, setSettingsOpen] = useState(false);
 
-  const init = async () => {
-    const alerts: Alert[] = await getGlobalAlerts();
-    setAlerts(alerts);
-  };
-
+  // Bungie's global alerts (maintenance announcements...)
   useEffect(() => {
-    init();
+    let active = true;
+    getGlobalAlerts().then((alerts: Alert[]) => {
+      if (active) setAlerts(alerts);
+    });
+    return () => { active = false; };
   }, []);
 
+  // Keeps the profile in sync with the game; the API layer renews the access token when needed
   useEffect(() => {
     const intervalId = setInterval(() => {
-      if (Date.now() - lastUpdate >= 3600 * 1000) {
-        refreshUserToken()
-      }
       if (lastRefresh && Date.now() - lastRefresh < 3 * 60 * 1000) {
         return;
       }
@@ -49,7 +48,7 @@ const AppView = () => {
     }, 3 * 60 * 1000);
 
     return () => clearInterval(intervalId);
-  }, [lastUpdate, lastRefresh, refreshUserToken, refresh]);
+  }, [lastRefresh, refresh]);
 
   return (
     <div>
@@ -63,7 +62,7 @@ const AppView = () => {
               <div className="relative pt-4">
                 <CharacterView
                   characterId={currentCharacter}
-                  changeCharacter={(characterId) => setCurrentCharacter(characterId)}
+                  changeCharacter={setCurrentCharacter}
                   onOpenSettings={() => setSettingsOpen(true)}
                 />
               </div>
@@ -101,7 +100,7 @@ const AppView = () => {
             {alerts.map((alert, index) => (
               <li key={index}>
                 <span className="cursor-pointer" onClick={() => window.open(alert.AlertLink)}>
-                  {alert.AlertHtml}
+                  {htmlToText(alert.AlertHtml)}
                 </span>
               </li>
             ))}

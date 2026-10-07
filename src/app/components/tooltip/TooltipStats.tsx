@@ -1,14 +1,14 @@
-import { useEffect, useState } from "react";
 import WeaponStat from "../WeaponStat";
-import { ItemDefinition } from "@/lib/hooks/useDefinitions";
 import { getDamageTypeIcon } from "@/lib/helpers/damage-type";
 import Image from "next/image";
+import { ItemComponents, ItemDefinition, StatsDefinitions } from "@/lib/types";
+import { ARMOR_STATS } from "@/lib/constants";
 
 interface TooltipStatsProps {
     item: ItemDefinition;
     itemInstanceId?: string;
-    itemComponents: any;
-    statsDefinitions: any;
+    itemComponents: ItemComponents;
+    statsDefinitions: StatsDefinitions;
     armor: boolean;
 }
 
@@ -19,92 +19,32 @@ const TooltipStats = ({
     statsDefinitions,
     armor,
 }: TooltipStatsProps) => {
-    // Common weapon stats
-    const [impact, setImpact] = useState<any>();
-    const [range, setRange] = useState<any>();
-    const [stability, setStability] = useState<any>();
-    const [handling, setHandling] = useState<any>();
-    const [reloadSpeed, setReloadSpeed] = useState<any>();
-    // Additional weapon stats
-    // eslint-disable-next-line
-    const [aimAssistance, setAimAssistance] = useState<any>();
-    // eslint-disable-next-line
-    const [zoom, setZoom] = useState<any>();
-    // eslint-disable-next-line
-    const [recoilDirection, setRecoilDirection] = useState<any>();
-    const [rpm, setRpm] = useState<any>();
-    const [magazine, setMagazine] = useState<any>();
-    const [blastRadius, setBlastRadius] = useState<any>();
-    const [velocity, setVelocity] = useState<any>();
-    const [chargeTime, setChargeTime] = useState<any>();
-    const [drawTime, setDrawTime] = useState<any>();
-    // eslint-disable-next-line
-    const [inventorySize, setInventorySize] = useState<any>();
-    // eslint-disable-next-line
-    const [airborneEffectiveness, setAirborneEffectiveness] = useState<any>();
+    // Read stats straight from the profile so switching items never shows the previous item's values
+    const stats = itemInstanceId ? itemComponents.stats[itemInstanceId]?.stats : undefined;
+    const impact = stats?.[4043523819];
+    const range = stats?.[1240592695];
+    const stability = stats?.[155624089];
+    const handling = stats?.[943549884];
+    const reloadSpeed = stats?.[4188031367];
+    const rpm = stats?.[4284893193];
+    const magazine = stats?.[3871231066];
+    const blastRadius = stats?.[3614673599];
+    const velocity = stats?.[2523465841];
+    const chargeTime = stats?.[2961396640];
+    const drawTime = stats?.[447667954];
+    const mobility = stats?.[ARMOR_STATS.MOBILITY];
+    const resilience = stats?.[ARMOR_STATS.RESILIENCE];
+    const recovery = stats?.[ARMOR_STATS.RECOVERY];
+    const discipline = stats?.[ARMOR_STATS.DISCIPLINE];
+    const intellect = stats?.[ARMOR_STATS.INTELLECT];
+    const strength = stats?.[ARMOR_STATS.STRENGTH];
 
-    //Armor stats
-    const [mobility, setMobility] = useState<any>();
-    const [resilience, setResilience] = useState<any>();
-    const [recovery, setRecovery] = useState<any>();
-    const [discipline, setDiscipline] = useState<any>();
-    const [intellect, setIntellect] = useState<any>();
-    const [strength, setStrength] = useState<any>();
-
-    useEffect(() => {
-        if (!itemInstanceId) return;
-        if (!armor) {
-            // Common weapon stats
-            if (!itemComponents.stats[itemInstanceId]) return;
-            setImpact(() => itemComponents.stats[itemInstanceId].stats[4043523819]);
-            setRange(() => itemComponents.stats[itemInstanceId].stats[1240592695]);
-            setStability(() => itemComponents.stats[itemInstanceId].stats[155624089]);
-            setHandling(() => itemComponents.stats[itemInstanceId].stats[943549884]);
-            setReloadSpeed(
-                () => itemComponents.stats[itemInstanceId].stats[4188031367]
-            );
-
-            // Additional weapon stats - using known Destiny 2 stat hash IDs
-            setAimAssistance(
-                () => itemComponents.stats[itemInstanceId].stats[1345609583]
-            );
-            setZoom(() => itemComponents.stats[itemInstanceId].stats[3555269338]);
-            setRecoilDirection(
-                () => itemComponents.stats[itemInstanceId].stats[2715839340]
-            );
-            setRpm(() => itemComponents.stats[itemInstanceId].stats[4284893193]);
-            setMagazine(() => itemComponents.stats[itemInstanceId].stats[3871231066]);
-            setBlastRadius(
-                () => itemComponents.stats[itemInstanceId].stats[3614673599]
-            );
-            setVelocity(() => itemComponents.stats[itemInstanceId].stats[2523465841]);
-            setChargeTime(
-                () => itemComponents.stats[itemInstanceId].stats[2961396640]
-            );
-            setDrawTime(() => itemComponents.stats[itemInstanceId].stats[447667954]);
-            setInventorySize(
-                () => itemComponents.stats[itemInstanceId].stats[1931675084]
-            );
-            setAirborneEffectiveness(
-                () => itemComponents.stats[itemInstanceId].stats[2714457168]
-            );
-        }
-        if (armor) {
-            setMobility(() => itemComponents.stats[itemInstanceId].stats[2996146975]);
-            setResilience(
-                () => itemComponents.stats[itemInstanceId].stats[392767087]
-            );
-            setRecovery(() => itemComponents.stats[itemInstanceId].stats[1943323491]);
-            setDiscipline(
-                () => itemComponents.stats[itemInstanceId].stats[1735777505]
-            );
-            setIntellect(() => itemComponents.stats[itemInstanceId].stats[144602215]);
-            setStrength(() => itemComponents.stats[itemInstanceId].stats[4244567218]);
-        }
-    }, [armor, item, itemInstanceId, itemComponents]);
+    const statName = (stat: { statHash: number } | undefined, fallback: string) => {
+        return (stat && statsDefinitions[stat.statHash]?.displayProperties?.name) ?? fallback;
+    }
 
     const renderAmmoType = () => {
-        if (!item) return null;
+        if (!item?.equippingBlock) return null;
         const ammoType = item.equippingBlock.ammoType;
         let icon = "./primary.svg";
         let name = "Primary";
@@ -149,7 +89,7 @@ const TooltipStats = ({
                                 color: "white",
                             }}
                         >
-                            {itemInstanceId && itemComponents.instances[itemInstanceId].primaryStat.value}
+                            {itemInstanceId && itemComponents.instances[itemInstanceId]?.primaryStat?.value}
                         </div>
                         {!armor && (
                             <>
@@ -166,41 +106,35 @@ const TooltipStats = ({
                             <div className="py-2">
                                 {impact && (
                                     <WeaponStat
-                                        name={statsDefinitions[impact.statHash].displayProperties.name}
+                                        name={statName(impact, "Impact")}
                                         value={impact.value}
                                         bar={true}
                                     />
                                 )}
                                 {range && (
                                     <WeaponStat
-                                        name={statsDefinitions[range.statHash].displayProperties.name}
+                                        name={statName(range, "Range")}
                                         value={range.value}
                                         bar={true}
                                     />
                                 )}
                                 {stability && (
                                     <WeaponStat
-                                        name={
-                                            statsDefinitions[stability.statHash].displayProperties.name
-                                        }
+                                        name={statName(stability, "Stability")}
                                         value={stability.value}
                                         bar={true}
                                     />
                                 )}
                                 {handling && (
                                     <WeaponStat
-                                        name={
-                                            statsDefinitions[handling.statHash].displayProperties.name
-                                        }
+                                        name={statName(handling, "Handling")}
                                         value={handling.value}
                                         bar={true}
                                     />
                                 )}
                                 {reloadSpeed && (
                                     <WeaponStat
-                                        name={
-                                            statsDefinitions[reloadSpeed.statHash].displayProperties.name
-                                        }
+                                        name={statName(reloadSpeed, "Reload Speed")}
                                         value={reloadSpeed.value}
                                         bar={true}
                                     />
@@ -209,19 +143,14 @@ const TooltipStats = ({
                                     <div className="mb-1">
                                         {chargeTime && (
                                             <WeaponStat
-                                                name={
-                                                    statsDefinitions[chargeTime.statHash].displayProperties
-                                                        .name
-                                                }
+                                                name={statName(chargeTime, "Charge Time")}
                                                 value={chargeTime.value}
                                                 bar={true}
                                             />
                                         )}
                                         {drawTime && (
                                             <WeaponStat
-                                                name={
-                                                    statsDefinitions[drawTime.statHash].displayProperties.name
-                                                }
+                                                name={statName(drawTime, "Draw Time")}
                                                 value={drawTime.value}
                                                 bar={true}
                                             />
@@ -232,18 +161,14 @@ const TooltipStats = ({
                                 {/* Projectile-based stats */}
                                 {blastRadius && (
                                     <WeaponStat
-                                        name={
-                                            statsDefinitions[blastRadius.statHash].displayProperties.name
-                                        }
+                                        name={statName(blastRadius, "Blast Radius")}
                                         value={blastRadius.value}
                                         bar={true}
                                     />
                                 )}
                                 {velocity && (
                                     <WeaponStat
-                                        name={
-                                            statsDefinitions[velocity.statHash].displayProperties.name
-                                        }
+                                        name={statName(velocity, "Velocity")}
                                         value={velocity.value}
                                         bar={true}
                                     />
@@ -251,9 +176,7 @@ const TooltipStats = ({
                                 {rpm && <WeaponStat name={"RPM"} value={rpm.value} bar={false} />}
                                 {magazine && (
                                     <WeaponStat
-                                        name={
-                                            statsDefinitions[magazine.statHash].displayProperties.name
-                                        }
+                                        name={statName(magazine, "Magazine")}
                                         value={magazine.value}
                                         bar={false}
                                     />

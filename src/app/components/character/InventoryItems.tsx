@@ -3,10 +3,8 @@
 import Item from "./Item"
 import { equipItem } from "@/lib/bungie"
 import { useNotifications } from "@/app/components/NotificationsProvider"
-import { ItemDefinition } from "@/lib/hooks/useDefinitions"
-import useAuth from "@/lib/hooks/useAuth"
 import { useProfile } from "@/lib/hooks/useProfile"
-import { EquipmentItem } from "@/lib/types/destinyTypes"
+import { ItemDefinition, EquipmentItem } from "@/lib/types";
 
 interface InventoryItemsProps {
     items: EquipmentItem[],
@@ -14,7 +12,6 @@ interface InventoryItemsProps {
     characterId: string;
     right: boolean
     armors: boolean
-    onEquip?: (item: any, itemInstanceId: string, state: number, hash: number, ornamentItem?: any) => Promise<void>
 }
 
 const InventoryItems = ({
@@ -22,25 +19,20 @@ const InventoryItems = ({
     open,
     characterId,
     right,
-    onEquip,
     armors
 }: InventoryItemsProps) => {
 
     const { addNotification } = useNotifications()
 
-    const { token } = useAuth()
     const { user, equipItemLocally } = useProfile()
 
-    const equip = async (item: ItemDefinition, itemInstanceId: string, state: number, hash: number, ornamentItem?: any,) => {
+    const equip = async (item: ItemDefinition, itemInstanceId: string, state: number, hash: number, ornamentItem?: ItemDefinition) => {
         try {
-            await equipItem(token as string, user.membershipType, characterId, itemInstanceId)
+            await equipItem(user.membershipType, characterId, itemInstanceId)
             equipItemLocally(characterId, itemInstanceId)
-            if (onEquip) {
-                //await onEquip(item, itemInstanceId, state, hash, ornamentItem);
-                addNotification("Successfully Equipped " + item.displayProperties.name + " !", "", "success", "https://www.bungie.net" + (ornamentItem ? ornamentItem.displayProperties.icon : item.displayProperties.icon), 5000)
-            }
-        } catch (err: any) {
-            addNotification("Error while equipping " + item.displayProperties.name + " !", err.message, "error", "https://www.bungie.net" + (ornamentItem ? ornamentItem.displayProperties.icon : item.displayProperties.icon), 5000)
+            addNotification("Successfully Equipped " + item.displayProperties.name + " !", "", "success", "https://www.bungie.net" + (ornamentItem ? ornamentItem.displayProperties.icon : item.displayProperties.icon), 5000)
+        } catch (err) {
+            addNotification("Error while equipping " + item.displayProperties.name + " !", err instanceof Error ? err.message : "", "error", "https://www.bungie.net" + (ornamentItem ? ornamentItem.displayProperties.icon : item.displayProperties.icon), 5000)
         }
     }
 

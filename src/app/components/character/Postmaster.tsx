@@ -2,9 +2,11 @@ import React, { useState } from "react";
 import { pullFromPostmaster } from "@/lib/bungie";
 import { useNotifications } from "@/app/components/NotificationsProvider";
 import { useDefinitions } from "@/lib/hooks/useDefinitions";
-import { Item, useProfile } from "@/lib/hooks/useProfile";
-import useAuth from "@/lib/hooks/useAuth";
+import { useProfile } from "@/lib/hooks/useProfile";
 import Image from "next/image";
+import { Item } from "@/lib/types";
+import { BUCKETS } from "@/lib/constants";
+
 
 interface PostmasterProps {
   characterId: string;
@@ -17,13 +19,12 @@ const Postmaster: React.FC<PostmasterProps> = ({
   const [isCollapsed, setIsCollapsed] = useState(true);
   const [isCollectingAll, setIsCollectingAll] = useState(false);
 
-  const { token } = useAuth()
   const { itemDefinitions } = useDefinitions()
   const { user, characterInventories, moveItem } = useProfile()
 
   // Filter for postmaster items from the current character's inventory
   const postmasterItems = characterInventories[characterId]?.items.filter(
-    (item) => item.bucketHash === 215593132
+    (item) => item.bucketHash === BUCKETS.POSTMASTER
   ) || [];
 
 
@@ -50,7 +51,6 @@ const Postmaster: React.FC<PostmasterProps> = ({
     try {
 
       await pullFromPostmaster(
-        token as string,
         user.membershipType,
         characterId,
         item.itemHash,
@@ -66,7 +66,8 @@ const Postmaster: React.FC<PostmasterProps> = ({
           characterId,
           characterId,
           item.quantity ?? 1,
-          { bucketHash: itemDef.inventory?.bucketTypeHash || 138197802 } // Default to general if unknown, but def should exist
+          { bucketHash: itemDef.inventory?.bucketTypeHash || BUCKETS.GENERAL }, // Default to general if unknown, but def should exist
+          BUCKETS.POSTMASTER // Take the stack from the postmaster, not a matching stack already in the inventory
         );
       }
 
@@ -83,11 +84,11 @@ const Postmaster: React.FC<PostmasterProps> = ({
       if (needRefresh) {
         // await refresh();
       }
-    } catch (err: any) {
+    } catch (err) {
       updateNotification(
         notificationId,
         `Error collecting ${itemName}`,
-        err.message,
+        err instanceof Error ? err.message : "",
         "error",
         `https://www.bungie.net${itemIcon}`,
         5000,
@@ -107,28 +108,28 @@ const Postmaster: React.FC<PostmasterProps> = ({
   };
 
   // Render a postmaster item
-  const renderPostmasterItem = (item: any) => {
+  const renderPostmasterItem = (item: Item) => {
     const itemDefinition = itemDefinitions[item.itemHash];
     if (!itemDefinition) return null;
 
     // Determine item rarity color
-    let rarityColor = "gray";
+    let rarityColor = "border-gray-500";
     if (itemDefinition.inventory?.tierType) {
       switch (itemDefinition.inventory.tierType) {
         case 6: // Exotic
-          rarityColor = "yellow-500";
+          rarityColor = "border-yellow-500";
           break;
         case 5: // Legendary
-          rarityColor = "purple-500";
+          rarityColor = "border-purple-500";
           break;
         case 4: // Rare
-          rarityColor = "blue-500";
+          rarityColor = "border-blue-500";
           break;
         case 3: // Uncommon
-          rarityColor = "green-500";
+          rarityColor = "border-green-500";
           break;
         default:
-          rarityColor = "gray-500";
+          rarityColor = "border-gray-500";
       }
     }
 
@@ -138,7 +139,7 @@ const Postmaster: React.FC<PostmasterProps> = ({
         className="relative w-12 h-12 flex items-center justify-center cursor-pointer group"
         onDoubleClick={() => collectItem(item)}
       >
-        <div className={`absolute inset-0 border border-${rarityColor} opacity-70`}></div>
+        <div className={`absolute inset-0 border ${rarityColor} opacity-70`}></div>
         <div className="w-full h-full flex items-center justify-center">
           {itemDefinition?.displayProperties?.icon && (
             <Image

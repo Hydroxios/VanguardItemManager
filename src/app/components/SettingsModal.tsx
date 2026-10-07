@@ -23,17 +23,15 @@ const LANGUAGES = [
 ];
 
 const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose, debugMode, handleDebugModeChange, keepOpen, setKeepOpen }) => {
-  if (!open) return null;
-
-  // Read from storage at render time
-  const systemLocale = (typeof window !== 'undefined' && localStorage.getItem("locale")) || "en";
-  const [selectedLocale, setSelectedLocale] = useState(systemLocale);
+  const [selectedLocale, setSelectedLocale] = useState(() => {
+    return (typeof window !== 'undefined' && localStorage.getItem("locale")) || "en";
+  });
   const [isLanguageOpen, setIsLanguageOpen] = useState(false);
 
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("rtoken");
-    localStorage.removeItem("lastUpdate");
+  if (!open) return null;
+
+  const handleLogout = async () => {
+    await fetch("/api/token", { method: "DELETE" }).catch(() => undefined);
     window.location.reload();
   };
 

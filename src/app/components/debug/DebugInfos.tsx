@@ -1,7 +1,7 @@
 import { LightAsync as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { atomOneDark } from 'react-syntax-highlighter/dist/esm/styles/hljs';
 
-const DebugInfos = ({ data } : {data: any}) => {
+const DebugInfos = ({ data } : {data: unknown}) => {
     
 
     return (
