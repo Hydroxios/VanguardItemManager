@@ -6,11 +6,9 @@ const Redirect = () => {
 
     useEffect(() => {
         const url = new URL(window.location.href);
-        console.log(url);
         const code = url.searchParams.get("code") || "";
-        console.log(code);
         if (code) {
-            window.location.href = `http://localhost:3000/login?code=${code}`;
+            window.location.href = `${window.location.origin}/login?code=${encodeURIComponent(code)}`;
         }
     }, []);
 

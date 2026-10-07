@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useContext, createContext, ReactNode } from 'react';
-import { refreshToken } from '../bungie';
+import React, { useState, useEffect, useCallback, useContext, createContext, ReactNode, useRef } from 'react';
+import { InvalidRefreshTokenError, refreshToken } from '../bungie';
 
 interface UseAuthResult {
   token: string | null;
@@ -19,7 +19,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isTokenRefreshing, setIsTokenRefreshing] = useState<boolean>(false);
   const [lastUpdate, setLastUpdate] = useState(0)
 
-  const refreshUserToken = useCallback(async (): Promise<string | null> => {
+  // Shared in-flight refresh so concurrent callers don't race with the same refresh token
+  const refreshPromiseRef = useRef<Promise<string | null> | null>(null);
+
+  const refreshUserToken = useCallback((): Promise<string | null> => {
+    if (!refreshPromiseRef.current) {
+      refreshPromiseRef.current = doRefresh().finally(() => {
+        refreshPromiseRef.current = null;
+      });
+    }
+    return refreshPromiseRef.current;
+  }, []);
+
+  const doRefresh = async (): Promise<string | null> => {
     const refreshTokenValue = localStorage.getItem("rtoken");
     if (!refreshTokenValue) return null;
 
@@ -31,16 +43,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       return t;
     } catch (error) {
       console.error("Failed to refresh token:", error);
-      // If refresh fails, clear stored tokens to prompt re-login
-      localStorage.removeItem("token");
-      localStorage.removeItem("rtoken");
-      localStorage.removeItem("lastUpdate");
-      setToken(null);
+      // Only drop the session when Bungie rejected the refresh token; a network
+      // hiccup or a 5xx keeps the stored tokens so the next attempt can succeed
+      if (error instanceof InvalidRefreshTokenError) {
+        localStorage.removeItem("token");
+        localStorage.removeItem("rtoken");
+        localStorage.removeItem("lastUpdate");
+        setToken(null);
+      }
       return null;
     } finally {
       setIsTokenRefreshing(false);
     }
-  }, []);
+  };
 
   useEffect(() => {
     // Get token from local storage on mount

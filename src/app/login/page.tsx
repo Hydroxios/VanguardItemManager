@@ -8,17 +8,13 @@ const Login = () => {
     const urlParam = new URLSearchParams(window.location.search)
     const code = urlParam.get("code")
     if (code) {
-    fetch("https://www.bungie.net/Platform/App/OAuth/Token/", {
+    // The code is exchanged server side so the client secret never reaches the browser
+    fetch("/api/token", {
       method: "POST",
       headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
+        "Content-Type": "application/json",
       },
-      body: new URLSearchParams({
-        client_id: process.env.NODE_ENV === "production" ? "46066" : "45124", // Replace with your actual client_id
-        client_secret: process.env.NODE_ENV === "production" ? "MkdPd6spUjiFiPbCKac3ZdMlT0pdDV7ErAZ-9eEfUg8" : "HSNNQvKDJuZZvzmswHAy66ZeS9y3c..tZ6U8keEb.v4", // Replace with your actual client_secret
-        grant_type: "authorization_code",
-        code: code,
-      }),
+      body: JSON.stringify({ code }),
     })
       .then((response) => response.json())
       .then((data) => {

@@ -38,9 +38,9 @@ const AppView = () => {
   }, []);
 
   useEffect(() => {
-    const intervalId = setInterval(() => {
+    const intervalId = setInterval(async () => {
       if (Date.now() - lastUpdate >= 3600 * 1000) {
-        refreshUserToken()
+        await refreshUserToken()
       }
       if (lastRefresh && Date.now() - lastRefresh < 3 * 60 * 1000) {
         return;

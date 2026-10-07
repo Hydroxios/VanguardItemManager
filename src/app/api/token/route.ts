@@ -13,7 +13,22 @@ const POST = async (req: NextRequest) => {
         return NextResponse.json({ error: "Missing client secret" }, { status: 500 });
     }
 
-    const body = await req.json();
+    let body: { code?: string, refresh_token?: string };
+    try {
+        body = await req.json();
+    } catch {
+        return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    }
+
+    // Either exchange an authorization code (login) or refresh an existing token
+    let grant: Record<string, string>;
+    if (typeof body.code === "string" && body.code) {
+        grant = { grant_type: "authorization_code", code: body.code };
+    } else if (typeof body.refresh_token === "string" && body.refresh_token) {
+        grant = { grant_type: "refresh_token", refresh_token: body.refresh_token };
+    } else {
+        return NextResponse.json({ error: "Missing code or refresh_token" }, { status: 400 });
+    }
 
     try {
         const res = await fetch("https://www.bungie.net/Platform/App/OAuth/token/", {
@@ -24,16 +39,15 @@ const POST = async (req: NextRequest) => {
             body: new URLSearchParams({
                 client_id: clientId,
                 client_secret: clientSecret,
-                grant_type: "refresh_token",
-                refresh_token: body.refresh_token,
+                ...grant,
             })
         })
 
         const data = await res.json();
-        return NextResponse.json(data);
+        return NextResponse.json(data, { status: res.status });
     } catch (error) {
         console.error(error);
-        return NextResponse.json({ error: "Failed to refresh token" }, { status: 500 });
+        return NextResponse.json({ error: "Failed to reach Bungie token endpoint" }, { status: 502 });
     }
 
 }

@@ -172,11 +172,17 @@ export const ProfileProvider = ({ children }: ProfileProviderProps) => {
 
     const { token, lastUpdate, refreshUserToken } = useAuth()
 
+    // fetchProfile is captured by the memoized context value, so read auth state through refs
+    const tokenRef = useRef(token);
+    const lastUpdateRef = useRef(lastUpdate);
+    tokenRef.current = token;
+    lastUpdateRef.current = lastUpdate;
+
     const fetchProfile = async () => {
         if (refreshing) return;
 
-        let t = token;
-        if (Date.now() - lastUpdate >= 3600 * 1000) {
+        let t = tokenRef.current;
+        if (Date.now() - lastUpdateRef.current >= 3600 * 1000) {
             t = await refreshUserToken()
         }
 
