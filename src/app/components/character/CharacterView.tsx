@@ -16,7 +16,7 @@ import useAuth from "@/lib/hooks/useAuth";
 import { EquipmentItem } from "@/lib/types/destinyTypes";
 import DestinyIcon from "../destiny-ui/DestinyIcon";
 import SearchBar from "../inputs/SearchBar";
-import { useItemTooltip } from "@/lib/hooks/useItemTooltip";
+import { useItemTooltipActions } from "@/lib/hooks/useItemTooltip";
 import CharacterHeader from "./header/CharacterHeader";
 
 interface CharacterViewProps {
@@ -101,7 +101,7 @@ const CharacterView: React.FC<CharacterViewProps> = ({
     refresh,
   } = useProfile();
 
-  const { hideTooltip } = useItemTooltip();
+  const { hideTooltip } = useItemTooltipActions();
 
   // Toggle equipment section open/closed
   const toggleEquipmentSection = useCallback(

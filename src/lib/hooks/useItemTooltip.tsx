@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, createContext, useContext, ReactNode, useEffect } from 'react';
+import { useState, createContext, useContext, ReactNode, useEffect, useCallback, useMemo, useRef } from 'react';
 import { ItemDefinition } from './useDefinitions';
 
 interface TooltipState {
@@ -35,33 +35,51 @@ const initialState: TooltipState = {
 
 const TooltipContext = createContext<TooltipContextType | undefined>(undefined);
 
+type TooltipActions = Pick<TooltipContextType, 'showTooltip' | 'hideTooltip'>;
+// Separate context with stable callbacks only: its consumers don't re-render when the tooltip opens or moves
+const TooltipActionsContext = createContext<TooltipActions | undefined>(undefined);
+
 export const ItemTooltipProvider = ({ children }: { children: ReactNode }) => {
   const [tooltipState, setTooltipState] = useState<TooltipState>(initialState);
   const [keepOpen, setKeepOpen] = useState(false);
 
-  useEffect(() => {
-    if (!keepOpen && tooltipState.open) hideTooltip();
-  }, [keepOpen])
+  const keepOpenRef = useRef(keepOpen);
+  keepOpenRef.current = keepOpen;
 
-  const showTooltip = (props: Omit<TooltipState, 'open' | 'positions'> & { x: number, y: number }) => {
+  // Stable callbacks and a memoized value, so consumers (and memoized items) only
+  // re-render when the tooltip state they read actually changes
+  const showTooltip = useCallback((props: Omit<TooltipState, 'open' | 'positions'> & { x: number, y: number }) => {
     const { x, y, ...rest } = props;
     setTooltipState({
       ...rest,
       positions: { x, y },
       open: true
     });
-  };
+  }, []);
 
-  const hideTooltip = () => {
-    if (!keepOpen) {
-      setTooltipState(prev => ({ ...prev, open: false }));
+  const hideTooltip = useCallback(() => {
+    if (!keepOpenRef.current) {
+      setTooltipState(prev => prev.open ? { ...prev, open: false } : prev);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (!keepOpen) hideTooltip();
+  }, [keepOpen, hideTooltip])
+
+  const value = useMemo(
+    () => ({ tooltipState, showTooltip, hideTooltip, keepOpen, setKeepOpen }),
+    [tooltipState, showTooltip, hideTooltip, keepOpen]
+  );
+
+  const actions = useMemo(() => ({ showTooltip, hideTooltip }), [showTooltip, hideTooltip]);
 
   return (
-    <TooltipContext.Provider value={{ tooltipState, showTooltip, hideTooltip, keepOpen, setKeepOpen }}>
-      {children}
-    </TooltipContext.Provider>
+    <TooltipActionsContext.Provider value={actions}>
+      <TooltipContext.Provider value={value}>
+        {children}
+      </TooltipContext.Provider>
+    </TooltipActionsContext.Provider>
   );
 };
 
@@ -71,4 +89,13 @@ export const useItemTooltip = () => {
     throw new Error('useItemTooltip must be used within an ItemTooltipProvider');
   }
   return context;
-}; 
+};
+
+/** Only the show/hide callbacks; use this in components that don't read the tooltip state. */
+export const useItemTooltipActions = () => {
+  const context = useContext(TooltipActionsContext);
+  if (context === undefined) {
+    throw new Error('useItemTooltipActions must be used within an ItemTooltipProvider');
+  }
+  return context;
+};

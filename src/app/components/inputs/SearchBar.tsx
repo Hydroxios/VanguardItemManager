@@ -40,7 +40,10 @@ const SearchBar = ({ currentCharacterId, open, onClose }: { currentCharacterId?:
     profileInventory,
   } = useProfile();
 
-  useEffect(() => handleSearch(search), [characters, characterEquipment, characterInventories, profileInventory]);
+  // Re-run the search when items move, but only while the search is visible
+  useEffect(() => {
+    if (open) handleSearch(search);
+  }, [open, characters, characterEquipment, characterInventories, profileInventory]);
   const { transfer } = useTransferItem();
 
   const handleSearch = (search: string) => {

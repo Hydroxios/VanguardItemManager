@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useRef, useEffect } from "react";
-import { useItemTooltip } from "@/lib/hooks/useItemTooltip";
+import { useItemTooltipActions } from "@/lib/hooks/useItemTooltip";
 import { useDefinitions } from "@/lib/hooks/useDefinitions";
 import { useProfile } from "@/lib/hooks/useProfile";
 import ItemContextMenu from "./ItemContextMenu";
@@ -35,7 +35,7 @@ const Item = ({
   tooltipDisabled = false
 }: ItemProps) => {
 
-  const { showTooltip, hideTooltip } = useItemTooltip();
+  const { showTooltip, hideTooltip } = useItemTooltipActions();
   const [tooltipVisible, setTooltipVisible] = useState(false);
   const itemRef = useRef<HTMLDivElement>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);

@@ -77,6 +77,33 @@ const getSubclassSection = (
     return "abilities";
 };
 
+// Scanning every item definition is expensive and the tooltip remounts on each hover,
+// so the index is built once per definitions table and cached at module level
+const abilityIndexCache = new WeakMap<object, Map<number, ItemDefinition[]>>();
+
+const getSubclassAbilityItemsByPerk = (itemDefinitions: Record<string, ItemDefinition>) => {
+    const cached = abilityIndexCache.get(itemDefinitions);
+    if (cached) return cached;
+
+    const abilitiesByPerk = new Map<number, ItemDefinition[]>();
+    Object.values(itemDefinitions).forEach((definition) => {
+        const isSubclassAbility = definition.itemCategoryHashes?.includes(
+            SUBCLASS_ABILITY_CATEGORY_HASH
+        );
+
+        if (!isSubclassAbility) return;
+
+        definition.perks?.forEach(({ perkHash }) => {
+            const abilities = abilitiesByPerk.get(perkHash) ?? [];
+            abilities.push(definition);
+            abilitiesByPerk.set(perkHash, abilities);
+        });
+    });
+
+    abilityIndexCache.set(itemDefinitions, abilitiesByPerk);
+    return abilitiesByPerk;
+};
+
 const TooltipSubclass = ({ item, itemInstanceId }: TooltipSubclassProps) => {
     const [perkTooltip, setPerkTooltip] = useState<SubclassTooltipState | null>(null);
     const [tooltipSize, setTooltipSize] = useState({
@@ -87,25 +114,7 @@ const TooltipSubclass = ({ item, itemInstanceId }: TooltipSubclassProps) => {
     const { itemComponents } = useProfile();
     const { perksDefinitions, itemDefinitions } = useDefinitions();
 
-    const subclassAbilityItemsByPerk = useMemo(() => {
-        const abilitiesByPerk = new Map<number, ItemDefinition[]>();
-
-        Object.values(itemDefinitions).forEach((definition) => {
-            const isSubclassAbility = definition.itemCategoryHashes?.includes(
-                SUBCLASS_ABILITY_CATEGORY_HASH
-            );
-
-            if (!isSubclassAbility) return;
-
-            definition.perks?.forEach(({ perkHash }) => {
-                const abilities = abilitiesByPerk.get(perkHash) ?? [];
-                abilities.push(definition);
-                abilitiesByPerk.set(perkHash, abilities);
-            });
-        });
-
-        return abilitiesByPerk;
-    }, [itemDefinitions]);
+    const subclassAbilityItemsByPerk = getSubclassAbilityItemsByPerk(itemDefinitions);
 
     const socketSubclassPerks = useMemo<ActiveSubclassPerk[]>(() => {
         if (!itemInstanceId) return [];
