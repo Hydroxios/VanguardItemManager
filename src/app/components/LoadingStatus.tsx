@@ -23,8 +23,9 @@ const StatusItem = ({ label, loading }: StatusItemProps) => {
 };
 
 const LoadingStatus = () => {
-  const { loadingDefinitions } = useDefinitions();
-  const { loadingProfile } = useProfile();
+  const { loadingDefinitions, definitionsError } = useDefinitions();
+  const { loadingProfile, profileError } = useProfile();
+  const error = definitionsError ?? profileError;
 
   const allReady = !loadingDefinitions && !loadingProfile;
   if (allReady) return null;
@@ -38,6 +39,20 @@ const LoadingStatus = () => {
           <StatusItem label="Databases" loading={loadingDefinitions} />
           <div className="w-[90%] h-[1px] bg-gray-700"></div>
           <StatusItem label="Profile" loading={loadingProfile} />
+          {error && (
+            <>
+              <div className="w-[90%] h-[1px] bg-gray-700"></div>
+              <div className="flex flex-col items-center gap-2 px-4 py-2 w-72">
+                <span className="text-red-400 text-sm">{error}</span>
+                <button
+                  className="px-4 py-1 bg-gray-300/10 hover:bg-gray-300/20 transition-all duration-300"
+                  onClick={() => window.location.reload()}
+                >
+                  Retry
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

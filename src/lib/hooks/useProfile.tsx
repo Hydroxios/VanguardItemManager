@@ -111,6 +111,7 @@ export interface ItemComponents {
 
 export interface Profile {
     loadingProfile: boolean
+    profileError?: string
     user: BungieUser
     refreshing: boolean;
     refresh: () => Promise<void>
@@ -142,6 +143,7 @@ interface ProfileProviderProps {
 export const ProfileProvider = ({ children }: ProfileProviderProps) => {
 
     const [loading, setLoading] = useState(true)
+    const [loadError, setLoadError] = useState<string>()
     const [refreshing, setRefreshing] = useState(false)
     const [user, setUser] = useState<BungieUser>()
 
@@ -181,20 +183,30 @@ export const ProfileProvider = ({ children }: ProfileProviderProps) => {
     const fetchProfile = async () => {
         if (refreshing) return;
 
-        let t = tokenRef.current;
-        if (Date.now() - lastUpdateRef.current >= 3600 * 1000) {
-            t = await refreshUserToken()
-        }
-
+        let profile;
         let u;
-        if (!user) {
-            u = await getCurrentUser(t as string);
-            setUser(u as BungieUser)
-        } else {
-            u = user
-        }
+        try {
+            let t = tokenRef.current;
+            if (Date.now() - lastUpdateRef.current >= 3600 * 1000) {
+                t = await refreshUserToken() ?? t
+            }
+            if (!t) throw new Error("You are not logged in.");
 
-        const profile = await getProfile(t as string, u.membershipId, u.membershipType)
+            if (!user) {
+                u = await getCurrentUser(t);
+                setUser(u)
+            } else {
+                u = user
+            }
+
+            profile = await getProfile(t, u.membershipId, u.membershipType)
+        } catch (error) {
+            console.error("Failed to fetch profile:", error)
+            // Only block the UI on the first load; later refreshes keep the current data
+            if (loading) setLoadError(error instanceof Error ? error.message : "Could not load your profile.")
+            return
+        }
+        setLoadError(undefined)
 
         setCharacterEquipementState(profile.characterEquipment.data)
         setCharacterInventoriesState(profile.characterInventories.data)
@@ -521,6 +533,7 @@ export const ProfileProvider = ({ children }: ProfileProviderProps) => {
 
     const contextValue = useMemo(() => ({
         loadingProfile: loading,
+        profileError: loadError,
         user: user as BungieUser,
         refreshing,
         refresh: async () => {
@@ -549,7 +562,7 @@ export const ProfileProvider = ({ children }: ProfileProviderProps) => {
         equipItemLocally,
         transferEquippedItem,
         equipLoadoutLocally
-    }), [loading, user, refreshing, characterEquipment, characterInventories, characterLoadouts, characters, itemComponents, profileData, profileCurrencies, profileInventory, lastRefresh]);
+    }), [loading, loadError, user, refreshing, characterEquipment, characterInventories, characterLoadouts, characters, itemComponents, profileData, profileCurrencies, profileInventory, lastRefresh]);
 
     return (
         <ProfileContext.Provider value={contextValue}>

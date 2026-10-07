@@ -136,6 +136,7 @@ type DefinitionLoadState = Record<DestinyDefinitionTableName, boolean>
 
 interface Definitions {
     loadingDefinitions: boolean
+    definitionsError?: string
     definitionsLoaded: DefinitionLoadState
     itemDefinitions: ItemDefinitions
     classDefinitions: ClassDefinitions
@@ -171,6 +172,7 @@ const initialDefinitionsLoaded: DefinitionLoadState = {
 export const DefinitionsProvider = ({ children }: { children: ReactNode }) => {
 
     const [loading, setLoading] = useState(true)
+    const [loadError, setLoadError] = useState<string>()
     const [definitionsLoaded, setDefinitionsLoaded] = useState<DefinitionLoadState>(initialDefinitionsLoaded)
     const [itemDefinitions, setItemDefinitions] = useState<ItemDefinitions>({})
     const [classDefinitions, setClassDefinitions] = useState<ClassDefinitions>({})
@@ -240,10 +242,15 @@ export const DefinitionsProvider = ({ children }: { children: ReactNode }) => {
                 ]);
             } catch (error) {
                 console.error("Failed to load component definitions, falling back to aggregate manifest", error);
-                const db = await getDefinitions(locale);
-                if (!active) return;
-                setAggregateDefinitions(db);
-                setLoading(false);
+                try {
+                    const db = await getDefinitions(locale);
+                    if (!active) return;
+                    setAggregateDefinitions(db);
+                    setLoading(false);
+                } catch (fallbackError) {
+                    console.error("Failed to load aggregate manifest", fallbackError);
+                    if (active) setLoadError("Could not load the Destiny databases. Bungie may be down for maintenance.");
+                }
             }
         }
         fetchDefinitions()
@@ -255,6 +262,7 @@ export const DefinitionsProvider = ({ children }: { children: ReactNode }) => {
 
     const contextValue = useMemo(() => ({
         loadingDefinitions: loading,
+        definitionsError: loadError,
         definitionsLoaded,
         itemDefinitions,
         classDefinitions,
@@ -268,7 +276,7 @@ export const DefinitionsProvider = ({ children }: { children: ReactNode }) => {
         bucketDefinitions,
         itemConstantsDefinitions,
         seasonDefinitions
-    }), [loading, definitionsLoaded, itemDefinitions, classDefinitions, statsDefinitions, perksDefinitions, objectiveDefinitions, recordsDefinitions, loadoutColorDefinitions, loadoutIconDefinitions, raceDefinitions, bucketDefinitions, itemConstantsDefinitions, seasonDefinitions]);
+    }), [loading, loadError, definitionsLoaded, itemDefinitions, classDefinitions, statsDefinitions, perksDefinitions, objectiveDefinitions, recordsDefinitions, loadoutColorDefinitions, loadoutIconDefinitions, raceDefinitions, bucketDefinitions, itemConstantsDefinitions, seasonDefinitions]);
 
     return (
         <DefinitionsContext.Provider
