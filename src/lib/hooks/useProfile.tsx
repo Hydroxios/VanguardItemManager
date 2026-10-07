@@ -2,6 +2,7 @@ import { createContext, ReactNode, useCallback, useContext, useEffect, useState,
 import { getCurrentUser, getProfile } from "@/lib/bungie";
 import { BungieUser, Character, Currency, Item, ItemInstance, ItemComponents, ItemPlug, Loadout, PlugSets, ProfileData } from "@/lib/types";
 import { BUCKETS } from "@/lib/constants";
+import { moveItemInState } from "@/lib/helpers/inventory";
 
 
 export interface Profile {
@@ -155,94 +156,36 @@ export const ProfileProvider = ({ children }: ProfileProviderProps) => {
     }, []);
 
     const moveItem = useCallback((itemHash: number, itemInstanceId: string | undefined, fromId: string, toId: string, quantity: number, updates?: Partial<Item>, sourceBucketHash?: number) => {
-        // Use refs for current state
-        const currentProfileInventory = profileInventoryRef.current;
-        const currentCharacterInventories = characterInventoriesRef.current;
-        const currentCharacterEquipment = characterEquipmentRef.current;
-
-        // Helper to find and remove item from a list
-        const removeItem = (items: Item[], instanceId: string | undefined, qty: number): { item: Item | undefined, newItems: Item[] } => {
-            // Instanced items match by instance id only; stacks match by hash (and bucket when given)
-            const index = instanceId && instanceId !== "0"
-                ? items.findIndex(i => i.itemInstanceId === instanceId)
-                : items.findIndex(i => i.itemHash === itemHash && !i.itemInstanceId && (sourceBucketHash === undefined || i.bucketHash === sourceBucketHash));
-            if (index === -1) return { item: undefined, newItems: items };
-
-            const item = { ...items[index] };
-            const newItems = [...items];
-
-            // Handle stackable items
-            if (item.quantity > qty) {
-                item.quantity = qty; // The moved item has the moved quantity
-                newItems[index] = { ...newItems[index], quantity: newItems[index].quantity - qty }; // Remaining item has reduced quantity
-            } else {
-                // Remove the item entirely if moving all or more
-                newItems.splice(index, 1);
-            }
-            return { item, newItems };
+        const current = {
+            profileInventory: profileInventoryRef.current,
+            characterInventories: characterInventoriesRef.current,
+            characterEquipment: characterEquipmentRef.current,
         };
+        const { state, movedItem } = moveItemInState(current, { itemHash, itemInstanceId, fromId, toId, quantity, updates, sourceBucketHash });
 
-        // Helper to add item to a list
-        const addItem = (items: Item[], item: Item): Item[] => {
-            const newItems = [...items];
-            // Check if stackable item already exists
-            const existingIndex = newItems.findIndex(i => i.itemHash === item.itemHash && i.itemInstanceId === item.itemInstanceId && i.bucketHash === item.bucketHash);
-
-            if (existingIndex !== -1 && !item.itemInstanceId) {
-                newItems[existingIndex] = { ...newItems[existingIndex], quantity: newItems[existingIndex].quantity + item.quantity };
-            } else {
-                newItems.push(item);
-            }
-            return newItems;
-        };
-
-        let itemToMove: Item | undefined;
-
-        // 1. Remove from source
-        if (fromId === "vault") {
-            const result = removeItem(currentProfileInventory, itemInstanceId, quantity);
-            itemToMove = result.item;
-            if (result.newItems !== currentProfileInventory) setProfileInventory(result.newItems);
-        } else {
-            const inventory = currentCharacterInventories[fromId]?.items || [];
-            const result = removeItem(inventory, itemInstanceId, quantity);
-            itemToMove = result.item;
-            if (result.newItems !== inventory) setCharacterInventory(fromId, result.newItems);
-
-            // Also check equipment if not found in inventory
-            if (!itemToMove) {
-                const equipment = currentCharacterEquipment[fromId]?.items || [];
-                const resultEq = removeItem(equipment, itemInstanceId, quantity);
-                itemToMove = resultEq.item;
-                if (resultEq.newItems !== equipment) setCharacterEquipment(fromId, resultEq.newItems);
-            }
-        }
-
-        if (itemToMove && itemToMove.itemInstanceId) {
-            setItemComponents(prev => ({
-                ...prev,
-                instances: {
-                    ...prev.instances,
-                    [itemToMove!.itemInstanceId]: { ...prev.instances[itemToMove!.itemInstanceId], isEquipped: false }
-                }
-            }));
-        }
-
-        if (!itemToMove) {
+        if (!movedItem) {
             console.warn("Could not find item to move locally");
             return;
         }
 
-        // 2. Add to destination
-        const movedItem = { ...itemToMove, ...updates };
-        if (toId === "vault") {
-            movedItem.location = 2; // Vault location
-            // The custom setters update the refs synchronously, so this sees the removal above
-            setProfileInventory(addItem(profileInventoryRef.current, movedItem));
-        } else {
-            movedItem.location = 1; // Character location
-            const targetInventory = characterInventoriesRef.current[toId]?.items || [];
-            setCharacterInventory(toId, addItem(targetInventory, movedItem));
+        if (state.profileInventory !== current.profileInventory) setProfileInventory(state.profileInventory);
+        new Set([fromId, toId]).forEach((characterId) => {
+            if (state.characterInventories[characterId] !== current.characterInventories[characterId]) {
+                setCharacterInventory(characterId, state.characterInventories[characterId].items);
+            }
+            if (state.characterEquipment[characterId] !== current.characterEquipment[characterId]) {
+                setCharacterEquipment(characterId, state.characterEquipment[characterId].items);
+            }
+        });
+
+        if (movedItem.itemInstanceId) {
+            setItemComponents(prev => ({
+                ...prev,
+                instances: {
+                    ...prev.instances,
+                    [movedItem.itemInstanceId]: { ...prev.instances[movedItem.itemInstanceId], isEquipped: false }
+                }
+            }));
         }
     }, [setCharacterEquipment, setCharacterInventory, setProfileInventory]);
 
