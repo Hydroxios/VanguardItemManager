@@ -1,6 +1,5 @@
 import { createContext, ReactNode, useContext, useEffect, useState, useMemo, useRef } from "react";
 import { getCurrentUser, getProfile } from "@/lib/bungie";
-import useAuth from "./useAuth";
 import { BungieUser, Character, Currency, Item, ItemInstance, ItemComponents, ItemPlug, Loadout, PlugSets, ProfileData } from "@/lib/types";
 import { BUCKETS } from "@/lib/constants";
 
@@ -71,34 +70,20 @@ export const ProfileProvider = ({ children }: ProfileProviderProps) => {
     useEffect(() => { profileInventoryRef.current = profileInventory; }, [profileInventory]);
     useEffect(() => { itemComponentsRef.current = itemComponents; }, [itemComponents]);
 
-    const { token, lastUpdate, refreshUserToken } = useAuth()
-
-    // fetchProfile is captured by the memoized context value, so read auth state through refs
-    const tokenRef = useRef(token);
-    const lastUpdateRef = useRef(lastUpdate);
-    useEffect(() => { tokenRef.current = token; }, [token]);
-    useEffect(() => { lastUpdateRef.current = lastUpdate; }, [lastUpdate]);
-
     const fetchProfile = async () => {
         if (refreshing) return;
 
         let profile;
         let u;
         try {
-            let t = tokenRef.current;
-            if (Date.now() - lastUpdateRef.current >= 3600 * 1000) {
-                t = await refreshUserToken() ?? t
-            }
-            if (!t) throw new Error("You are not logged in.");
-
             if (!user) {
-                u = await getCurrentUser(t);
+                u = await getCurrentUser();
                 setUser(u)
             } else {
                 u = user
             }
 
-            profile = await getProfile(t, u.membershipId, u.membershipType)
+            profile = await getProfile(u.membershipId, u.membershipType)
         } catch (error) {
             console.error("Failed to fetch profile:", error)
             // Only block the UI on the first load; later refreshes keep the current data

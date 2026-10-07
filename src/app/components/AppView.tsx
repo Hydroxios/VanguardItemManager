@@ -11,7 +11,6 @@ import { useItemTooltip } from "@/lib/hooks/useItemTooltip";
 import LoadingStatus from "./LoadingStatus";
 import SettingsModal from "./SettingsModal";
 import Image from "next/image";
-import { useAuth } from "@/lib/hooks/useAuth";
 import { Alert } from "@/lib/types";
 
 // Bungie alerts are HTML snippets; show their text without rendering untrusted markup
@@ -24,8 +23,6 @@ const AppView = () => {
   const [alerts, setAlerts] = useState<Alert[]>([]);
 
   const { debugMode, handleDebugModeChange } = useDebug()
-
-  const { lastUpdate, refreshUserToken } = useAuth();
 
   const { loadingDefinitions } = useDefinitions()
   const { loadingProfile, profile, lastRefresh, refresh } = useProfile()
@@ -41,11 +38,9 @@ const AppView = () => {
     init();
   }, []);
 
+  // Keeps the profile in sync with the game; the API layer renews the access token when needed
   useEffect(() => {
-    const intervalId = setInterval(async () => {
-      if (Date.now() - lastUpdate >= 3600 * 1000) {
-        await refreshUserToken()
-      }
+    const intervalId = setInterval(() => {
       if (lastRefresh && Date.now() - lastRefresh < 3 * 60 * 1000) {
         return;
       }
@@ -53,7 +48,7 @@ const AppView = () => {
     }, 3 * 60 * 1000);
 
     return () => clearInterval(intervalId);
-  }, [lastUpdate, lastRefresh, refreshUserToken, refresh]);
+  }, [lastRefresh, refresh]);
 
   return (
     <div>

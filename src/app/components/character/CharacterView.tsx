@@ -12,7 +12,6 @@ import Engrams from "./Engrams";
 import Postmaster from "./Postmaster";
 import { useDefinitions } from "@/lib/hooks/useDefinitions";
 import { useProfile } from "@/lib/hooks/useProfile";
-import useAuth from "@/lib/hooks/useAuth";
 import DestinyIcon from "../destiny-ui/DestinyIcon";
 import SearchBar from "../inputs/SearchBar";
 import { useItemTooltipActions } from "@/lib/hooks/useItemTooltip";
@@ -59,8 +58,6 @@ const CharacterView: React.FC<CharacterViewProps> = ({
     itemDefinitions,
     recordsDefinitions,
   } = useDefinitions();
-
-  const { lastUpdate, refreshUserToken } = useAuth();
 
   const {
     characters,
@@ -318,7 +315,7 @@ const CharacterView: React.FC<CharacterViewProps> = ({
       setCharacterTitle("");
     }
 
-  }, [initializeData, characters, characterId, recordsDefinitions, lastUpdate, refreshUserToken, refresh]);
+  }, [initializeData, characters, characterId, recordsDefinitions, refresh]);
 
   // Load current locale from localStorage
   useEffect(() => {

@@ -1,14 +1,15 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useContext, createContext, ReactNode, useRef } from 'react';
-import { InvalidRefreshTokenError, refreshToken } from '../bungie';
+import { AccessToken, InvalidRefreshTokenError, refreshToken, setTokenSource } from '../bungie';
+
+// Renew the access token this long before it expires, so no request leaves with a token about to expire
+const EXPIRY_MARGIN = 5 * 60 * 1000;
 
 interface UseAuthResult {
   token: string | null;
-  lastUpdate: number
   isTokenLoading: boolean;
   isTokenRefreshing: boolean;
-  refreshUserToken: () => Promise<string | null>;
 }
 
 const AuthContext = createContext<UseAuthResult | undefined>(undefined);
@@ -17,7 +18,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [token, setToken] = useState<string | null>(null);
   const [isTokenLoading, setIsTokenLoading] = useState<boolean>(true);
   const [isTokenRefreshing, setIsTokenRefreshing] = useState<boolean>(false);
-  const [lastUpdate, setLastUpdate] = useState(0)
+
+  // Also read by the API layer, between renders
+  const tokenRef = useRef<AccessToken | null>(null);
 
   // The access token only lives in memory; the refresh token is an httpOnly cookie sent to /api/token
   const doRefresh = async (): Promise<string | null> => {
@@ -31,13 +34,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setIsTokenRefreshing(true);
     try {
       const t = await refreshToken(legacyRefreshToken);
-      setToken(t);
-      setLastUpdate(Date.now())
-      return t;
+      tokenRef.current = t;
+      setToken(t.value);
+      return t.value;
     } catch (error) {
       // Only drop the session when there is no valid refresh token; a network
       // hiccup or a 5xx keeps the cookie so the next attempt can succeed
       if (error instanceof InvalidRefreshTokenError) {
+        tokenRef.current = null;
         setToken(null);
       } else {
         console.error("Failed to refresh token:", error);
@@ -61,16 +65,33 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   useEffect(() => {
+    // Every authenticated Bungie call asks for its token here, right before it is sent
+    setTokenSource({
+      getToken: async () => {
+        const current = tokenRef.current;
+        if (current && Date.now() < current.expiresAt - EXPIRY_MARGIN) return current.value;
+        // When the renewal fails (network...), the current token still works until it really expires
+        const renewed = await refreshUserToken();
+        return renewed ?? (current && Date.now() < current.expiresAt ? current.value : null);
+      },
+      renewToken: async (rejectedToken) => {
+        // Another request may already have replaced the rejected token
+        const current = tokenRef.current;
+        if (current && current.value !== rejectedToken) return current.value;
+        return refreshUserToken();
+      },
+    });
+
     // Nothing is stored client side: restore the session from the refresh cookie on every load
     refreshUserToken().finally(() => setIsTokenLoading(false));
+
+    return () => setTokenSource(undefined);
   }, [refreshUserToken]);
 
   const value: UseAuthResult = {
     token,
-    lastUpdate,
     isTokenLoading,
     isTokenRefreshing,
-    refreshUserToken
   };
 
   return (
@@ -88,4 +109,4 @@ export const useAuth = (): UseAuthResult => {
   return context;
 };
 
-export default useAuth; 
+export default useAuth;

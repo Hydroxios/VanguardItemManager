@@ -4,7 +4,6 @@ import { safeTransferItem, transferItem } from "@/lib/bungie";
 import { useNotifications } from "@/app/components/NotificationsProvider";
 import { useDefinitions } from "./useDefinitions";
 import { useProfile } from "./useProfile";
-import useAuth from "./useAuth";
 
 export interface TransferRequest {
     itemHash: number
@@ -22,7 +21,6 @@ export interface TransferRequest {
  * state and reports progress and errors through notifications.
  */
 const useTransferItem = () => {
-    const { token } = useAuth();
     const { itemDefinitions } = useDefinitions();
     const { addNotification, updateNotification } = useNotifications();
     const { user, profileInventory, characterInventories, characterEquipment, moveItem, transferEquippedItem } = useProfile();
@@ -56,20 +54,20 @@ const useTransferItem = () => {
         const instanceId = itemInstanceId || "0";
 
         if (sourceId === "vault") {
-            await transferItem(token as string, user.membershipType, itemHash, instanceId, toId, false, quantity);
+            await transferItem(user.membershipType, itemHash, instanceId, toId, false, quantity);
             moveItem(itemHash, itemInstanceId, "vault", toId, quantity);
         } else if (equipped) {
-            const replacementItem = await safeTransferItem(token as string, user.membershipType, itemHash, instanceId, sourceId, toId, user.membershipId, itemDefinitions);
+            const replacementItem = await safeTransferItem(user.membershipType, itemHash, instanceId, sourceId, toId, user.membershipId, itemDefinitions);
             if (replacementItem) {
                 transferEquippedItem(itemHash, instanceId, sourceId, toId, replacementItem.itemInstanceId);
             } else {
                 moveItem(itemHash, itemInstanceId, sourceId, toId, quantity);
             }
         } else {
-            await transferItem(token as string, user.membershipType, itemHash, instanceId, sourceId, true, quantity);
+            await transferItem(user.membershipType, itemHash, instanceId, sourceId, true, quantity);
             if (toId !== "vault") {
                 try {
-                    await transferItem(token as string, user.membershipType, itemHash, instanceId, toId, false, quantity);
+                    await transferItem(user.membershipType, itemHash, instanceId, toId, false, quantity);
                 } catch (error) {
                     // The first hop succeeded, so the item now sits in the vault
                     moveItem(itemHash, itemInstanceId, sourceId, "vault", quantity);

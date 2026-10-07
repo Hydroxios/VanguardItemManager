@@ -8,7 +8,6 @@ import ModEditor from "./ModEditor";
 import { useProfile } from "@/lib/hooks/useProfile";
 import { useDefinitions } from "@/lib/hooks/useDefinitions";
 import { useItemTooltipActions } from "@/lib/hooks/useItemTooltip";
-import useAuth from "@/lib/hooks/useAuth";
 import useTransferItem from "@/lib/hooks/useTransferItem";
 import { useNotifications } from "@/app/components/NotificationsProvider";
 import { equipItems, insertSocketPlugFree, LoadoutIdentifiers, snapshotLoadout, updateLoadoutIdentifiers } from "@/lib/bungie";
@@ -100,7 +99,6 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
     bucketDefinitions,
     classDefinitions,
   } = useDefinitions();
-  const { token } = useAuth();
   const { move } = useTransferItem();
   const { addNotification } = useNotifications();
   const { showTooltip, hideTooltip } = useItemTooltipActions();
@@ -429,7 +427,7 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
   const equipAll = async (instanceIds: string[]) => {
     // Exotics go last, so whatever exotic they replace is already unequipped
     const ordered = [...instanceIds.filter((id) => !isExotic(id)), ...instanceIds.filter((id) => isExotic(id))];
-    const results = await equipItems(token as string, user.membershipType, characterId, ordered);
+    const results = await equipItems(user.membershipType, characterId, ordered);
     const failed = results.filter((result) => result.equipStatus !== 1);
     if (failed.length > 0) {
       const failedNames = failed.map((result) => definitionOf(result.itemInstanceId)?.displayProperties.name ?? "an item");
@@ -440,7 +438,7 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
   const applyPlugs = async (item: Item) => {
     for (const { socketIndex, plugHash } of plugSwapsFor(item)) {
       try {
-        await insertSocketPlugFree(token as string, user.membershipType, characterId, item.itemInstanceId, socketIndex, plugHash);
+        await insertSocketPlugFree(user.membershipType, characterId, item.itemInstanceId, socketIndex, plugHash);
       } catch (modError) {
         const modName = itemDefinitions[plugHash]?.displayProperties.name ?? "a mod";
         const itemName = itemDefinitions[item.itemHash]?.displayProperties.name ?? "an item";
@@ -459,7 +457,7 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
     try {
       if (!gearChanged) {
         setSavingStep("Saving loadout...");
-        await updateLoadoutIdentifiers(token as string, user.membershipType, characterId, loadoutIndex, effective);
+        await updateLoadoutIdentifiers(user.membershipType, characterId, loadoutIndex, effective);
         updateLoadoutLocally(characterId, loadoutIndex, { ...loadout, ...effective });
       } else {
         const chosen = LOADOUT_SLOTS
@@ -487,7 +485,7 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
         }
 
         setSavingStep("Saving loadout...");
-        await snapshotLoadout(token as string, user.membershipType, characterId, loadoutIndex, effective);
+        await snapshotLoadout(user.membershipType, characterId, loadoutIndex, effective);
         updateLoadoutLocally(characterId, loadoutIndex, {
           ...effective,
           items: chosen.map(({ item }) => ({ itemInstanceId: item.itemInstanceId })),

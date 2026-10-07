@@ -12,7 +12,6 @@ import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from 
 import { defaultLoadoutIdentifiers, getLoadoutChoices } from "@/lib/helpers/loadouts";
 import { useNotifications } from "@/app/components/NotificationsProvider";
 import { useDefinitions } from "@/lib/hooks/useDefinitions";
-import useAuth from "@/lib/hooks/useAuth";
 import { useProfile } from "@/lib/hooks/useProfile";
 import LoadoutViewerModal from "./LoadoutViewerModal";
 import LoadoutEditorModal from "./LoadoutEditorModal";
@@ -67,7 +66,6 @@ const Loadouts = ({
   const { addNotification } = useNotifications()
   const { itemDefinitions, loadoutColorDefinitions, loadoutIconDefinitions, loadoutNameDefinitions } = useDefinitions()
 
-  const { token } = useAuth()
   const {
     user,
     characterLoadouts,
@@ -143,7 +141,7 @@ const Loadouts = ({
           setEquipedItemIds(prev => [...prev, loadoutItem.itemInstanceId]);
         } else if (itemCharId === "vault") {
           // L'item est dans le coffre
-          await transferItem(token as string, user.membershipType, itemInstance.itemHash, loadoutItem.itemInstanceId, characterId, false);
+          await transferItem(user.membershipType, itemInstance.itemHash, loadoutItem.itemInstanceId, characterId, false);
           moveItem(itemInstance.itemHash, loadoutItem.itemInstanceId, "vault", characterId, 1);
           setEquipedItemIds(prev => [...prev, loadoutItem.itemInstanceId]);
         } else if (itemInstance.transferStatus & 1) {
@@ -151,9 +149,9 @@ const Loadouts = ({
           itemToDesequip.push({ item: itemInstance, characterId: itemCharId });
         } else if (!(itemInstance.transferStatus & 2)) {
           // Sur un autre perso et transférable
-          await transferItem(token as string, user.membershipType, itemInstance.itemHash, loadoutItem.itemInstanceId, itemCharId, true);
+          await transferItem(user.membershipType, itemInstance.itemHash, loadoutItem.itemInstanceId, itemCharId, true);
           moveItem(itemInstance.itemHash, loadoutItem.itemInstanceId, itemCharId, "vault", 1);
-          await transferItem(token as string, user.membershipType, itemInstance.itemHash, loadoutItem.itemInstanceId, characterId, false);
+          await transferItem(user.membershipType, itemInstance.itemHash, loadoutItem.itemInstanceId, characterId, false);
           moveItem(itemInstance.itemHash, loadoutItem.itemInstanceId, "vault", characterId, 1);
           setEquipedItemIds(prev => [...prev, loadoutItem.itemInstanceId]);
         }
@@ -172,16 +170,16 @@ const Loadouts = ({
             && itemObject.inventory.tierType < 6;
         });
         if (validItem) {
-          await equipItem(token as string, user.membershipType, itemCharId, validItem.itemInstanceId);
-          await transferItem(token as string, user.membershipType, item.itemHash, item.itemInstanceId, itemCharId, true);
+          await equipItem(user.membershipType, itemCharId, validItem.itemInstanceId);
+          await transferItem(user.membershipType, item.itemHash, item.itemInstanceId, itemCharId, true);
           moveItem(item.itemHash, item.itemInstanceId, itemCharId, "vault", 1);
-          await transferItem(token as string, user.membershipType, item.itemHash, item.itemInstanceId, characterId, false);
+          await transferItem(user.membershipType, item.itemHash, item.itemInstanceId, characterId, false);
           moveItem(item.itemHash, item.itemInstanceId, "vault", characterId, 1);
           setEquipedItemIds(prev => [...prev, item.itemInstanceId]);
         }
       }
 
-      await equipLoadout(token as string, user.membershipType, characterId, index);
+      await equipLoadout(user.membershipType, characterId, index);
 
       // Use the new centralized local equip function
       const loadoutItems = l.items
@@ -244,7 +242,7 @@ const Loadouts = ({
 
     const icon = loadoutIconDefinitions[identifiers.iconHash]?.iconImagePath;
     try {
-      await snapshotLoadout(token as string, user.membershipType, characterId, index, identifiers);
+      await snapshotLoadout(user.membershipType, characterId, index, identifiers);
       const equipped = (characterEquipment[characterId]?.items ?? [])
         .filter((item) => LOADOUT_BUCKETS.includes(itemDefinitions[item.itemHash]?.inventory?.bucketTypeHash ?? 0));
       updateLoadoutLocally(characterId, index, { ...identifiers, items: equipped.map((item) => ({ itemInstanceId: item.itemInstanceId })) });
@@ -259,7 +257,6 @@ const Loadouts = ({
   const handleClearLoadout = async (loadoutToDelete: number) => {
     try {
       await clearLoadout(
-        token as string,
         user.membershipType,
         characterId,
         loadoutToDelete

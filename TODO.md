@@ -1,0 +1,2 @@
+- [ ] LoadoutDB
+- [ ] subclass stats diff

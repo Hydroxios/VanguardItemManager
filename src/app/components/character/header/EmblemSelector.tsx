@@ -1,6 +1,5 @@
 import { useDefinitions } from "@/lib/hooks/useDefinitions";
 import { useProfile } from "@/lib/hooks/useProfile";
-import useAuth from "@/lib/hooks/useAuth";
 import { useMemo } from "react";
 import Item from '@/app/components/character/Item';
 import { equipItem } from "@/lib/bungie";
@@ -21,7 +20,6 @@ const EmblemSelector = ({ isOpen, onClose, characterId }: EmblemSelectorProps) =
         changeEmblem
     } = useProfile();
 
-    const { token } = useAuth();
     const { itemDefinitions } = useDefinitions();
 
     const { addNotification } = useNotifications();
@@ -55,7 +53,6 @@ const EmblemSelector = ({ isOpen, onClose, characterId }: EmblemSelectorProps) =
         try {
             // Equip the emblem
             await equipItem(
-                token as string,
                 user.membershipType,
                 characterId,
                 emblem.itemInstanceId

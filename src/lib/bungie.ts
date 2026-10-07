@@ -11,10 +11,28 @@ export interface ItemResponse {
 }
 
 interface BungieFetchData {
-    token?: string
+    /** Sends the user's access token */
+    auth?: boolean
     method?: "GET" | "POST"
     body?: string
 }
+
+/** Where authenticated calls get the access token; registered by the AuthProvider. */
+export interface TokenSource {
+    /** The current access token, renewed first when it is about to expire */
+    getToken: () => Promise<string | null>
+    /** A token to use instead of the one Bungie just rejected */
+    renewToken: (rejectedToken: string) => Promise<string | null>
+}
+
+let tokenSource: TokenSource | undefined;
+
+export const setTokenSource = (source: TokenSource | undefined) => {
+    tokenSource = source;
+}
+
+// What Bungie answers when the access token is missing, expired or revoked
+const AUTH_ERROR_STATUSES = ["WebAuthRequired", "AccessTokenHasExpired", "AuthorizationRecordExpired", "AuthorizationRecordRevoked"];
 
 const baseUrl = "https://www.bungie.net/Platform"
 
@@ -24,16 +42,34 @@ const baseUrl = "https://www.bungie.net/Platform"
  */
 const bungie = async (url: string, init: BungieFetchData) => {
 
-    const headers: HeadersInit = { "X-Api-Key": apiKey }
-    if (init.token) headers["Authorization"] = `Bearer ${init.token}`;
-    if (init.method === "POST") headers["Content-Type"] = "application/json"
+    const send = async (token?: string) => {
+        const headers: HeadersInit = { "X-Api-Key": apiKey }
+        if (token) headers["Authorization"] = `Bearer ${token}`;
+        if (init.method === "POST") headers["Content-Type"] = "application/json"
 
-    const response = await fetch(`${baseUrl}${url}`, {
-        method: init.method ?? "GET",
-        headers,
-        body: init.body ?? undefined
-    })
-    const data = await response.json().catch(() => undefined)
+        const response = await fetch(`${baseUrl}${url}`, {
+            method: init.method ?? "GET",
+            headers,
+            body: init.body ?? undefined
+        })
+        return { response, data: await response.json().catch(() => undefined) }
+    }
+
+    let result;
+    if (init.auth) {
+        const token = await tokenSource?.getToken();
+        if (!token) throw new Error("Could not authenticate with Bungie, try logging in again.");
+        result = await send(token);
+        // A rejected token means the request wasn't processed, so it is safe to send it once more with a new one
+        if (result.response.status === 401 || AUTH_ERROR_STATUSES.includes(result.data?.ErrorStatus)) {
+            const newToken = await tokenSource?.renewToken(token);
+            if (newToken) result = await send(newToken);
+        }
+    } else {
+        result = await send();
+    }
+
+    const { response, data } = result;
     // ErrorCode 1 is "Success"; anything else is an API level failure even on HTTP 200
     if (!response.ok || !data || (data.ErrorCode !== undefined && data.ErrorCode !== 1)) {
         throw new Error(data?.Message ?? `Bungie request failed (${response.status})`)
@@ -44,11 +80,17 @@ const bungie = async (url: string, init: BungieFetchData) => {
 /** Thrown when Bungie rejects the refresh token itself, meaning the user has to log in again. */
 export class InvalidRefreshTokenError extends Error { }
 
+export interface AccessToken {
+    value: string
+    /** `Date.now()` time at which Bungie stops accepting it */
+    expiresAt: number
+}
+
 /**
  * Gets a fresh access token. The refresh token is sent by the browser as an httpOnly cookie;
  * `legacyRefreshToken` only migrates a session stored in localStorage by older versions.
  */
-export const refreshToken = async (legacyRefreshToken?: string) => {
+export const refreshToken = async (legacyRefreshToken?: string): Promise<AccessToken> => {
     const response = await fetch(`/api/token`, {
         method: "POST",
         headers: {
@@ -62,15 +104,16 @@ export const refreshToken = async (legacyRefreshToken?: string) => {
         throw new InvalidRefreshTokenError("Refresh token rejected");
     }
     if (data.access_token) {
-        return data.access_token as string;
+        // Bungie access tokens last an hour
+        return { value: data.access_token as string, expiresAt: Date.now() + (data.expires_in ?? 3600) * 1000 };
     } else {
         console.error("Failed to refresh access token:", data);
         throw new Error("Failed to refresh token");
     }
 }
 
-export const getCurrentUser = async (token: string) => {
-    const data = await bungie(`/User/GetMembershipsForCurrentUser`, { token })
+export const getCurrentUser = async () => {
+    const data = await bungie(`/User/GetMembershipsForCurrentUser`, { auth: true })
     const destinyMembership = data.primaryMembershipId ? data.destinyMemberships.filter((m: any) => m.membershipId === data.primaryMembershipId)[0] : data.destinyMemberships[0];
     const user: BungieUser = {
         uniqueName: data.bungieNetUser.uniqueName,
@@ -80,8 +123,8 @@ export const getCurrentUser = async (token: string) => {
     return user;
 }
 
-export const getProfile = async (token: string, membershipId: string, membershipType: number) => {
-    const profile = await bungie(`/Destiny2/${membershipType}/Profile/${membershipId}/?components=100,102,103,104,200,201,202,205,206,300,302,304,305,307,308,309,310,1300`, { token })
+export const getProfile = async (membershipId: string, membershipType: number) => {
+    const profile = await bungie(`/Destiny2/${membershipType}/Profile/${membershipId}/?components=100,102,103,104,200,201,202,205,206,300,302,304,305,307,308,309,310,1300`, { auth: true })
     return profile
 }
 
@@ -151,20 +194,20 @@ export const getGlobalAlerts = async () => {
     }
 }
 
-export const getCharacterInventory = async (token: string, membershipId: string, membershipType: number, characterId: string) => {
-    const data = await bungie(`/Destiny2/${membershipType}/Profile/${membershipId}/Character/${characterId}/?components=201`, { token });
+export const getCharacterInventory = async (membershipId: string, membershipType: number, characterId: string) => {
+    const data = await bungie(`/Destiny2/${membershipType}/Profile/${membershipId}/Character/${characterId}/?components=201`, { auth: true });
     return { items: data.inventory.data.items as any[] };
 }
 
-export const getItem = async (token: string, membershipType: number, membershipId: string, itemInstanceId: string, components: string) => {
+export const getItem = async (membershipType: number, membershipId: string, itemInstanceId: string, components: string) => {
     try {
-        return await bungie(`/Destiny2/${membershipType}/Profile/${membershipId}/Item/${itemInstanceId}/?components=${components}`, { token }) as ItemResponse;
+        return await bungie(`/Destiny2/${membershipType}/Profile/${membershipId}/Item/${itemInstanceId}/?components=${components}`, { auth: true }) as ItemResponse;
     } catch {
         return undefined;
     }
 }
 
-export const equipLoadout = async (token: string, membershipType: number, characterId: string, loadoutIndex: number) => {
+export const equipLoadout = async (membershipType: number, characterId: string, loadoutIndex: number) => {
     await bungie("/Destiny2/Actions/Loadouts/EquipLoadout", {
         method: "POST",
         body: JSON.stringify({
@@ -172,11 +215,11 @@ export const equipLoadout = async (token: string, membershipType: number, charac
             characterId: characterId,
             loadoutIndex: loadoutIndex
         }),
-        token
+        auth: true
     })
 }
 
-export const transferItem = async (token: string, membershipType: number, itemHash: number, itemInstanceId: string, characterId: string, toVault: boolean, quantity?: number) => {
+export const transferItem = async (membershipType: number, itemHash: number, itemInstanceId: string, characterId: string, toVault: boolean, quantity?: number) => {
     await bungie("/Destiny2/Actions/Items/TransferItem/", {
         method: "POST",
         body: JSON.stringify({
@@ -187,7 +230,7 @@ export const transferItem = async (token: string, membershipType: number, itemHa
             characterId: characterId,
             membershipType: membershipType
         }),
-        token
+        auth: true
     })
 }
 
@@ -195,10 +238,10 @@ export const transferItem = async (token: string, membershipType: number, itemHa
  * Check if an item is equipped and transfer it safely
  * transferStatus & 1 means the item is equipped and needs to be unequipped first
  */
-export const safeTransferItem = async (token: string, membershipType: number, itemHash: number, itemInstanceId: string,
+export const safeTransferItem = async (membershipType: number, itemHash: number, itemInstanceId: string,
     sourceCharacterId: string, targetCharacterId: string, membershipId: string, itemDefinitions?: any): Promise<any | null> => {
     // First check if the item is equipped
-    const itemResponse = await getItem(token, membershipType, membershipId, itemInstanceId, "307,302,304,305");
+    const itemResponse = await getItem(membershipType, membershipId, itemInstanceId, "307,302,304,305");
 
     if (itemResponse && itemResponse.item) {
         const transferStatus = itemResponse.item.data.transferStatus;
@@ -209,7 +252,7 @@ export const safeTransferItem = async (token: string, membershipType: number, it
             console.log(`Item ${itemHash} is equipped. Finding replacement...`);
 
             // Get character inventory to find replacement items
-            const characterInventory = await getCharacterInventory(token, membershipId, membershipType, sourceCharacterId);
+            const characterInventory = await getCharacterInventory(membershipId, membershipType, sourceCharacterId);
 
             // Try to find another item of the same type in the inventory to equip
             let replacementItem = null;
@@ -236,7 +279,7 @@ export const safeTransferItem = async (token: string, membershipType: number, it
                 console.log(`Equipping replacement item ${replacementItem.itemInstanceId}`);
                 let replacementEquipped = true;
                 try {
-                    await equipItem(token, membershipType, sourceCharacterId, replacementItem.itemInstanceId);
+                    await equipItem(membershipType, sourceCharacterId, replacementItem.itemInstanceId);
                 } catch (error) {
                     // If equipping the replacement fails, still try a direct transfer below
                     console.error("Error during replacement equip:", error);
@@ -245,38 +288,38 @@ export const safeTransferItem = async (token: string, membershipType: number, it
 
                 // Errors from here on are real transfer failures and are surfaced to the caller
                 console.log(`Transferring original item ${itemInstanceId} to ${targetCharacterId === "vault" ? "vault" : "character"}`);
-                await transferItem(token, membershipType, itemHash, itemInstanceId, sourceCharacterId, true);
+                await transferItem(membershipType, itemHash, itemInstanceId, sourceCharacterId, true);
                 if (targetCharacterId !== "vault") {
-                    await transferItem(token, membershipType, itemHash, itemInstanceId, targetCharacterId, false);
+                    await transferItem(membershipType, itemHash, itemInstanceId, targetCharacterId, false);
                 }
                 if (replacementEquipped) return replacementItem;
             } else {
                 console.log("No replacement found, trying direct transfer");
                 // No replacement found, try direct transfer (may fail if equipping constraints prevent it)
-                await transferItem(token, membershipType, itemHash, itemInstanceId, sourceCharacterId, true);
+                await transferItem(membershipType, itemHash, itemInstanceId, sourceCharacterId, true);
                 if (targetCharacterId !== "vault") {
-                    await transferItem(token, membershipType, itemHash, itemInstanceId, targetCharacterId, false);
+                    await transferItem(membershipType, itemHash, itemInstanceId, targetCharacterId, false);
                 }
             }
         } else {
             // Item is not equipped, can transfer directly
             if (targetCharacterId === "vault") {
-                await transferItem(token, membershipType, itemHash, itemInstanceId, sourceCharacterId, true);
+                await transferItem(membershipType, itemHash, itemInstanceId, sourceCharacterId, true);
             } else {
                 // If moving between characters
                 if (sourceCharacterId !== targetCharacterId) {
-                    await transferItem(token, membershipType, itemHash, itemInstanceId, sourceCharacterId, true);
-                    await transferItem(token, membershipType, itemHash, itemInstanceId, targetCharacterId, false);
+                    await transferItem(membershipType, itemHash, itemInstanceId, sourceCharacterId, true);
+                    await transferItem(membershipType, itemHash, itemInstanceId, targetCharacterId, false);
                 }
             }
         }
     } else {
         // Fallback if we couldn't get item data
         if (targetCharacterId === "vault") {
-            await transferItem(token, membershipType, itemHash, itemInstanceId, sourceCharacterId, true);
+            await transferItem(membershipType, itemHash, itemInstanceId, sourceCharacterId, true);
         } else if (sourceCharacterId !== targetCharacterId) {
-            await transferItem(token, membershipType, itemHash, itemInstanceId, sourceCharacterId, true);
-            await transferItem(token, membershipType, itemHash, itemInstanceId, targetCharacterId, false);
+            await transferItem(membershipType, itemHash, itemInstanceId, sourceCharacterId, true);
+            await transferItem(membershipType, itemHash, itemInstanceId, targetCharacterId, false);
         }
     }
     return null;
@@ -289,7 +332,7 @@ export interface EquipItemResult {
 }
 
 /** Equips several items at once; Bungie reports a status per item instead of failing the whole call. */
-export const equipItems = async (token: string, membershipType: number, characterId: string, itemIds: string[]) => {
+export const equipItems = async (membershipType: number, characterId: string, itemIds: string[]) => {
     const data = await bungie(`/Destiny2/Actions/Items/EquipItems/`, {
         method: "POST",
         body: JSON.stringify({
@@ -297,12 +340,12 @@ export const equipItems = async (token: string, membershipType: number, characte
             characterId: characterId,
             itemIds: itemIds
         }),
-        token
+        auth: true
     });
     return (data?.equipResults ?? []) as EquipItemResult[];
 }
 
-export const equipItem = async (token: string, membershipType: number, characterId: string, itemId: string) => {
+export const equipItem = async (membershipType: number, characterId: string, itemId: string) => {
     await bungie(`/Destiny2/Actions/Items/EquipItem/`, {
         method: "POST",
         body: JSON.stringify({
@@ -310,11 +353,11 @@ export const equipItem = async (token: string, membershipType: number, character
             characterId: characterId,
             itemId: itemId
         }),
-        token
+        auth: true
     });
 }
 
-export const pullFromPostmaster = async (token: string, membershipType: number, characterId: string, itemReferenceHash: number, itemInstanceId: string, stackSize: number = 1) => {
+export const pullFromPostmaster = async (membershipType: number, characterId: string, itemReferenceHash: number, itemInstanceId: string, stackSize: number = 1) => {
     await bungie(`/Destiny2/Actions/Items/PullFromPostmaster/`, {
         method: "POST",
         body: JSON.stringify({
@@ -324,12 +367,11 @@ export const pullFromPostmaster = async (token: string, membershipType: number, 
             itemId: itemInstanceId,
             stackSize: stackSize
         }),
-        token
+        auth: true
     });
 }
 
 export const clearLoadout = async (
-    token: string,
     membershipType: number,
     characterId: string,
     loadoutIndex: number
@@ -341,7 +383,7 @@ export const clearLoadout = async (
             characterId: characterId,
             loadoutIndex: loadoutIndex
         }),
-        token
+        auth: true
     })
 }
 
@@ -353,7 +395,6 @@ export interface LoadoutIdentifiers {
 
 /** Saves the character's currently equipped gear, subclass setup and mods into the loadout slot. */
 export const snapshotLoadout = async (
-    token: string,
     membershipType: number,
     characterId: string,
     loadoutIndex: number,
@@ -367,13 +408,12 @@ export const snapshotLoadout = async (
             loadoutIndex: loadoutIndex,
             ...identifiers
         }),
-        token
+        auth: true
     })
 }
 
 /** Changes the loadout's name, color and icon without touching its items. */
 export const updateLoadoutIdentifiers = async (
-    token: string,
     membershipType: number,
     characterId: string,
     loadoutIndex: number,
@@ -387,7 +427,7 @@ export const updateLoadoutIdentifiers = async (
             loadoutIndex: loadoutIndex,
             ...identifiers
         }),
-        token
+        auth: true
     })
 }
 
@@ -396,7 +436,6 @@ export const updateLoadoutIdentifiers = async (
  * on items held by a character (not in the vault).
  */
 export const insertSocketPlugFree = async (
-    token: string,
     membershipType: number,
     characterId: string,
     itemInstanceId: string,
@@ -412,6 +451,6 @@ export const insertSocketPlugFree = async (
             characterId: characterId,
             membershipType: membershipType
         }),
-        token
+        auth: true
     })
 }

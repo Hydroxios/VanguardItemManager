@@ -3,7 +3,6 @@ import { pullFromPostmaster } from "@/lib/bungie";
 import { useNotifications } from "@/app/components/NotificationsProvider";
 import { useDefinitions } from "@/lib/hooks/useDefinitions";
 import { useProfile } from "@/lib/hooks/useProfile";
-import useAuth from "@/lib/hooks/useAuth";
 import Image from "next/image";
 import { Item } from "@/lib/types";
 import { BUCKETS } from "@/lib/constants";
@@ -20,7 +19,6 @@ const Postmaster: React.FC<PostmasterProps> = ({
   const [isCollapsed, setIsCollapsed] = useState(true);
   const [isCollectingAll, setIsCollectingAll] = useState(false);
 
-  const { token } = useAuth()
   const { itemDefinitions } = useDefinitions()
   const { user, characterInventories, moveItem } = useProfile()
 
@@ -53,7 +51,6 @@ const Postmaster: React.FC<PostmasterProps> = ({
     try {
 
       await pullFromPostmaster(
-        token as string,
         user.membershipType,
         characterId,
         item.itemHash,
