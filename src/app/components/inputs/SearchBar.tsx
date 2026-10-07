@@ -1,6 +1,5 @@
 "use client"
 
-import { safeTransferItem, transferItem } from "@/lib/bungie";
 import Item from "../character/Item";
 import {
   ItemDefinition,
@@ -8,10 +7,9 @@ import {
 } from "@/lib/hooks/useDefinitions";
 import { useProfile } from "@/lib/hooks/useProfile";
 import { useEffect, useState } from "react";
-import { useAuth } from "@/lib/hooks/useAuth";
+import useTransferItem from "@/lib/hooks/useTransferItem";
 import { ItemPerks, ItemStats } from "@/lib/hooks/useProfile";
 import { Perk } from "@/lib/hooks/useProfile";
-import { useNotifications } from "../NotificationsProvider";
 import { getDamageTypeIcon } from "@/lib/helpers/damage-type";
 import Image from "next/image";
 
@@ -40,14 +38,10 @@ const SearchBar = ({ currentCharacterId, open, onClose }: { currentCharacterId?:
     characterInventories,
     itemComponents,
     profileInventory,
-    moveItem,
-    transferEquippedItem,
-    user,
   } = useProfile();
 
   useEffect(() => handleSearch(search), [characters, characterEquipment, characterInventories, profileInventory]);
-  const { token } = useAuth();
-  const { addNotification, updateNotification } = useNotifications();
+  const { transfer } = useTransferItem();
 
   const handleSearch = (search: string) => {
     setSearch(search);
@@ -187,71 +181,15 @@ const SearchBar = ({ currentCharacterId, open, onClose }: { currentCharacterId?:
     setResults([]);
   };
 
-  // Handle double click to transfer item
-  const handleDoubleClick = async (result: SearchResult) => {
+  // Handle double click to transfer item to the current character
+  const handleDoubleClick = (result: SearchResult) => {
     if (!currentCharacterId) return;
-    const notificationId = addNotification(
-      "Transferring item...",
-      result.item.displayProperties.name,
-      "info",
-      "",
-      5000,
-      true
-    );
-    const icon = result.overrideStyleItemHash
-      ? itemDefinitions[result.overrideStyleItemHash].displayProperties.icon
-      : result.item.displayProperties.icon;
-    if (result.characterId) {
-      if (itemComponents.instances[result.itemInstanceId]?.isEquipped) {
-        const replacementItem = await safeTransferItem(
-          token as string,
-          user.membershipType,
-          result.item.hash,
-          result.itemInstanceId,
-          result.characterId,
-          currentCharacterId,
-          user.membershipId,
-          itemDefinitions
-        );
-        if (replacementItem) {
-          transferEquippedItem(result.item.hash, result.itemInstanceId, result.characterId, currentCharacterId, replacementItem.itemInstanceId);
-        } else {
-          moveItem(result.item.hash, result.itemInstanceId, result.characterId, currentCharacterId, 1);
-        }
-      } else {
-        await transferItem(token as string, user.membershipType, result.item.hash, result.itemInstanceId, result.characterId, true)
-        await transferItem(token as string, user.membershipType, result.item.hash, result.itemInstanceId, currentCharacterId, false)
-        moveItem(result.item.hash, result.itemInstanceId, result.characterId, currentCharacterId, 1);
-      }
-
-      updateNotification(
-        notificationId,
-        "Item transfered to your character",
-        undefined,
-        "success",
-        "https://www.bungie.net" + icon,
-        5000
-      );
-
-    } else {
-      await transferItem(
-        token as string,
-        user.membershipType,
-        result.item.hash,
-        result.itemInstanceId,
-        currentCharacterId,
-        false
-      );
-      moveItem(result.item.hash, result.itemInstanceId, "vault", currentCharacterId, 1);
-      updateNotification(
-        notificationId,
-        "Item transfered from your vault",
-        result.item.displayProperties.name,
-        "success",
-        "https://www.bungie.net" + icon,
-        5000
-      );
-    }
+    transfer({
+      itemHash: result.item.hash,
+      itemInstanceId: result.itemInstanceId,
+      toId: currentCharacterId,
+      fromId: result.characterId || "vault",
+    });
   };
 
   // If search bar is not open, don't render it

@@ -1,11 +1,9 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { transferItem } from "@/lib/bungie";
 import Item from "./Item";
-import { useNotifications } from "@/app/components/NotificationsProvider";
 import { ItemDefinition, useDefinitions } from "@/lib/hooks/useDefinitions";
-import useAuth from "@/lib/hooks/useAuth";
+import useTransferItem from "@/lib/hooks/useTransferItem";
 import { Item as ItemInstance, ItemPerks, ItemStats, useProfile } from "@/lib/hooks/useProfile";
 import { DamageType, getDamageType, getDamageTypeIcon, DAMAGE_TYPES_LIST } from "@/lib/helpers/damage-type";
 import Image from "next/image";
@@ -14,7 +12,6 @@ interface VaultProps {
   isOpen: boolean;
   setIsOpen: (isOpen: boolean) => void;
   characterId: string;
-  refresh: () => Promise<void>;
 }
 
 // Group types for categorizing items
@@ -49,7 +46,6 @@ const Vault: React.FC<VaultProps> = ({
   isOpen,
   setIsOpen,
   characterId,
-  refresh
 }) => {
   const [processedItems, setProcessedItems] = useState<{
     weapons: ProcessedItem[],
@@ -71,11 +67,10 @@ const Vault: React.FC<VaultProps> = ({
 
   const resizeRef = useRef<HTMLDivElement>(null);
 
-  const { addNotification, updateNotification } = useNotifications();
   const { itemDefinitions, perksDefinitions } = useDefinitions()
 
-  const { token } = useAuth()
-  const { user, profileInventory, itemComponents, moveItem } = useProfile()
+  const { profileInventory, itemComponents } = useProfile()
+  const { transfer } = useTransferItem()
 
   // Process inventory items into categories
   useEffect(() => {
@@ -135,50 +130,17 @@ const Vault: React.FC<VaultProps> = ({
   }, [profileInventory]);
 
   // Handle item transfer from vault to character
-  const handleTransfer = useCallback(async (item: any) => {
-    const notificationId = addNotification(
-      `Transferring ${item.item.displayProperties.name}...`,
-      "Moving item to your character",
-      "info",
-      `https://www.bungie.net${item.item.displayProperties.icon}`,
-      3000,
-      true
-    );
-
-    try {
-      // For materials and other stackable items
-      if (item.item.inventory && item.item.inventory.stackUniqueLabel) {
-        const quantity = item.itemInstance.quantity || 1;
-        await transferItem(token as string, user.membershipType, item.item.hash, item.itemInstance.itemInstanceId || '0', characterId, false, quantity);
-        moveItem(item.item.hash, item.itemInstance.itemInstanceId || '0', "vault", characterId, quantity);
-      } else {
-        // For weapons, armor and other non-stackable items
-        await transferItem(token as string, user.membershipType, item.item.hash, item.itemInstance.itemInstanceId, characterId, false);
-        moveItem(item.item.hash, item.itemInstance.itemInstanceId, "vault", characterId, 1);
-      }
-
-      updateNotification(
-        notificationId,
-        `Transferred ${item.item.displayProperties.name}`,
-        "Item moved to your character",
-        "success",
-        `https://www.bungie.net${item.item.displayProperties.icon}`,
-        3000,
-        false
-      );
-      // await refresh(); // Removed to prevent slow re-fetch
-    } catch (err: any) {
-      updateNotification(
-        notificationId,
-        `Error transferring ${item.item.displayProperties.name}`,
-        err.message,
-        "error",
-        `https://www.bungie.net${item.item.displayProperties.icon}`,
-        5000,
-        false
-      );
-    }
-  }, [characterId, addNotification, updateNotification, refresh, moveItem, token, user]);
+  const handleTransfer = useCallback((item: any) => {
+    const instanceId = item.itemInstance.itemInstanceId;
+    transfer({
+      itemHash: item.item.hash,
+      itemInstanceId: instanceId,
+      toId: characterId,
+      fromId: "vault",
+      // Stacks (materials, consumables) move as a whole
+      quantity: instanceId ? 1 : item.itemInstance.quantity || 1,
+    });
+  }, [characterId, transfer]);
 
   // Handle drag start for items
   const handleDragStart = useCallback((event: React.DragEvent, item: any) => {

@@ -6,8 +6,7 @@ import Currencies from "./Currencies";
 import Loadouts from "./Loadouts";
 import CharacterStats from "./CharacterStats";
 import InventoryItems from "./InventoryItems";
-import { transferItem, safeTransferItem } from "@/lib/bungie";
-import { useNotifications } from "@/app/components/NotificationsProvider";
+import useTransferItem from "@/lib/hooks/useTransferItem";
 import Vault from "./Vault";
 import Engrams from "./Engrams";
 import Postmaster from "./Postmaster";
@@ -75,7 +74,7 @@ const CharacterView: React.FC<CharacterViewProps> = ({
   const [characterTitle, setCharacterTitle] = useState<string>("");
   const [isVaultOpen, setIsVaultOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false)
-  const { addNotification, updateNotification } = useNotifications();
+  const { transfer } = useTransferItem();
   // eslint-disable-next-line
   const [isVimMenuOpen, setIsVimMenuOpen] = useState(false);
   // eslint-disable-next-line
@@ -88,19 +87,16 @@ const CharacterView: React.FC<CharacterViewProps> = ({
     recordsDefinitions,
   } = useDefinitions();
 
-  const { token, lastUpdate, refreshUserToken } = useAuth();
+  const { lastUpdate, refreshUserToken } = useAuth();
 
   const {
-    user,
     characters,
     characterEquipment,
     characterInventories,
     itemComponents,
     profileCurrencies,
     refresh,
-    moveItem,
     equipItemLocally,
-    transferEquippedItem
   } = useProfile();
 
   const { hideTooltip } = useItemTooltip();
@@ -126,143 +122,34 @@ const CharacterView: React.FC<CharacterViewProps> = ({
     ) => {
       equipItemLocally(characterId, itemInstanceId);
     },
-    []
+    [characterId, equipItemLocally]
   );
 
-  // Handle drag and drop for item transfer
-  const handleDrop = useCallback(
-    async (event: React.DragEvent) => {
-      event.preventDefault();
-      let data = event.dataTransfer.getData("text/plain");
+  // Parses drag data: "st:hash:instanceId" (vault items) or "hash:instanceId:slot" (character items)
+  const parseDragData = (event: React.DragEvent) => {
+    const [itemHash, itemInstanceId] = event.dataTransfer.getData("text/plain").replace(/^st:/, "").split(":");
+    const hash = Number.parseInt(itemHash);
+    if (Number.isNaN(hash)) return undefined;
+    return { itemHash: hash, itemInstanceId: itemInstanceId && itemInstanceId !== "undefined" ? itemInstanceId : undefined };
+  };
 
-      if (data.startsWith("st:")) {
-        data = data.replace("st:", "");
-        const args = data.split(":");
+  // Handle drag and drop for item transfer to this character
+  const handleDrop = (event: React.DragEvent) => {
+    event.preventDefault();
+    const data = parseDragData(event);
+    if (!data) return;
+    transfer({ ...data, toId: characterId, fromId: "vault" });
+  };
 
-        const notificationId = addNotification(
-          "Transferring item...",
-          itemDefinitions[args[0]].displayProperties.name,
-          "info",
-          "",
-          3000,
-          true
-        );
-
-        try {
-          if (args.length > 2) {
-            // Item is being transferred from another character
-            // args[0] = itemHash, args[1] = itemInstanceId, args[2] = sourceCharacterId
-            const replacementItem = await safeTransferItem(
-              token as string,
-              user.membershipType,
-              Number.parseInt(args[0]),
-              args[1],
-              args[2],
-              characterId,
-              user.membershipId,
-              itemDefinitions
-            );
-            if (replacementItem) {
-              transferEquippedItem(Number.parseInt(args[0]), args[1], args[2], characterId, replacementItem.itemInstanceId);
-            } else {
-              moveItem(Number.parseInt(args[0]), args[1], args[2], characterId, 1);
-            }
-          } else {
-            // Item is being transferred from vault to character
-            await transferItem(
-              token as string,
-              user.membershipType,
-              Number.parseInt(args[0]),
-              args[1],
-              characterId,
-              false
-            );
-            moveItem(Number.parseInt(args[0]), args[1], "vault", characterId, 1);
-          }
-          // await refresh();
-          updateNotification(
-            notificationId,
-            "Item transferred",
-            itemDefinitions[args[0]].displayProperties.name,
-            "success",
-            `https://www.bungie.net${itemDefinitions[args[0]]?.displayProperties?.icon || ""}`,
-            5000,
-            false
-          );
-        } catch (err: any) {
-          updateNotification(
-            notificationId,
-            `Error while transferring ${itemDefinitions[args[0]].displayProperties?.name || "item"}!`,
-            err.message,
-            "error",
-            `https://www.bungie.net${itemDefinitions[args[0]]?.displayProperties?.icon || ""}`,
-            5000,
-            false
-          );
-        }
-      }
-    },
-    [characterId, addNotification, updateNotification, refresh]
-  );
-
-  // Handle vault drop
-  const handleVaultDrop = useCallback(
-    async (event: React.DragEvent) => {
-      event.preventDefault();
-      const infos = event.dataTransfer.getData("text/plain").split(":");
-      const hash = infos[0];
-      const itemInstanceId = infos[1];
-
-      const notificationId = addNotification(
-        "Transferring to vault...",
-        itemDefinitions[hash].displayProperties.name,
-        "info",
-        "",
-        3000,
-        true
-      );
-
-      try {
-        // Transfer to vault
-        const replacementItem = await safeTransferItem(
-          token as string,
-          user.membershipType,
-          Number.parseInt(hash),
-          itemInstanceId,
-          characterId,
-          "vault",
-          user.membershipId,
-          itemDefinitions
-        );
-        if (replacementItem) {
-          transferEquippedItem(Number.parseInt(hash), itemInstanceId, characterId, "vault", replacementItem.itemInstanceId);
-        } else {
-          moveItem(Number.parseInt(hash), itemInstanceId, characterId, "vault", 1);
-        }
-        // await refresh();
-        updateNotification(
-          notificationId,
-          "Item transferred to vault",
-          itemDefinitions[hash].displayProperties.name,
-          "success",
-          `https://www.bungie.net${itemDefinitions[hash]?.displayProperties?.icon || ""}`,
-          5000,
-          false
-        );
-      } catch (err: any) {
-        updateNotification(
-          notificationId,
-          `Error while transferring to vault!`,
-          err.message,
-          "error",
-          `https://www.bungie.net${itemDefinitions[hash]?.displayProperties?.icon || ""}`,
-          5000,
-          false
-        );
-      }
-    },
-    [characterId, addNotification, updateNotification, refresh]
-  );
+  // Handle drop on the vault button
+  const handleVaultDrop = (event: React.DragEvent) => {
+    event.preventDefault();
+    // Don't let the drop bubble to the page-level handler, which would move the item to the character
+    event.stopPropagation();
+    const data = parseDragData(event);
+    if (!data) return;
+    transfer({ ...data, toId: "vault", fromId: characterId });
+  };
 
   // Handle drag over
   const handleDragOver = useCallback((event: React.DragEvent) => {
@@ -574,7 +461,7 @@ const CharacterView: React.FC<CharacterViewProps> = ({
         </div>
       );
     },
-    [equipment, toggleEquipmentSection, handleEquip]
+    [equipment, toggleEquipmentSection, handleEquip, characterId]
   );
 
   return (
@@ -658,7 +545,6 @@ const CharacterView: React.FC<CharacterViewProps> = ({
         isOpen={isVaultOpen}
         setIsOpen={setIsVaultOpen}
         characterId={characterId}
-        refresh={refresh}
       />
 
       <SearchBar open={searchOpen} currentCharacterId={characterId} onClose={() => setSearchOpen(false)} />

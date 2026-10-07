@@ -6,7 +6,6 @@ import { useDebug } from "@/app/components/debug/DebugProvider";
 import DebugInfos from "@/app/components/debug/DebugInfos";
 import { ItemDefinition, useDefinitions } from "@/lib/hooks/useDefinitions";
 import { useProfile } from "@/lib/hooks/useProfile";
-import useAuth from "@/lib/hooks/useAuth";
 import TooltipHeader from "./tooltip/TooltipHeader";
 import TooltipStats from "./tooltip/TooltipStats";
 import TooltipPerks from "./tooltip/TooltipPerks";
@@ -40,8 +39,7 @@ const GlobalItemTooltip = () => {
     classDefinitions,
     itemConstantsDefinitions,
   } = useDefinitions();
-  const { itemComponents, characters, user, moveItem } = useProfile();
-  const { token } = useAuth();
+  const { itemComponents, characters } = useProfile();
 
   // Check if an item is a material
   const isMaterial = (item: ItemDefinition) => {
@@ -165,15 +163,11 @@ const GlobalItemTooltip = () => {
         <TooltipActions
           item={item}
           itemInstanceId={itemInstanceId}
-          itemComponents={itemComponents}
           characterId={characterId}
           characters={characters}
-          token={token}
-          user={user}
           classDefinitions={classDefinitions}
           drawTransfert={drawTransfert}
           armor={armor}
-          moveItem={moveItem}
         />
       )}
 

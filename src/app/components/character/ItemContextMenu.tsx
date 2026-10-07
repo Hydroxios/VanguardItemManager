@@ -4,9 +4,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useProfile } from "@/lib/hooks/useProfile";
 import { useDefinitions } from "@/lib/hooks/useDefinitions";
-import { safeTransferItem, transferItem } from "@/lib/bungie";
-import { useNotifications } from "@/app/components/NotificationsProvider";
-import useAuth from "@/lib/hooks/useAuth";
+import useTransferItem from "@/lib/hooks/useTransferItem";
 import Image from "next/image";
 
 interface ItemContextMenuProps {
@@ -25,10 +23,9 @@ const ItemContextMenu = ({
     position,
 }: ItemContextMenuProps) => {
     const menuRef = useRef<HTMLDivElement>(null);
-    const { characters, user, moveItem, transferEquippedItem, itemComponents } = useProfile();
-    const { token } = useAuth();
-    const { classDefinitions, itemDefinitions } = useDefinitions();
-    const { addNotification, updateNotification } = useNotifications();
+    const { characters } = useProfile();
+    const { classDefinitions } = useDefinitions();
+    const { transfer, locateItem } = useTransferItem();
     const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
@@ -49,76 +46,12 @@ const ItemContextMenu = ({
         };
     }, [onClose]);
 
-    const handleTransfer = async (targetCharacterId: string) => {
+    // Vault items are shown with the current character id, so resolve where the item really is
+    const location = locateItem(itemInstanceId).location ?? characterId;
+
+    const handleTransfer = (targetCharacterId: string) => {
         onClose();
-        const notificationId = addNotification(
-            "Transferring item...",
-            itemDefinitions[itemHash].displayProperties.name,
-            "info",
-            "",
-            3000,
-            true
-        );
-
-        try {
-            const isEquipped = itemComponents.instances[itemInstanceId]?.isEquipped;
-
-            if (isEquipped) {
-                const replacementItem = await safeTransferItem(
-                    token as string,
-                    user.membershipType,
-                    itemHash,
-                    itemInstanceId,
-                    characterId,
-                    targetCharacterId,
-                    user.membershipId,
-                    itemDefinitions
-                );
-
-                if (replacementItem) {
-                    transferEquippedItem(
-                        itemHash,
-                        itemInstanceId,
-                        characterId,
-                        targetCharacterId,
-                        replacementItem.itemInstanceId
-                    );
-                } else {
-                    moveItem(itemHash, itemInstanceId, characterId, targetCharacterId, 1);
-                }
-            } else {
-                // Not equipped, direct transfer
-                if (targetCharacterId === "vault") {
-                    await transferItem(token as string, user.membershipType, itemHash, itemInstanceId, characterId, true);
-                    moveItem(itemHash, itemInstanceId, characterId, "vault", 1);
-                } else {
-                    // To another character
-                    await transferItem(token as string, user.membershipType, itemHash, itemInstanceId, characterId, true);
-                    await transferItem(token as string, user.membershipType, itemHash, itemInstanceId, targetCharacterId, false);
-                    moveItem(itemHash, itemInstanceId, characterId, targetCharacterId, 1);
-                }
-            }
-
-            updateNotification(
-                notificationId,
-                "Item transferred",
-                itemDefinitions[itemHash].displayProperties.name,
-                "success",
-                "https://www.bungie.net" + itemDefinitions[itemHash].displayProperties.icon,
-                5000,
-                false
-            );
-        } catch (error: any) {
-            updateNotification(
-                notificationId,
-                "Transfer failed",
-                error.message,
-                "error",
-                "",
-                5000,
-                false
-            );
-        }
+        transfer({ itemHash, itemInstanceId, toId: targetCharacterId, fromId: location });
     };
 
     if (!mounted) return null;
@@ -137,7 +70,7 @@ const ItemContextMenu = ({
             </div>
             <div className="py-1">
                 {Object.values(characters)
-                    .filter((c: any) => c.characterId !== characterId)
+                    .filter((c: any) => c.characterId !== location)
                     .map((c: any) => (
                         <button
                             key={c.characterId}
@@ -155,7 +88,7 @@ const ItemContextMenu = ({
                         </button>
                     ))}
 
-                {characterId !== "vault" && (
+                {location !== "vault" && (
                     <>
                         <div className="border-t border-gray-700 my-1"></div>
                         <button

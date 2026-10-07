@@ -1,11 +1,8 @@
 "use client";
 import React, { useCallback, useState } from "react";
-import { useNotifications } from "./NotificationsProvider";
-
-import { safeTransferItem, transferItem } from "@/lib/bungie";
+import useTransferItem from "@/lib/hooks/useTransferItem";
 import { useDefinitions } from "@/lib/hooks/useDefinitions";
 import { useProfile } from "@/lib/hooks/useProfile";
-import useAuth from "@/lib/hooks/useAuth";
 
 interface CharacterSelectorProps {
   onSelectCharacter: (characterId: string) => void;
@@ -20,68 +17,26 @@ const CharacterSelector = ({
     null
   );
 
-  const { addNotification } = useNotifications()
   const { itemDefinitions, classDefinitions, raceDefinitions } = useDefinitions()
 
-  const { token } = useAuth()
-  const { user, characters, moveItem, transferEquippedItem } = useProfile()
+  const { characters } = useProfile()
+  const { transfer } = useTransferItem()
 
   const handleCharacterSelect = (characterId: string) => {
     setSelectedCharacter(characterId);
     onSelectCharacter(characterId);
   };
 
-  const handleDrop = useCallback(async (event: React.DragEvent, characterId: string) => {
+  // Vault items are dragged as "st:hash:instanceId"
+  const handleDrop = (event: React.DragEvent, characterId: string) => {
     event.preventDefault();
-    let data = event.dataTransfer.getData("text/plain");
-
-    if (data.startsWith("st:")) {
-      data = data.replace("st:", "");
-      const args = data.split(":");
-
-      try {
-        if (args.length > 2) {
-          // Item is being transferred from another character
-          // args[0] = itemHash, args[1] = itemInstanceId, args[2] = sourceCharacterId
-          const replacementItem = await safeTransferItem(
-            token ?? "",
-            user.membershipType,
-            Number.parseInt(args[0]),
-            args[1],
-            args[2],
-            characterId,
-            user.membershipId,
-            itemDefinitions
-          );
-          if (replacementItem) {
-            transferEquippedItem(Number.parseInt(args[0]), args[1], args[2], characterId, replacementItem.itemInstanceId);
-          } else {
-            moveItem(Number.parseInt(args[0]), args[1], args[2], characterId, 1);
-          }
-        } else {
-          // Item is being transferred from vault to character
-          await transferItem(token ?? "", user.membershipType, Number.parseInt(args[0]), args[1], characterId, false);
-          moveItem(Number.parseInt(args[0]), args[1], "vault", characterId, 1);
-        }
-        // await refresh();
-        addNotification(
-          `Transferred ${itemDefinitions[args[0]]?.displayProperties?.name || "item"}`,
-          "Item moved to your character",
-          "success",
-          `https://www.bungie.net${itemDefinitions[args[0]]?.displayProperties?.icon || ""}`,
-          3000
-        );
-      } catch (err: any) {
-        addNotification(
-          `Error while transferring ${itemDefinitions[args[0]]?.displayProperties?.name || "item"}!`,
-          err.message,
-          "error",
-          `https://www.bungie.net${itemDefinitions[args[0]]?.displayProperties?.icon || ""}`,
-          5000
-        );
-      }
-    }
-  }, [])
+    const data = event.dataTransfer.getData("text/plain");
+    if (!data.startsWith("st:")) return;
+    const [itemHash, itemInstanceId] = data.replace("st:", "").split(":");
+    const hash = Number.parseInt(itemHash);
+    if (Number.isNaN(hash)) return;
+    transfer({ itemHash: hash, itemInstanceId: itemInstanceId !== "0" ? itemInstanceId : undefined, toId: characterId, fromId: "vault" });
+  };
 
   const handleDragOver = useCallback((event: React.DragEvent) => {
     event.preventDefault();

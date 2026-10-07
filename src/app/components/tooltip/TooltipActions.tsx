@@ -1,42 +1,32 @@
-import { safeTransferItem, transferItem } from "@/lib/bungie";
-import { ItemDefinition, useDefinitions } from "@/lib/hooks/useDefinitions";
-import { useProfile } from "@/lib/hooks/useProfile";
+import { ItemDefinition } from "@/lib/hooks/useDefinitions";
+import useTransferItem from "@/lib/hooks/useTransferItem";
 import Image from "next/image";
-import { useNotifications } from "../NotificationsProvider";
 
 interface TooltipActionsProps {
     item: ItemDefinition;
     itemInstanceId?: string;
-    itemComponents: any;
     characterId: string;
     characters: any;
-    token: string | null;
-    user: any;
     classDefinitions: any;
     drawTransfert: boolean;
     armor: boolean;
-    moveItem: (itemHash: number, itemInstanceId: string, fromId: string, toId: string, quantity: number) => void;
 }
 
 const TooltipActions = ({
     item,
     itemInstanceId,
-    itemComponents,
     characterId,
     characters,
-    token,
-    user,
     classDefinitions,
     drawTransfert,
     armor,
-    moveItem,
 }: TooltipActionsProps) => {
-    const { itemDefinitions } = useDefinitions();
-    const { transferEquippedItem } = useProfile();
-
-    const { addNotification, updateNotification } = useNotifications()
+    const { transfer, locateItem } = useTransferItem();
 
     if (!drawTransfert) return null;
+
+    // Vault items are shown with the current character id, so resolve where the item really is
+    const location = locateItem(itemInstanceId).location ?? characterId;
 
     return (
         <div
@@ -45,68 +35,12 @@ const TooltipActions = ({
         >
             <div className="flex flex-row gap-2">
                 {Object.values(characters)
-                    .filter((c: any) => c.characterId !== characterId)
+                    .filter((c: any) => c.characterId !== location)
                     .map((c: any) => (
                         <button
                             key={c.characterId}
                             className="hover:opacity-80 transition-opacity"
-                            onClick={async () => {
-                                const notificationId = addNotification(
-                                    "Transferring item...",
-                                    item.displayProperties.name,
-                                    "info",
-                                    "",
-                                    5000,
-                                    true
-                                );
-                                if (itemComponents.instances[itemInstanceId!]?.isEquipped) {
-                                    const replacementItem = await safeTransferItem(
-                                        token as string,
-                                        user.membershipType,
-                                        item.hash,
-                                        itemInstanceId!,
-                                        characterId,
-                                        c.characterId,
-                                        user.membershipId,
-                                        itemDefinitions
-                                    );
-                                    if (replacementItem) {
-                                        transferEquippedItem(item.hash, itemInstanceId!, characterId, c.characterId, replacementItem.itemInstanceId);
-                                    } else {
-                                        moveItem(item.hash, itemInstanceId!, characterId, c.characterId, 1);
-                                    }
-                                } else {
-                                    await transferItem(
-                                        token as string,
-                                        user.membershipType,
-                                        item.hash,
-                                        itemInstanceId!,
-                                        characterId,
-                                        true
-                                    );
-                                    await transferItem(
-                                        token as string,
-                                        user.membershipType,
-                                        item.hash,
-                                        itemInstanceId!,
-                                        c.characterId,
-                                        false
-                                    );
-                                    moveItem(item.hash, itemInstanceId!, characterId, c.characterId, 1);
-                                }
-
-                                updateNotification(
-                                    notificationId,
-                                    "Item transfered to your " +
-                                    classDefinitions[c.classHash].displayProperties.name,
-                                    item.displayProperties.name,
-                                    "success",
-                                    "https://www.bungie.net" + item.displayProperties.icon,
-                                    5000
-                                );
-                                // refresh();
-                                // moveItem(item.hash, itemInstanceId!, characterId, c.characterId, 1);
-                            }}
+                            onClick={() => transfer({ itemHash: item.hash, itemInstanceId, toId: c.characterId, fromId: location })}
                         >
                             <Image
                                 src={`${c.classHash}.svg`}
@@ -118,46 +52,14 @@ const TooltipActions = ({
                     ))}
             </div>
             <div className="flex flex-row gap-2">
-                <button
-                    className="hover:opacity-80 transition-opacity"
-                    onClick={async () => {
-                        const notificationId = addNotification(
-                            "Transferring item...",
-                            item.displayProperties.name,
-                            "info",
-                            "",
-                            5000,
-                            true
-                        );
-                        const replacementItem = await safeTransferItem(
-                            token as string,
-                            user.membershipType,
-                            item.hash,
-                            itemInstanceId!,
-                            characterId,
-                            "vault",
-                            user.membershipId,
-                            itemDefinitions
-                        );
-                        if (replacementItem) {
-                            transferEquippedItem(item.hash, itemInstanceId!, characterId, "vault", replacementItem.itemInstanceId);
-                        } else {
-                            moveItem(item.hash, itemInstanceId!, characterId, "vault", 1);
-                        }
-                        updateNotification(
-                            notificationId,
-                            "Item transfered to your vault",
-                            item.displayProperties.name,
-                            "success",
-                            "https://www.bungie.net" + item.displayProperties.icon,
-                            5000
-                        );
-                        // refresh();
-                        // moveItem(item.hash, itemInstanceId!, characterId, "vault", 1);
-                    }}
-                >
-                    <Image src="vault2.svg" height={32} width={32} alt="Vault" />
-                </button>
+                {location !== "vault" && (
+                    <button
+                        className="hover:opacity-80 transition-opacity"
+                        onClick={() => transfer({ itemHash: item.hash, itemInstanceId, toId: "vault", fromId: location })}
+                    >
+                        <Image src="vault2.svg" height={32} width={32} alt="Vault" />
+                    </button>
+                )}
                 {!armor && (
                     <button
                         className="hover:opacity-80 transition-opacity"
