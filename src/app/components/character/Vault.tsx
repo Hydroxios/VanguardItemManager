@@ -9,6 +9,7 @@ import { DamageType, getDamageType, getDamageTypeIcon, DAMAGE_TYPES_LIST } from 
 import Image from "next/image";
 import { ItemDefinition, Item as ItemInstance, ItemPerks, ItemStats } from "@/lib/types";
 import { ARMOR_SLOTS, WEAPON_SLOTS } from "@/lib/constants";
+import { findDupes, isEmptySearch, matchesSearch, parseSearch } from "@/lib/search";
 
 interface VaultProps {
   isOpen: boolean;
@@ -161,66 +162,13 @@ const Vault: React.FC<VaultProps> = ({
     }
 
     // Apply search filter if search query exists
-    if (searchQuery.trim() === "") {
-      return itemsToFilter;
-    }
+    const search = parseSearch(searchQuery);
+    if (isEmptySearch(search)) return itemsToFilter;
 
-    const query = searchQuery.toLowerCase().trim();
-    const searchTerms = query.split(' ').filter(term => term.length > 0);
-
-    const filters = {
-      perk: searchTerms.find(term => term.startsWith('perk:'))?.substring(5),
-      tier: searchTerms.find(term => term.startsWith('tier:'))?.substring(5),
-      is: searchTerms.find(term => term.startsWith('is:'))?.substring(3),
-      name: searchTerms.filter(term => !term.includes(':')).join(' ')
-    };
-
-    return itemsToFilter.filter(item => {
-      if (filters.name && !item.item.displayProperties.name.toLowerCase().includes(filters.name)) {
-        return false;
-      }
-
-      if (filters.perk) {
-        const perkQuery = filters.perk;
-        const instanceId = item.itemInstance.itemInstanceId;
-        const itemPerkData = instanceId ? itemComponents.perks[instanceId] : null;
-
-        const hasMatchingPerk = itemPerkData?.perks.some((perk) =>
-          perk.visible &&
-          perk.isActive &&
-          perksDefinitions[perk.perkHash]?.displayProperties?.name?.toLowerCase().includes(perkQuery)
-        );
-
-        if (!hasMatchingPerk) {
-          // Fallback to checking item name for perk as a convenience
-          if (!item.item.displayProperties.name.toLowerCase().includes(perkQuery)) {
-            return false;
-          }
-        }
-      }
-
-      if (filters.tier) {
-        const tierQuery = parseInt(filters.tier, 10);
-        if (isNaN(tierQuery) || itemComponents.instances[item.itemInstance.itemInstanceId]?.gearTier !== tierQuery) {
-          return false;
-        }
-      }
-
-      if (filters.is) {
-        const q = filters.is;
-        if (q === "featured" && !item.item.isFeaturedItem) {
-          return false;
-        }
-        if (q === "unfeatured" && item.item.isFeaturedItem) {
-          return false;
-        }
-        if (q === "exotic" && item.item.inventory.tierType !== 6) {
-          return false;
-        }
-      }
-
-      return true;
-    });
+    const searchable = (item: ProcessedItem) => ({ item: item.itemInstance, definition: item.item });
+    const allItems = [...processedItems.weapons, ...processedItems.armor, ...processedItems.misc].map(searchable);
+    const context = { itemComponents, perksDefinitions, dupes: findDupes(allItems) };
+    return itemsToFilter.filter((item) => matchesSearch(search, searchable(item), context));
 
   }, [activeTab, processedItems, weaponTypeFilter, elementFilter, searchQuery, itemComponents, perksDefinitions, showDuplicates]);
 

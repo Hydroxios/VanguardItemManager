@@ -7,7 +7,8 @@ import { useMemo, useState } from "react";
 import useTransferItem from "@/lib/hooks/useTransferItem";
 import { getDamageTypeIcon } from "@/lib/helpers/damage-type";
 import Image from "next/image";
-import { Item as ProfileItem, ItemDefinition, ItemPerks, ItemStats, Perk } from "@/lib/types";
+import { Item as ProfileItem, ItemDefinition, ItemPerks, ItemStats } from "@/lib/types";
+import { findDupes, isEmptySearch, matchesSearch, parseSearch, SearchableItem } from "@/lib/search";
 
 interface SearchResult {
   item: ItemDefinition;
@@ -41,118 +42,27 @@ const SearchBar = ({ currentCharacterId, open, onClose }: { currentCharacterId?:
   const results = useMemo<SearchResult[]>(() => {
     if (!open || search.length === 0) return [];
 
-    const query = search.toLowerCase().trim();
-    const searchTerms = query.split(' ').filter(term => term.length > 0);
+    const parsed = parseSearch(search);
+    if (isEmptySearch(parsed)) return [];
 
-    const filters = {
-      perk: searchTerms.find(term => term.startsWith('perk:'))?.substring(5),
-      tier: searchTerms.find(term => term.startsWith('tier:'))?.substring(5),
-      is: searchTerms.find(term => term.startsWith('is:'))?.substring(3),
-      power: searchTerms.find(term => term.startsWith('>='))?.substring(2),
-      name: searchTerms.filter(term => !term.includes(':') && !term.startsWith('>=')).join(' ')
-    };
-
-    const allItems: { item: ProfileItem & { itemDef: ItemDefinition }, location: string, characterId: string }[] = [];
-
-    // Add equipped items
-    Object.keys(characterEquipment).forEach((char: string) => {
-      characterEquipment[char].items.forEach((item) => {
-        if (item.itemInstanceId) {
-          const i = itemDefinitions[item.itemHash];
-          allItems.push({
-            item: { ...item, itemDef: i }, // Attach item definition for easier access
-            location: classDefinitions[characters[char].classHash].displayProperties.name,
-            characterId: char,
-          });
-        }
-      });
+    const allItems: (SearchableItem & { location: string, characterId: string })[] = [];
+    const add = (items: ProfileItem[], location: string, characterId: string) => items.forEach((item) => {
+      const definition = itemDefinitions[item.itemHash];
+      if (item.itemInstanceId && definition?.displayProperties?.name && !typeBlacklist.includes(definition.itemType)) {
+        allItems.push({ item, definition, location, characterId });
+      }
     });
-
-    // Add inventory items
+    Object.keys(characterEquipment).forEach((char) => {
+      add(characterEquipment[char].items, classDefinitions[characters[char].classHash].displayProperties.name, char);
+    });
     Object.keys(characterInventories).forEach((char) => {
-      characterInventories[char].items.forEach((item) => {
-        if (item.itemInstanceId) {
-          const i = itemDefinitions[item.itemHash];
-          allItems.push({
-            item: { ...item, itemDef: i },
-            location: classDefinitions[characters[char].classHash].displayProperties.name,
-            characterId: char,
-          });
-        }
-      });
+      add(characterInventories[char].items, classDefinitions[characters[char].classHash].displayProperties.name, char);
     });
+    add(profileInventory, "Vault", "");
 
-    // Add vault items
-    profileInventory.forEach((item) => {
-      if (item.itemInstanceId) {
-        const i = itemDefinitions[item.itemHash];
-        allItems.push({
-          item: { ...item, itemDef: i },
-          location: "Vault",
-          characterId: "",
-        });
-      }
-    });
-
-    return allItems.filter(({ item }) => {
-      const i: ItemDefinition = item.itemDef;
-      const state = item.state;
-      if (!i || !i.displayProperties || !i.displayProperties.name) return false;
-      if (typeBlacklist.includes(i.itemType)) return false;
-
-      // Name filter
-      if (filters.name && !i.displayProperties.name.toLowerCase().includes(filters.name)) {
-        return false;
-      }
-
-      // Perk filter
-      if (filters.perk) {
-        const perkQuery = filters.perk;
-        const itemPerkData = item.itemInstanceId ? itemComponents.perks[item.itemInstanceId] : null;
-
-        const hasMatchingPerk = itemPerkData?.perks.some((perk: Perk) =>
-          perk.visible &&
-          perk.isActive &&
-          perksDefinitions[perk.perkHash]?.displayProperties?.name?.toLowerCase().includes(perkQuery)
-        );
-
-        if (!hasMatchingPerk) {
-          // Fallback to checking item name for perk as a convenience
-          if (!i.displayProperties.name.toLowerCase().includes(perkQuery)) {
-            return false;
-          }
-        }
-      }
-
-      // Tier filter
-      if (filters.tier) {
-        const tierQuery = parseInt(filters.tier, 10);
-        if (isNaN(tierQuery) || itemComponents.instances[item.itemInstanceId]?.gearTier !== tierQuery) {
-          return false;
-        }
-      }
-
-      // 'is:' filter
-      if (filters.is) {
-        const q = filters.is;
-        if (q === "featured" && !i.isFeaturedItem) return false;
-        if (q === "unfeatured" && i.isFeaturedItem) return false;
-        if (q === "exotic" && i.inventory?.tierType !== 6) return false;
-        if (q === "crafted" && !(state & 8)) return false;
-      }
-
-      // Power filter
-      if (filters.power) {
-        const powerQuery = parseInt(filters.power, 10);
-        const itemPower = itemComponents.instances[item.itemInstanceId]?.primaryStat?.value;
-        if (isNaN(powerQuery) || !itemPower || itemPower < powerQuery) {
-          return false;
-        }
-      }
-
-      return true;
-    }).map(({ item, location, characterId }) => ({
-      item: item.itemDef,
+    const context = { itemComponents, perksDefinitions, dupes: findDupes(allItems) };
+    return allItems.filter((searchable) => matchesSearch(parsed, searchable, context)).map(({ item, definition, location, characterId }) => ({
+      item: definition,
       location: location,
       itemInstanceId: item.itemInstanceId,
       characterId: characterId,
@@ -246,7 +156,19 @@ const SearchBar = ({ currentCharacterId, open, onClose }: { currentCharacterId?:
                 </li>
                 <li>
                   <code className="text-green-400 bg-green-400/10 px-1 rounded">is:type</code>
-                  <span className="block text-xs mt-0.5">featured, unfeatured, exotic</span>
+                  <span className="block text-xs mt-0.5">weapon, armor, exotic, locked, dupe, crafted...</span>
+                </li>
+                <li>
+                  <code className="text-pink-400 bg-pink-400/10 px-1 rounded">slot:name</code>
+                  <span className="block text-xs mt-0.5">kinetic, energy, power, helmet, arms...</span>
+                </li>
+                <li>
+                  <code className="text-yellow-400 bg-yellow-400/10 px-1 rounded">element:name</code>
+                  <span className="block text-xs mt-0.5">solar, arc, void, stasis, strand, kinetic</span>
+                </li>
+                <li>
+                  <code className="text-cyan-400 bg-cyan-400/10 px-1 rounded">stat:name&gt;=number</code>
+                  <span className="block text-xs mt-0.5">Armor stat, or total</span>
                 </li>
               </ul>
               <a

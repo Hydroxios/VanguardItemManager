@@ -24,15 +24,36 @@ const filters = [
     syntax: ">=number",
     title: "Power level",
     description:
-      "Return items with a power value greater than or equal to the number. The maximum power value is 550.",
+      "Compare the item's power with >=, <=, > or <. Also written power:>=550. The maximum power value is 550.",
     example: ">=550",
   },
   {
     syntax: "is:type",
-    title: "Item state",
+    title: "Item kind and state",
     description:
-      "Filter by supported item flags: featured, unfeatured, exotic, or crafted.",
-    example: "is:crafted",
+      "weapon, armor, exotic, locked, unlocked, dupe (owned more than once), crafted, masterwork, featured or unfeatured. An element or slot name works too.",
+    example: "is:dupe",
+  },
+  {
+    syntax: "slot:name",
+    title: "Slot",
+    description:
+      "kinetic, energy, power, helmet, arms, chest, legs or class.",
+    example: "slot:helmet",
+  },
+  {
+    syntax: "element:name",
+    title: "Element",
+    description:
+      "kinetic, arc, solar, void, stasis or strand.",
+    example: "element:solar",
+  },
+  {
+    syntax: "stat:name>=number",
+    title: "Armor stat",
+    description:
+      "Compare an armor stat with >=, <=, >, < or =: weapons, health, class, grenade, super, melee (or their old names: mobility, resilience, recovery, discipline, intellect, strength), or total for the sum.",
+    example: "stat:health>=20",
   },
 ];
 
@@ -50,8 +71,16 @@ const examples = [
     meaning: "Exotic items at 550 power.",
   },
   {
-    query: "tier:5 solar",
-    meaning: "Tier 5 items whose name includes solar.",
+    query: "is:weapon is:dupe is:unlocked",
+    meaning: "Unlocked weapons you own more than once.",
+  },
+  {
+    query: "slot:helmet stat:total>=65",
+    meaning: "Helmets with at least 65 stat points.",
+  },
+  {
+    query: "tier:5 element:solar",
+    meaning: "Tier 5 solar items.",
   },
 ];
 
@@ -73,8 +102,8 @@ export default function SearchDocsPage() {
             Search documentation
           </h1>
           <p className="mt-4 max-w-2xl text-base leading-7 text-gray-300">
-            Use the search modal to find items by name, perks, tier, power, and
-            item state. Filters can be combined in the same query.
+            Use the search modal or the vault search to find items by name, perks,
+            tier, power, slot, element, stats and item state. Filters can be combined in the same query.
           </p>
         </header>
 
