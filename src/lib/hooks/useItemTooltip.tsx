@@ -44,7 +44,7 @@ export const ItemTooltipProvider = ({ children }: { children: ReactNode }) => {
   const [keepOpen, setKeepOpen] = useState(false);
 
   const keepOpenRef = useRef(keepOpen);
-  keepOpenRef.current = keepOpen;
+  useEffect(() => { keepOpenRef.current = keepOpen; }, [keepOpen]);
 
   // Stable callbacks and a memoized value, so consumers (and memoized items) only
   // re-render when the tooltip state they read actually changes

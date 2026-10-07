@@ -174,8 +174,8 @@ export const ProfileProvider = ({ children }: ProfileProviderProps) => {
     // fetchProfile is captured by the memoized context value, so read auth state through refs
     const tokenRef = useRef(token);
     const lastUpdateRef = useRef(lastUpdate);
-    tokenRef.current = token;
-    lastUpdateRef.current = lastUpdate;
+    useEffect(() => { tokenRef.current = token; }, [token]);
+    useEffect(() => { lastUpdateRef.current = lastUpdate; }, [lastUpdate]);
 
     const fetchProfile = async () => {
         if (refreshing) return;

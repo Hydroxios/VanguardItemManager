@@ -34,7 +34,7 @@
     "@types/react-syntax-highlighter": "^15.5.13",
     "baseline-browser-mapping": "^2.8.32",
     "eslint": "^9",
-    "eslint-config-next": "15.1.7",
+    "eslint-config-next": "16.0.10",
     "postcss": "^8",
     "tailwindcss": "^4.1.17",
     "typescript": "^5"
