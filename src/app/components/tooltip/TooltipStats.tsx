@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import WeaponStat from "../WeaponStat";
 import { ItemDefinition } from "@/lib/hooks/useDefinitions";
 import { getDamageTypeIcon } from "@/lib/helpers/damage-type";
@@ -19,89 +18,25 @@ const TooltipStats = ({
     statsDefinitions,
     armor,
 }: TooltipStatsProps) => {
-    // Common weapon stats
-    const [impact, setImpact] = useState<any>();
-    const [range, setRange] = useState<any>();
-    const [stability, setStability] = useState<any>();
-    const [handling, setHandling] = useState<any>();
-    const [reloadSpeed, setReloadSpeed] = useState<any>();
-    // Additional weapon stats
-    // eslint-disable-next-line
-    const [aimAssistance, setAimAssistance] = useState<any>();
-    // eslint-disable-next-line
-    const [zoom, setZoom] = useState<any>();
-    // eslint-disable-next-line
-    const [recoilDirection, setRecoilDirection] = useState<any>();
-    const [rpm, setRpm] = useState<any>();
-    const [magazine, setMagazine] = useState<any>();
-    const [blastRadius, setBlastRadius] = useState<any>();
-    const [velocity, setVelocity] = useState<any>();
-    const [chargeTime, setChargeTime] = useState<any>();
-    const [drawTime, setDrawTime] = useState<any>();
-    // eslint-disable-next-line
-    const [inventorySize, setInventorySize] = useState<any>();
-    // eslint-disable-next-line
-    const [airborneEffectiveness, setAirborneEffectiveness] = useState<any>();
-
-    //Armor stats
-    const [mobility, setMobility] = useState<any>();
-    const [resilience, setResilience] = useState<any>();
-    const [recovery, setRecovery] = useState<any>();
-    const [discipline, setDiscipline] = useState<any>();
-    const [intellect, setIntellect] = useState<any>();
-    const [strength, setStrength] = useState<any>();
-
-    useEffect(() => {
-        if (!itemInstanceId) return;
-        if (!armor) {
-            // Common weapon stats
-            if (!itemComponents.stats[itemInstanceId]) return;
-            setImpact(() => itemComponents.stats[itemInstanceId].stats[4043523819]);
-            setRange(() => itemComponents.stats[itemInstanceId].stats[1240592695]);
-            setStability(() => itemComponents.stats[itemInstanceId].stats[155624089]);
-            setHandling(() => itemComponents.stats[itemInstanceId].stats[943549884]);
-            setReloadSpeed(
-                () => itemComponents.stats[itemInstanceId].stats[4188031367]
-            );
-
-            // Additional weapon stats - using known Destiny 2 stat hash IDs
-            setAimAssistance(
-                () => itemComponents.stats[itemInstanceId].stats[1345609583]
-            );
-            setZoom(() => itemComponents.stats[itemInstanceId].stats[3555269338]);
-            setRecoilDirection(
-                () => itemComponents.stats[itemInstanceId].stats[2715839340]
-            );
-            setRpm(() => itemComponents.stats[itemInstanceId].stats[4284893193]);
-            setMagazine(() => itemComponents.stats[itemInstanceId].stats[3871231066]);
-            setBlastRadius(
-                () => itemComponents.stats[itemInstanceId].stats[3614673599]
-            );
-            setVelocity(() => itemComponents.stats[itemInstanceId].stats[2523465841]);
-            setChargeTime(
-                () => itemComponents.stats[itemInstanceId].stats[2961396640]
-            );
-            setDrawTime(() => itemComponents.stats[itemInstanceId].stats[447667954]);
-            setInventorySize(
-                () => itemComponents.stats[itemInstanceId].stats[1931675084]
-            );
-            setAirborneEffectiveness(
-                () => itemComponents.stats[itemInstanceId].stats[2714457168]
-            );
-        }
-        if (armor) {
-            setMobility(() => itemComponents.stats[itemInstanceId].stats[2996146975]);
-            setResilience(
-                () => itemComponents.stats[itemInstanceId].stats[392767087]
-            );
-            setRecovery(() => itemComponents.stats[itemInstanceId].stats[1943323491]);
-            setDiscipline(
-                () => itemComponents.stats[itemInstanceId].stats[1735777505]
-            );
-            setIntellect(() => itemComponents.stats[itemInstanceId].stats[144602215]);
-            setStrength(() => itemComponents.stats[itemInstanceId].stats[4244567218]);
-        }
-    }, [armor, item, itemInstanceId, itemComponents]);
+    // Read stats straight from the profile so switching items never shows the previous item's values
+    const stats = itemInstanceId ? itemComponents.stats[itemInstanceId]?.stats : undefined;
+    const impact = stats?.[4043523819];
+    const range = stats?.[1240592695];
+    const stability = stats?.[155624089];
+    const handling = stats?.[943549884];
+    const reloadSpeed = stats?.[4188031367];
+    const rpm = stats?.[4284893193];
+    const magazine = stats?.[3871231066];
+    const blastRadius = stats?.[3614673599];
+    const velocity = stats?.[2523465841];
+    const chargeTime = stats?.[2961396640];
+    const drawTime = stats?.[447667954];
+    const mobility = stats?.[2996146975];
+    const resilience = stats?.[392767087];
+    const recovery = stats?.[1943323491];
+    const discipline = stats?.[1735777505];
+    const intellect = stats?.[144602215];
+    const strength = stats?.[4244567218];
 
     const statName = (stat: any, fallback: string) => {
         return statsDefinitions[stat?.statHash]?.displayProperties?.name ?? fallback;

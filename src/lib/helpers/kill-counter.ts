@@ -1,19 +1,8 @@
-import { ObjectiveDefinitions } from "@/lib/hooks/useDefinitions";
+import { ItemDefinitions, ObjectiveDefinitions } from "@/lib/hooks/useDefinitions";
 import { ItemComponents, ItemObjective } from "@/lib/hooks/useProfile";
 
-const KILL_COUNTER_KEYWORDS = [
-    "kill",
-    "defeat",
-    "final blow",
-    "combatant",
-    "opponent",
-    "victime",
-    "elimination",
-    "élimination",
-    "vaincu",
-    "adversaire",
-    "combattant",
-];
+// Kill tracker plugs (crucible, vanguard, ...) all live in this plug category, whatever the locale
+const KILL_TRACKER_PLUG_CATEGORY = "trackers";
 
 export interface KillCounter {
     objective: ItemObjective & { progress: number };
@@ -23,33 +12,24 @@ export interface KillCounter {
 export const getWeaponKillCounter = (
     itemInstanceId: string | undefined,
     itemComponents: ItemComponents,
+    itemDefinitions: ItemDefinitions,
     objectiveDefinitions: ObjectiveDefinitions
 ): KillCounter | undefined => {
     if (!itemInstanceId) return undefined;
 
-    const itemObjectives = itemComponents.objectives?.[itemInstanceId]?.objectives ?? [];
-    const socketPlugHashes = itemComponents.sockets?.[itemInstanceId]?.sockets
-        ?.map((socket) => socket.plugHash)
-        .filter((plugHash): plugHash is number => Boolean(plugHash)) ?? [];
     const objectivesPerPlug = itemComponents.plugObjectives?.[itemInstanceId]?.objectivesPerPlug ?? {};
-    const plugObjectives = socketPlugHashes.flatMap((plugHash) => objectivesPerPlug[plugHash] ?? []);
-    const objectives = [...plugObjectives, ...itemObjectives];
+    const trackerPlugHash = itemComponents.sockets?.[itemInstanceId]?.sockets
+        ?.map((socket) => socket.plugHash)
+        .find((plugHash) => plugHash && itemDefinitions[plugHash]?.plug?.plugCategoryIdentifier?.includes(KILL_TRACKER_PLUG_CATEGORY));
+    if (!trackerPlugHash) return undefined;
 
-    const objective = objectives.find((objective) => {
-        if (objective.visible === false || typeof objective.progress !== "number") return false;
-
-        const definition = objectiveDefinitions[objective.objectiveHash];
-        const label = `${definition?.progressDescription ?? ""} ${definition?.displayProperties?.name ?? ""}`.toLowerCase();
-        if (!label.trim()) return plugObjectives.includes(objective);
-
-        return KILL_COUNTER_KEYWORDS.some((keyword) => label.includes(keyword));
-    });
-
+    const objective = (objectivesPerPlug[trackerPlugHash] ?? [])
+        .find((objective): objective is ItemObjective & { progress: number } => objective.visible !== false && typeof objective.progress === "number");
     if (!objective) return undefined;
 
     const definition = objectiveDefinitions[objective.objectiveHash];
     return {
-        objective: objective as ItemObjective & { progress: number },
-        label: definition?.progressDescription || definition?.displayProperties?.name || "Kills",
+        objective,
+        label: definition?.progressDescription || definition?.displayProperties?.name || itemDefinitions[trackerPlugHash]?.displayProperties?.name || "Kills",
     };
 };

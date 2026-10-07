@@ -99,7 +99,7 @@ const TooltipPerks = ({
     const renderWeaponPerks = () => {
         if (!item) return null;
         if (!itemInstanceId) return;
-        const filteredPerks = itemComponents.perks[itemInstanceId].perks.filter(
+        const filteredPerks = (itemComponents.perks[itemInstanceId]?.perks ?? []).filter(
             (p: any) => p.isActive && p.visible
         );
         const frame = filteredPerks[0];
@@ -107,7 +107,8 @@ const TooltipPerks = ({
         if (!frame || !frameDef) return null;
         const perks = [filteredPerks[1], filteredPerks[2]].filter((p) => p);
         const mod = filteredPerks.length > 4 ? filteredPerks[3] : undefined;
-        const originTrait = filteredPerks[filteredPerks.length - 1];
+        // The origin trait comes after the frame and the two main perks; never reuse one of those
+        const originTrait = filteredPerks.length > 3 ? filteredPerks[filteredPerks.length - 1] : undefined;
         return (
             <div className="flex flex-col w-full">
                 <div

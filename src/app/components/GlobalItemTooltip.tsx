@@ -106,7 +106,9 @@ const GlobalItemTooltip = () => {
       style={{
         top: adjustedPosition.y,
         left: adjustedPosition.x,
-        width: "min(400px, calc(100vw - 20px))",
+        // Subclasses size to their content; other items keep a fixed width
+        width: item.itemType === 16 ? undefined : "min(400px, calc(100vw - 20px))",
+        maxWidth: "min(720px, calc(100vw - 20px))",
         minWidth: "min(350px, calc(100vw - 20px))",
       }}
       onMouseLeave={() => {

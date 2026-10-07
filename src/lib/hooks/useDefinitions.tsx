@@ -31,6 +31,9 @@ export interface ItemDefinition {
         perkHash: number
         perkVisibility: number
     }[]
+    plug?: {
+        plugCategoryIdentifier: string
+    }
 }
 
 export interface ClassDefinition {

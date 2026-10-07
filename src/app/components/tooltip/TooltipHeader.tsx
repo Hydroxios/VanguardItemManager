@@ -1,6 +1,9 @@
-import { ItemDefinition, ObjectiveDefinitions } from "@/lib/hooks/useDefinitions";
+import { ItemDefinition, ObjectiveDefinitions, useDefinitions } from "@/lib/hooks/useDefinitions";
 import { getWeaponKillCounter } from "@/lib/helpers/kill-counter";
 import Image from "next/image";
+import { useMemo } from "react";
+
+const numberFormat = new Intl.NumberFormat();
 
 interface TooltipHeaderProps {
     item: ItemDefinition;
@@ -19,12 +22,13 @@ const TooltipHeader = ({
     objectiveDefinitions,
     state,
 }: TooltipHeaderProps) => {
-    const killCounter = item.itemType === 3
-        ? getWeaponKillCounter(itemInstanceId, itemComponents, objectiveDefinitions)
-        : undefined;
+    const { itemDefinitions } = useDefinitions();
+    const killCounter = useMemo(() => item.itemType === 3
+        ? getWeaponKillCounter(itemInstanceId, itemComponents, itemDefinitions, objectiveDefinitions)
+        : undefined,
+        [item.itemType, itemInstanceId, itemComponents, itemDefinitions, objectiveDefinitions]);
 
     const getBackgroundColor = () => {
-        if (!item) return "";
         switch (item.inventory.tierType) {
             case 6:
                 return "#ccad30";
@@ -39,7 +43,7 @@ const TooltipHeader = ({
         <>
             {state & 4 ? <div className="masterwork-shine-bar"></div> : null}
             <div
-                className="relative p-2"
+                className="p-2"
                 style={{
                     background:
                         state & 4 && item.inventory.tierType !== 6
@@ -59,7 +63,7 @@ const TooltipHeader = ({
                     </div>
                     {killCounter && (
                         <div
-                            className="absolute bottom-1 right-7 flex items-center gap-1.5 text-white"
+                            className="self-end shrink-0 flex items-center gap-1.5 text-white"
                             title={killCounter.label}
                         >
                             <svg
@@ -76,7 +80,7 @@ const TooltipHeader = ({
                                 <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none" />
                             </svg>
                             <span className="text-lg font-bold leading-none">
-                                {new Intl.NumberFormat().format(killCounter.objective.progress)}
+                                {numberFormat.format(killCounter.objective.progress)}
                             </span>
                         </div>
                     )}
