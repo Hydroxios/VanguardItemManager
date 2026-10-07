@@ -28,6 +28,7 @@ export interface Profile {
     equipItemLocally: (characterId: string, itemInstanceId: string) => void;
     transferEquippedItem: (itemHash: number, itemInstanceId: string, fromId: string, toId: string, replacementItemInstanceId: string) => void;
     equipLoadoutLocally: (characterId: string, loadoutItems: Item[]) => void;
+    updateLoadoutLocally: (characterId: string, loadoutIndex: number, loadout: Loadout) => void;
 }
 
 const ProfileContext = createContext<Profile | undefined>(undefined)
@@ -422,6 +423,14 @@ export const ProfileProvider = ({ children }: ProfileProviderProps) => {
         }
     };
 
+    const updateLoadoutLocally = (characterId: string, loadoutIndex: number, loadout: Loadout) => {
+        setCharacterLoadouts(prev => {
+            const loadouts = [...(prev[characterId]?.loadouts ?? [])];
+            loadouts[loadoutIndex] = loadout;
+            return { ...prev, [characterId]: { loadouts } };
+        });
+    };
+
     const contextValue = useMemo(() => ({
         loadingProfile: loading,
         profileError: loadError,
@@ -452,7 +461,8 @@ export const ProfileProvider = ({ children }: ProfileProviderProps) => {
         changeEmblem,
         equipItemLocally,
         transferEquippedItem,
-        equipLoadoutLocally
+        equipLoadoutLocally,
+        updateLoadoutLocally
     }), [loading, loadError, user, refreshing, characterEquipment, characterInventories, characterLoadouts, characters, itemComponents, profileData, profileCurrencies, profileInventory, lastRefresh]);
 
     return (

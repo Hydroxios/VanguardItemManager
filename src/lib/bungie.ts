@@ -93,6 +93,7 @@ export type DestinyDefinitionTableName =
     | "DestinyRecordDefinition"
     | "DestinyLoadoutColorDefinition"
     | "DestinyLoadoutIconDefinition"
+    | "DestinyLoadoutNameDefinition"
     | "DestinyRaceDefinition"
     | "DestinyInventoryBucketDefinition"
     | "DestinyInventoryItemConstantsDefinition"
@@ -277,6 +278,26 @@ export const safeTransferItem = async (token: string, membershipType: number, it
     return null;
 }
 
+export interface EquipItemResult {
+    itemInstanceId: string
+    /** A PlatformErrorCodes value, 1 meaning success */
+    equipStatus: number
+}
+
+/** Equips several items at once; Bungie reports a status per item instead of failing the whole call. */
+export const equipItems = async (token: string, membershipType: number, characterId: string, itemIds: string[]) => {
+    const data = await bungie(`/Destiny2/Actions/Items/EquipItems/`, {
+        method: "POST",
+        body: JSON.stringify({
+            membershipType: membershipType,
+            characterId: characterId,
+            itemIds: itemIds
+        }),
+        token
+    });
+    return (data?.equipResults ?? []) as EquipItemResult[];
+}
+
 export const equipItem = async (token: string, membershipType: number, characterId: string, itemId: string) => {
     await bungie(`/Destiny2/Actions/Items/EquipItem/`, {
         method: "POST",
@@ -315,6 +336,52 @@ export const clearLoadout = async (
             membershipType: membershipType,
             characterId: characterId,
             loadoutIndex: loadoutIndex
+        }),
+        token
+    })
+}
+
+export interface LoadoutIdentifiers {
+    colorHash: number
+    iconHash: number
+    nameHash: number
+}
+
+/** Saves the character's currently equipped gear, subclass setup and mods into the loadout slot. */
+export const snapshotLoadout = async (
+    token: string,
+    membershipType: number,
+    characterId: string,
+    loadoutIndex: number,
+    identifiers: LoadoutIdentifiers
+) => {
+    await bungie(`/Destiny2/Actions/Loadouts/SnapshotLoadout/`, {
+        method: "POST",
+        body: JSON.stringify({
+            membershipType: membershipType,
+            characterId: characterId,
+            loadoutIndex: loadoutIndex,
+            ...identifiers
+        }),
+        token
+    })
+}
+
+/** Changes the loadout's name, color and icon without touching its items. */
+export const updateLoadoutIdentifiers = async (
+    token: string,
+    membershipType: number,
+    characterId: string,
+    loadoutIndex: number,
+    identifiers: LoadoutIdentifiers
+) => {
+    await bungie(`/Destiny2/Actions/Loadouts/UpdateLoadoutIdentifiers/`, {
+        method: "POST",
+        body: JSON.stringify({
+            membershipType: membershipType,
+            characterId: characterId,
+            loadoutIndex: loadoutIndex,
+            ...identifiers
         }),
         token
     })

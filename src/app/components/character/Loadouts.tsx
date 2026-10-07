@@ -12,6 +12,7 @@ import { useDefinitions } from "@/lib/hooks/useDefinitions";
 import useAuth from "@/lib/hooks/useAuth";
 import { useProfile } from "@/lib/hooks/useProfile";
 import LoadoutViewerModal from "./LoadoutViewerModal";
+import LoadoutEditorModal from "./LoadoutEditorModal";
 import Image from "next/image";
 import { Item, Loadout } from "@/lib/types";
 import { BUCKETS } from "@/lib/constants";
@@ -32,9 +33,10 @@ const Loadouts = ({
   const [equipingLoadout, setEquipingLoadout] = useState<Loadout | null>(null)
   const [equipedItemIds, setEquipedItemIds] = useState<string[]>([]);
   const [viewingLoadoutIndex, setViewingLoadoutIndex] = useState<number | null>(null);
+  const [editingLoadoutIndex, setEditingLoadoutIndex] = useState<number | null>(null);
 
   const { addNotification } = useNotifications()
-  const { itemDefinitions, loadoutColorDefinitions, loadoutIconDefinitions } = useDefinitions()
+  const { itemDefinitions, loadoutColorDefinitions, loadoutIconDefinitions, loadoutNameDefinitions } = useDefinitions()
 
   const { token } = useAuth()
   const {
@@ -63,10 +65,10 @@ const Loadouts = ({
       const l = characterLoadouts[characterId].loadouts[index];
       const color = loadoutColorDefinitions[l.colorHash];
       const icon = loadoutIconDefinitions[l.iconHash];
-      ls.push({ color: color?.colorImagePath, icon: icon?.iconImagePath });
+      ls.push({ color: color?.colorImagePath, icon: icon?.iconImagePath, name: loadoutNameDefinitions[l.nameHash]?.name });
     }
     setElements(() => ls);
-  }, [characterLoadouts, characterId, loadoutColorDefinitions, loadoutIconDefinitions]);
+  }, [characterLoadouts, characterId, loadoutColorDefinitions, loadoutIconDefinitions, loadoutNameDefinitions]);
 
   const handleEquip = async (index: number) => {
     setOnCooldown(() => true);
@@ -283,10 +285,16 @@ const Loadouts = ({
                   style={{
                     border: "2px solid white",
                     boxShadow: "0 4px 8px rgba(0, 0, 0, 0.04)",
-                    cursor: element.icon && !onCooldown ? "pointer" : "",
+                    cursor: !onCooldown ? "pointer" : "",
                     position: "relative"
                   }}
-                  onClick={() => (element.icon && !onCooldown ? handleEquip(index) : "")}
+                  title={element.icon ? element.name : "Create a loadout"}
+                  onClick={() => {
+                    if (onCooldown) return;
+                    // An empty slot opens the editor to create a loadout there
+                    if (element.icon) handleEquip(index);
+                    else setEditingLoadoutIndex(index);
+                  }}
                   onContextMenu={(e) => (element.icon ? toggleContextMenu(index, e) : "")}
                 >
                   {onCooldown ? (
@@ -343,6 +351,19 @@ const Loadouts = ({
                                 </button>
                                 <div className="border-t border-gray-700 my-1"></div>
                                 <button
+                                  className="flex items-center w-full text-left px-3 py-2 text-sm text-[#b39ddb] hover:bg-[#3a3a50] transition-colors"
+                                  onClick={() => {
+                                    setEditingLoadoutIndex(index);
+                                    setIsContextMenuOpen(null);
+                                  }}
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M9 13l6.232-6.232a2.5 2.5 0 113.536 3.536L12.536 16.536 8 17.5l.964-4.5z" />
+                                  </svg>
+                                  Edit
+                                </button>
+                                <div className="border-t border-gray-700 my-1"></div>
+                                <button
                                   className="flex items-center w-full text-left px-3 py-2 text-sm text-blue-400 hover:bg-[#3a3a50] transition-colors"
                                   onClick={() => {
                                     setViewingLoadoutIndex(index);
@@ -371,7 +392,7 @@ const Loadouts = ({
                         </>
                       ) : (
                         <div
-                          className="relative cursor-not-allowed bg-zinc-700/40 hover:bg-zinc-700/70"
+                          className="relative bg-zinc-700/40 hover:bg-zinc-700/70"
                         >
                           <Image
                             alt="new loadout"
@@ -451,6 +472,15 @@ const Loadouts = ({
             </div>
           </div>
         </div>
+      )}
+
+      {editingLoadoutIndex !== null && (
+        <LoadoutEditorModal
+          key={`${characterId}-${editingLoadoutIndex}`}
+          characterId={characterId}
+          loadoutIndex={editingLoadoutIndex}
+          onClose={() => setEditingLoadoutIndex(null)}
+        />
       )}
 
       <LoadoutViewerModal

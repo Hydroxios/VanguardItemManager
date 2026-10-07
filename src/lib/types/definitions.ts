@@ -26,6 +26,8 @@ export interface ItemDefinition {
     itemType: number
     itemSubType: number
     defaultDamageType: number
+    /** 0 Titan, 1 Hunter, 2 Warlock, 3 any class */
+    classType?: number
     hash: number
     perks: {
         perkHash: number
@@ -76,11 +78,19 @@ export interface RecordDefinition {
 export interface LoadoutColorDefinition {
     colorImagePath: string
     hash: number
+    index: number
 }
 
 export interface LoadoutIconDefinition {
     iconImagePath: string
     hash: number
+    index: number
+}
+
+export interface LoadoutNameDefinition {
+    name: string
+    hash: number
+    index: number
 }
 
 export interface RaceDefinition {
@@ -115,6 +125,7 @@ export type ObjectiveDefinitions = Record<string, ObjectiveDefinition>
 export type RecordsDefinitions = Record<string, RecordDefinition>
 export type LoadoutColorDefinitions = Record<string, LoadoutColorDefinition>
 export type LoadoutIconDefinitions = Record<string, LoadoutIconDefinition>
+export type LoadoutNameDefinitions = Record<string, LoadoutNameDefinition>
 export type RaceDefinitions = Record<string, RaceDefinition>
 export type BucketDefinitions = Record<string, BucketDefinition>
 export type ItemConstantsDefinitions = Record<string, ItemConstantsDefinition>

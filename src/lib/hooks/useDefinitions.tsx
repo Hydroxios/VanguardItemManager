@@ -1,6 +1,6 @@
 import { createContext, ReactNode, useContext, useEffect, useState, useMemo } from "react";
 import { DestinyDefinitionTableName, getDefinitions, getDefinitionTable } from "../bungie";
-import { BucketDefinitions, ClassDefinitions, ItemConstantsDefinitions, ItemDefinitions, LoadoutColorDefinitions, LoadoutIconDefinitions, ObjectiveDefinitions, PerksDefinitions, RaceDefinitions, RecordsDefinitions, SeasonDefinitions, StatsDefinitions } from "@/lib/types";
+import { BucketDefinitions, ClassDefinitions, ItemConstantsDefinitions, ItemDefinitions, LoadoutColorDefinitions, LoadoutIconDefinitions, LoadoutNameDefinitions, ObjectiveDefinitions, PerksDefinitions, RaceDefinitions, RecordsDefinitions, SeasonDefinitions, StatsDefinitions } from "@/lib/types";
 
 interface DefinitionsAggregate {
     DestinyInventoryItemDefinition?: ItemDefinitions
@@ -11,6 +11,7 @@ interface DefinitionsAggregate {
     DestinyRecordDefinition?: RecordsDefinitions
     DestinyLoadoutColorDefinition?: LoadoutColorDefinitions
     DestinyLoadoutIconDefinition?: LoadoutIconDefinitions
+    DestinyLoadoutNameDefinition?: LoadoutNameDefinitions
     DestinyRaceDefinition?: RaceDefinitions
     DestinyInventoryBucketDefinition?: BucketDefinitions
     DestinyInventoryItemConstantsDefinition?: ItemConstantsDefinitions
@@ -31,6 +32,7 @@ interface Definitions {
     recordsDefinitions: RecordsDefinitions;
     loadoutColorDefinitions: LoadoutColorDefinitions
     loadoutIconDefinitions: LoadoutIconDefinitions
+    loadoutNameDefinitions: LoadoutNameDefinitions
     raceDefinitions: RaceDefinitions
     bucketDefinitions: BucketDefinitions
     itemConstantsDefinitions: ItemConstantsDefinitions
@@ -48,6 +50,7 @@ const initialDefinitionsLoaded: DefinitionLoadState = {
     DestinyRecordDefinition: false,
     DestinyLoadoutColorDefinition: false,
     DestinyLoadoutIconDefinition: false,
+    DestinyLoadoutNameDefinition: false,
     DestinyRaceDefinition: false,
     DestinyInventoryBucketDefinition: false,
     DestinyInventoryItemConstantsDefinition: false,
@@ -67,6 +70,7 @@ export const DefinitionsProvider = ({ children }: { children: ReactNode }) => {
     const [recordsDefinitions, setRecordsDefinitions] = useState<RecordsDefinitions>({})
     const [loadoutColorDefinitions, setLoadoutColorDefinitions] = useState<LoadoutColorDefinitions>({})
     const [loadoutIconDefinitions, setLoadoutIconDefinitions] = useState<LoadoutIconDefinitions>({})
+    const [loadoutNameDefinitions, setLoadoutNameDefinitions] = useState<LoadoutNameDefinitions>({})
     const [raceDefinitions, setRaceDefinitions] = useState<RaceDefinitions>({})
     const [bucketDefinitions, setBucketDefinitions] = useState<BucketDefinitions>({})
     const [itemConstantsDefinitions, setItemConstantsDefinitions] = useState<ItemConstantsDefinitions>({})
@@ -95,6 +99,7 @@ export const DefinitionsProvider = ({ children }: { children: ReactNode }) => {
             setRecordsDefinitions(db.DestinyRecordDefinition ?? {})
             setLoadoutColorDefinitions(db.DestinyLoadoutColorDefinition ?? {})
             setLoadoutIconDefinitions(db.DestinyLoadoutIconDefinition ?? {})
+            setLoadoutNameDefinitions(db.DestinyLoadoutNameDefinition ?? {})
             setRaceDefinitions(db.DestinyRaceDefinition ?? {})
             setBucketDefinitions(db.DestinyInventoryBucketDefinition ?? {})
             setItemConstantsDefinitions(db.DestinyInventoryItemConstantsDefinition ?? {})
@@ -121,6 +126,7 @@ export const DefinitionsProvider = ({ children }: { children: ReactNode }) => {
                     loadTable<RecordsDefinitions>("DestinyRecordDefinition", setRecordsDefinitions),
                     loadTable<LoadoutColorDefinitions>("DestinyLoadoutColorDefinition", setLoadoutColorDefinitions),
                     loadTable<LoadoutIconDefinitions>("DestinyLoadoutIconDefinition", setLoadoutIconDefinitions),
+                    loadTable<LoadoutNameDefinitions>("DestinyLoadoutNameDefinition", setLoadoutNameDefinitions),
                     loadTable<BucketDefinitions>("DestinyInventoryBucketDefinition", setBucketDefinitions),
                     loadTable<ItemConstantsDefinitions>("DestinyInventoryItemConstantsDefinition", setItemConstantsDefinitions),
                     loadTable<SeasonDefinitions>("DestinySeasonDefinition", setSeasonDefinitions),
@@ -157,11 +163,12 @@ export const DefinitionsProvider = ({ children }: { children: ReactNode }) => {
         recordsDefinitions,
         loadoutColorDefinitions,
         loadoutIconDefinitions,
+        loadoutNameDefinitions,
         raceDefinitions,
         bucketDefinitions,
         itemConstantsDefinitions,
         seasonDefinitions
-    }), [loading, loadError, definitionsLoaded, itemDefinitions, classDefinitions, statsDefinitions, perksDefinitions, objectiveDefinitions, recordsDefinitions, loadoutColorDefinitions, loadoutIconDefinitions, raceDefinitions, bucketDefinitions, itemConstantsDefinitions, seasonDefinitions]);
+    }), [loading, loadError, definitionsLoaded, itemDefinitions, classDefinitions, statsDefinitions, perksDefinitions, objectiveDefinitions, recordsDefinitions, loadoutColorDefinitions, loadoutIconDefinitions, loadoutNameDefinitions, raceDefinitions, bucketDefinitions, itemConstantsDefinitions, seasonDefinitions]);
 
     return (
         <DefinitionsContext.Provider

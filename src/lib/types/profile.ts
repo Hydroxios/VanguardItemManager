@@ -23,10 +23,16 @@ export interface ItemInstance {
     gearTier: number
 }
 
+export interface LoadoutItem {
+    itemInstanceId: string
+    plugItemHashes?: number[]
+}
+
 export interface Loadout {
     colorHash: number
     iconHash: number
-    items: { itemInstanceId: string }[]
+    nameHash: number
+    items: LoadoutItem[]
 }
 
 export interface Perk {
