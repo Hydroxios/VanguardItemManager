@@ -34,7 +34,7 @@ const CharacterButton = ({ character, label, disabled, onClick }: { character: C
 );
 
 const ActionLabel = ({ children }: { children: string }) => (
-    <span className="w-16 shrink-0 text-left text-[11px] font-semibold uppercase tracking-wide text-gray-400">{children}</span>
+    <span className="w-16 shrink-0 text-left text-[10px] font-semibold uppercase tracking-widest text-gray-500">{children}</span>
 );
 
 const TooltipActions = ({ item, itemInstanceId, kind, characterId, characters, classDefinitions }: TooltipActionsProps) => {
@@ -80,12 +80,12 @@ const TooltipActions = ({ item, itemInstanceId, kind, characterId, characters, c
     ];
 
     return (
-        <div className="flex w-full flex-col gap-2 border-t border-gray-500 p-2">
+        <div className="flex w-full flex-col gap-2 border-t border-white/10 bg-black/20 p-2">
             {postmasterItem ? (
                 <div className="flex flex-row items-center gap-2">
                     <ActionLabel>Postmaster</ActionLabel>
                     <button
-                        className="rounded border border-white/30 px-3 py-1 text-sm transition-colors hover:bg-white/10 disabled:cursor-wait disabled:opacity-40"
+                        className="border border-white/30 px-3 py-1 text-xs font-semibold uppercase tracking-wide transition-colors hover:bg-white/10 disabled:cursor-wait disabled:opacity-40"
                         disabled={busy}
                         onClick={() => run(() => pull(postmasterItem, location))}
                     >
@@ -155,7 +155,7 @@ const TooltipActions = ({ item, itemInstanceId, kind, characterId, characters, c
                             href={link.href}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="rounded-sm bg-white/10 px-2 py-0.5 text-xs text-gray-300 transition-colors hover:bg-white/20 hover:text-white"
+                            className="border border-white/15 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-gray-300 transition-colors hover:border-white/40 hover:bg-white/10 hover:text-white"
                         >
                             {link.label} ↗
                         </a>

@@ -7,14 +7,17 @@ import { ItemComponents, ItemConstantsDefinitions, ItemDefinition, ObjectiveDefi
 
 const numberFormat = new Intl.NumberFormat();
 
-const RARITY: Record<number, { background: string, dark?: boolean }> = {
-    [TIER_TYPES.EXOTIC]: { background: "#ccad30" },
-    [TIER_TYPES.LEGENDARY]: { background: "#522f65" },
-    [TIER_TYPES.RARE]: { background: "#5076a3" },
-    [TIER_TYPES.COMMON]: { background: "#366f42" },
-    [TIER_TYPES.BASIC]: { background: "#c3bcb4", dark: true },
+const RARITY: Record<number, { background: string, name: string, dark?: boolean }> = {
+    [TIER_TYPES.EXOTIC]: { background: "#ceae33", name: "Exotic" },
+    [TIER_TYPES.LEGENDARY]: { background: "#522f65", name: "Legendary" },
+    [TIER_TYPES.RARE]: { background: "#5076a3", name: "Rare" },
+    [TIER_TYPES.COMMON]: { background: "#366f42", name: "Uncommon" },
+    [TIER_TYPES.BASIC]: { background: "#c3bcb4", name: "Common", dark: true },
 };
-const DEFAULT_RARITY = { background: "#03cdff" };
+const DEFAULT_RARITY = { background: "#03cdff", name: "" };
+
+/** Light sweep and bottom shade over the rarity color, like the in-game item headers */
+const HEADER_SHEEN = "linear-gradient(100deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0.04) 38%, transparent 60%), linear-gradient(to bottom, transparent 55%, rgba(0,0,0,0.22))";
 
 interface TooltipHeaderProps {
     item: ItemDefinition;
@@ -78,23 +81,26 @@ const TooltipHeader = ({
                 className={`flex w-full flex-col gap-1.5 p-2 text-left ${rarity.dark ? "text-gray-900" : "text-white"}`}
                 style={{
                     background: masterworked && item.inventory?.tierType !== TIER_TYPES.EXOTIC
-                        ? `linear-gradient(to bottom, rgb(145, 110, 17) 0%, transparent 30%), ${rarity.background}`
-                        : rarity.background,
+                        ? `${HEADER_SHEEN}, linear-gradient(to bottom, rgb(145, 110, 17) 0%, transparent 30%), ${rarity.background}`
+                        : `${HEADER_SHEEN}, ${rarity.background}`,
                 }}
             >
                 <div className="flex w-full flex-row items-center gap-3">
                     {icon && (
-                        <div className="relative size-12 shrink-0 border border-white/40">
+                        <div className="relative size-12 shrink-0 border border-white/50 shadow-[0_2px_8px_rgba(0,0,0,0.4)]">
                             <Image src={`https://www.bungie.net${icon}`} fill sizes="48px" alt="" />
                             {watermark && <Image src={`https://www.bungie.net${watermark}`} fill sizes="48px" alt="" />}
                             {gearTierOverlay && <Image src={`https://www.bungie.net${gearTierOverlay}`} fill sizes="48px" alt={`Tier ${instance?.gearTier}`} />}
                         </div>
                     )}
                     <div className="min-w-0 flex-1">
-                        <div className="truncate text-lg font-bold uppercase leading-tight" title={item.displayProperties.name}>
+                        <div className="truncate text-xl font-bold uppercase leading-tight tracking-wide" title={item.displayProperties.name}>
                             {item.displayProperties.name}
                         </div>
-                        <div className="truncate text-sm opacity-80">{item.itemTypeDisplayName}</div>
+                        <div className="flex items-baseline gap-2 text-xs font-semibold uppercase tracking-widest opacity-75">
+                            <span className="truncate">{item.itemTypeDisplayName}</span>
+                            {rarity.name && <span className="ml-auto shrink-0">{rarity.name}</span>}
+                        </div>
                     </div>
                     <div className="flex shrink-0 flex-col items-end gap-1 self-stretch">
                         {onClose && (

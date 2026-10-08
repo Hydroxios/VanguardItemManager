@@ -11,7 +11,7 @@ const SegmentedBar = ({ row }: { row: StatRow }) => {
     const mods = Math.max(0, row.mods);
     const base = Math.max(0, row.value - masterwork - mods);
     return (
-        <div className="flex h-2.5 flex-1 overflow-hidden bg-black/70" aria-hidden>
+        <div className="flex h-2 flex-1 overflow-hidden bg-white/10" aria-hidden>
             <div className="h-full bg-white" style={{ width: percent(base, row.max) }} />
             {masterwork > 0 && <div className="h-full" style={{ width: percent(masterwork, row.max), background: MASTERWORK_COLOR }} />}
             {mods > 0 && <div className="h-full" style={{ width: percent(mods, row.max), background: MOD_COLOR }} />}
@@ -60,11 +60,11 @@ const TooltipStatRow = ({ name, row, comparing }: { name: string, row: StatRow, 
     ].filter(Boolean);
     return (
         <div className="flex h-5 items-center gap-2" title={bonusParts.length ? `${name}: ${bonusParts.join(", ")}` : undefined}>
-            <div className="w-32 shrink-0 truncate text-right text-sm text-gray-300">{name}</div>
+            <div className="w-32 shrink-0 truncate text-right text-[13px] text-gray-400">{name}</div>
             {row.display === "bar" && <SegmentedBar row={row} />}
             {row.display === "recoil" && <RecoilDial value={row.value} />}
             {row.display === "number" && <div className="flex-1" />}
-            <div className="w-10 shrink-0 text-right font-medium tabular-nums">{row.value}</div>
+            <div className="w-10 shrink-0 text-right text-sm font-semibold tabular-nums">{row.value}</div>
             {comparing && (row.compare !== undefined ? <CompareDelta statHash={row.statHash} delta={row.compare} /> : <span className="w-9" />)}
         </div>
     );

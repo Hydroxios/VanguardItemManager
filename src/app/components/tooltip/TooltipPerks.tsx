@@ -41,9 +41,9 @@ export const WeaponPerks = ({ sockets, perksDefinitions }: { sockets: WeaponSock
     if (!intrinsic && columns.length === 0 && !masterwork && mods.length === 0) return null;
 
     return (
-        <div className="flex w-full flex-col border-t border-gray-500">
+        <div className="flex w-full flex-col border-t border-white/10">
             {intrinsic && (
-                <div className="w-full bg-black/25 p-2">
+                <div className="w-full bg-white/[0.04] p-2">
                     <PlugLine plug={intrinsic} perksDefinitions={perksDefinitions} handlers={handlers} />
                 </div>
             )}
@@ -62,7 +62,8 @@ export const WeaponPerks = ({ sockets, perksDefinitions }: { sockets: WeaponSock
                                     <span
                                         key={option.hash}
                                         {...handlers(content)}
-                                        className={`relative cursor-help rounded-full p-0.5 ${active ? "bg-sky-600 ring-1 ring-sky-300" : "opacity-45"}`}
+                                        // Every perk sits in a white bubble, like in game; the selected one is filled with blue
+                                        className={`relative cursor-help rounded-full border-2 p-0.5 ${active ? "border-white bg-[#4887ba]" : "border-white/70 opacity-50"}`}
                                     >
                                         <span className="block size-9 overflow-hidden rounded-full">
                                             <Image src={`https://www.bungie.net${option.displayProperties.icon}`} width={36} height={36} alt={option.displayProperties.name} />
@@ -101,7 +102,7 @@ export const ArmorPerks = ({ sockets, perksDefinitions, itemSet, equippedSetCoun
     if (sockets.perks.length === 0 && sockets.mods.length === 0 && setPerks.length === 0) return null;
 
     return (
-        <div className="flex w-full flex-col gap-2 border-t border-gray-500 p-2">
+        <div className="flex w-full flex-col gap-2 border-t border-white/10 p-2">
             {sockets.perks.map((perk) => (
                 <PlugLine key={perk.hash} plug={perk} perksDefinitions={perksDefinitions} handlers={handlers} />
             ))}

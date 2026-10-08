@@ -153,7 +153,7 @@ const GlobalItemTooltip = () => {
       ref={tooltipRef}
       role={pinned || sheet ? "dialog" : "tooltip"}
       aria-label={item.displayProperties.name}
-      className={`item-tooltip fixed z-[1005] flex flex-col items-start overflow-y-auto overflow-x-hidden bg-black/90 pointer-events-auto ${sheet ? "inset-x-0 bottom-0 max-h-[80vh] border-t border-white/20 shadow-[0_-8px_30px_rgba(0,0,0,0.6)]" : "max-h-[calc(100vh-20px)]"}`}
+      className={`item-tooltip fixed z-[1005] flex flex-col items-start overflow-y-auto overflow-x-hidden bg-[#0c0e13]/95 backdrop-blur-md pointer-events-auto ${sheet ? "inset-x-0 bottom-0 max-h-[80vh] border-t border-white/20 shadow-[0_-8px_30px_rgba(0,0,0,0.6)]" : "max-h-[calc(100vh-20px)] ring-1 ring-white/10 shadow-[0_20px_60px_rgba(0,0,0,0.75)]"}`}
       style={sheet ? undefined : {
         // left and top are set by the layout effect above
         // Subclasses size to their content; other items keep a fixed width
@@ -205,7 +205,7 @@ const GlobalItemTooltip = () => {
       )}
 
       {item.flavorText && (
-        <div className={`w-full border-t border-gray-500 px-4 py-2 text-sm italic text-gray-300 ${kind === "subclass" ? "text-center" : "text-left"}`}>
+        <div className={`w-full border-t border-white/10 px-4 py-2.5 text-[13px] italic leading-snug text-gray-400 ${kind === "subclass" ? "text-center" : "text-left"}`}>
           {item.flavorText}
         </div>
       )}
@@ -222,7 +222,7 @@ const GlobalItemTooltip = () => {
       )}
 
       {gear && !sheet && (
-        <div className="w-full border-t border-white/10 px-2 py-1 text-left text-[11px] text-gray-500">
+        <div className="w-full border-t border-white/10 bg-black/30 px-3 py-1 text-left text-[11px] text-gray-500">
           {compared
             ? `Compared with ${itemDefinitions[compared.itemHash].displayProperties.name}`
             : shift ? "Nothing equipped to compare with" : "Hold Shift to compare with the equipped item"}

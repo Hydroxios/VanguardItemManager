@@ -34,13 +34,13 @@ const TooltipStats = ({ item, instance, armor, rows, statsDefinitions, comparing
                 {!armor && damageType > 0 && (
                     <Image src={getDamageTypeIcon(damageType)} height={40} width={40} alt="Damage type" />
                 )}
-                <div className="text-4xl font-bold text-white">{instance?.primaryStat?.value}</div>
+                <div className="text-4xl font-semibold tracking-tight text-white">{instance?.primaryStat?.value}</div>
                 {!armor && ammo && (
                     <>
-                        <div className="mx-2 h-8 border-l border-gray-500" />
+                        <div className="mx-2 h-8 border-l border-white/15" />
                         <div className="flex flex-row items-center gap-2">
                             <Image src={ammo.icon} height={40} width={40} alt="" />
-                            <div className="text-md font-bold uppercase">{ammo.name}</div>
+                            <div className="text-sm font-bold uppercase tracking-widest text-gray-200">{ammo.name}</div>
                         </div>
                     </>
                 )}
@@ -52,7 +52,7 @@ const TooltipStats = ({ item, instance, armor, rows, statsDefinitions, comparing
                 )}
             </div>
             {rows.length > 0 && (
-                <div className="flex w-full flex-col border-t border-gray-500 px-4 py-1.5">
+                <div className="flex w-full flex-col border-t border-white/10 bg-white/[0.02] px-4 py-1.5">
                     {rows.map((row) => (
                         <TooltipStatRow key={row.statHash} name={name(row)} row={row} comparing={comparing} />
                     ))}

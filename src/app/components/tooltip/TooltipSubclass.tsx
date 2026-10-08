@@ -283,7 +283,7 @@ const TooltipSubclass = ({ item, itemInstanceId }: TooltipSubclassProps) => {
 
     return (
         <>
-            <div className="w-full overflow-hidden border-t border-gray-500 bg-gradient-to-br from-cyan-300/20 via-slate-500/10 to-black/20 p-3 text-left">
+            <div className="w-full overflow-hidden border-t border-white/10 bg-gradient-to-br from-cyan-300/20 via-slate-500/10 to-black/20 p-3 text-left">
                 <div className="flex gap-4">
                     <div className="flex w-24 shrink-0 flex-col items-center justify-center">
                         {renderPerkTile(superTile, "lg")}
