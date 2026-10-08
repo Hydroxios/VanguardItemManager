@@ -1,16 +1,8 @@
 // Item search: one query syntax shared by the search modal and the vault
 
-import { ARMOR_SLOTS, ARMOR_STATS, EQUIPMENT_SLOTS, WEAPON_SLOTS } from "@/lib/constants";
+import { ARMOR_SLOTS, ARMOR_STATS, EQUIPMENT_SLOTS, ITEM_STATE, WEAPON_SLOTS } from "@/lib/constants";
 import { DamageType } from "@/lib/helpers/damage-type";
 import { Item, ItemComponents, ItemDefinition, PerksDefinitions } from "@/lib/types";
-
-/** Bits of an item's `state` */
-export const ITEM_STATE = {
-    LOCKED: 1,
-    TRACKED: 2,
-    MASTERWORK: 4,
-    CRAFTED: 8,
-};
 
 const EXOTIC_TIER = 6;
 

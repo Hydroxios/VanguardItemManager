@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { setItemLockState } from "@/lib/bungie";
-import { ITEM_STATE } from "@/lib/search";
+import { ITEM_STATE } from "@/lib/constants";
 import { useNotifications } from "@/app/components/NotificationsProvider";
 import { useDefinitions } from "./useDefinitions";
 import { useProfile } from "./useProfile";

@@ -204,7 +204,9 @@ export type DestinyDefinitionTableName =
     | "DestinyInventoryItemConstantsDefinition"
     | "DestinySeasonDefinition"
     | "DestinySocketCategoryDefinition"
-    | "DestinyMaterialRequirementSetDefinition";
+    | "DestinyMaterialRequirementSetDefinition"
+    | "DestinyStatGroupDefinition"
+    | "DestinyEquipableItemSetDefinition";
 
 interface DestinyManifest {
     jsonWorldContentPaths: Record<string, string>;

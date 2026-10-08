@@ -1,9 +1,8 @@
 import { createContext, ReactNode, useCallback, useContext, useEffect, useState, useMemo, useRef } from "react";
 import { getCurrentUser, getProfile } from "@/lib/bungie";
 import { BungieUser, Character, Currency, Item, ItemInstance, ItemComponents, ItemPlug, Loadout, PlugSets, ProfileData } from "@/lib/types";
-import { BUCKETS } from "@/lib/constants";
+import { BUCKETS, ITEM_STATE } from "@/lib/constants";
 import { moveItemInState } from "@/lib/helpers/inventory";
-import { ITEM_STATE } from "@/lib/search";
 
 
 export interface Profile {
