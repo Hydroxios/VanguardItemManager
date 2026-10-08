@@ -153,7 +153,7 @@ const GlobalItemTooltip = () => {
       ref={tooltipRef}
       role={pinned || sheet ? "dialog" : "tooltip"}
       aria-label={item.displayProperties.name}
-      className={`item-tooltip fixed z-[1005] flex flex-col items-start overflow-y-auto overflow-x-hidden bg-black/90 pointer-events-auto ${sheet ? "inset-x-0 bottom-0 max-h-[80vh] border-t border-white/20 shadow-[0_-8px_30px_rgba(0,0,0,0.6)]" : "max-h-[90vh]"}`}
+      className={`item-tooltip fixed z-[1005] flex flex-col items-start overflow-y-auto overflow-x-hidden bg-black/90 pointer-events-auto ${sheet ? "inset-x-0 bottom-0 max-h-[80vh] border-t border-white/20 shadow-[0_-8px_30px_rgba(0,0,0,0.6)]" : "max-h-[calc(100vh-20px)]"}`}
       style={sheet ? undefined : {
         // left and top are set by the layout effect above
         // Subclasses size to their content; other items keep a fixed width

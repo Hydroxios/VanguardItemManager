@@ -59,7 +59,7 @@ const TooltipStatRow = ({ name, row, comparing }: { name: string, row: StatRow, 
         row.mods ? `mods ${row.mods > 0 ? "+" : ""}${row.mods}` : "",
     ].filter(Boolean);
     return (
-        <div className="flex items-center gap-2" title={bonusParts.length ? `${name}: ${bonusParts.join(", ")}` : undefined}>
+        <div className="flex h-5 items-center gap-2" title={bonusParts.length ? `${name}: ${bonusParts.join(", ")}` : undefined}>
             <div className="w-32 shrink-0 truncate text-right text-sm text-gray-300">{name}</div>
             {row.display === "bar" && <SegmentedBar row={row} />}
             {row.display === "recoil" && <RecoilDial value={row.value} />}
