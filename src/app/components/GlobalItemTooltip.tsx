@@ -79,6 +79,7 @@ const GlobalItemTooltip = () => {
 
   // The character whose gear matters: the one holding the item, else the one it is shown for
   const located = locateItem(itemInstanceId);
+  const ornament = located.item?.overrideStyleItemHash ? itemDefinitions[located.item.overrideStyleItemHash] : undefined;
   const ownerId = located.location && located.location !== "vault" ? located.location : (characterId || Object.keys(characters)[0]);
   const slotHash = item?.equippingBlock?.equipmentSlotTypeHash;
   const equippedGear = (characterEquipment[ownerId]?.items ?? []).filter((i) => itemDefinitions[i.itemHash]);
@@ -165,6 +166,7 @@ const GlobalItemTooltip = () => {
     >
       <TooltipHeader
         item={item}
+        ornament={ornament}
         itemInstanceId={itemInstanceId}
         itemComponents={itemComponents}
         itemConstantsDefinitions={itemConstantsDefinitions}

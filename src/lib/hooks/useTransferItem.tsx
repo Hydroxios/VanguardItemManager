@@ -4,6 +4,7 @@ import { equipItem, safeTransferItem, transferItem } from "@/lib/bungie";
 import { useNotifications } from "@/app/components/NotificationsProvider";
 import { useDefinitions } from "./useDefinitions";
 import { useProfile } from "./useProfile";
+import { Item } from "@/lib/types";
 
 export interface TransferRequest {
     itemHash: number
@@ -25,15 +26,18 @@ const useTransferItem = () => {
     const { addNotification, updateNotification } = useNotifications();
     const { user, profileInventory, characterInventories, characterEquipment, moveItem, transferEquippedItem, equipItemLocally } = useProfile();
 
-    /** Returns "vault", a character id, or undefined when the instance isn't found. */
-    const locateItem = (itemInstanceId?: string): { location?: string, equipped: boolean } => {
+    /** Returns "vault", a character id, or undefined when the instance isn't found, with the profile entry of the item. */
+    const locateItem = (itemInstanceId?: string): { location?: string, equipped: boolean, item?: Item } => {
         if (!itemInstanceId || itemInstanceId === "0") return { equipped: false };
-        if (profileInventory.some(i => i.itemInstanceId === itemInstanceId)) return { location: "vault", equipped: false };
+        const inVault = profileInventory.find(i => i.itemInstanceId === itemInstanceId);
+        if (inVault) return { location: "vault", equipped: false, item: inVault };
         for (const [charId, eq] of Object.entries(characterEquipment)) {
-            if (eq.items.some(i => i.itemInstanceId === itemInstanceId)) return { location: charId, equipped: true };
+            const item = eq.items.find(i => i.itemInstanceId === itemInstanceId);
+            if (item) return { location: charId, equipped: true, item };
         }
         for (const [charId, inv] of Object.entries(characterInventories)) {
-            if (inv.items.some(i => i.itemInstanceId === itemInstanceId)) return { location: charId, equipped: false };
+            const item = inv.items.find(i => i.itemInstanceId === itemInstanceId);
+            if (item) return { location: charId, equipped: false, item };
         }
         return { equipped: false };
     };

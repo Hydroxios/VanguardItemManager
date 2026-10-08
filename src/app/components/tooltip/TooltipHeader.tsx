@@ -18,6 +18,8 @@ const DEFAULT_RARITY = { background: "#03cdff" };
 
 interface TooltipHeaderProps {
     item: ItemDefinition;
+    /** The ornament applied to the item, whose icon replaces the item's */
+    ornament?: ItemDefinition;
     itemInstanceId?: string;
     itemComponents: ItemComponents;
     itemConstantsDefinitions: ItemConstantsDefinitions;
@@ -37,6 +39,7 @@ const Badge = ({ label, color }: { label: string, color: string }) => (
 
 const TooltipHeader = ({
     item,
+    ornament,
     itemInstanceId,
     itemComponents,
     itemConstantsDefinitions,
@@ -57,6 +60,7 @@ const TooltipHeader = ({
     const gearTierOverlay = instance && instance.gearTier > 0
         ? itemConstantsDefinitions["1"]?.gearTierOverlayImagePaths[Math.max(0, instance.gearTier - 1)]
         : undefined;
+    const icon = ornament?.displayProperties.icon || item.displayProperties.icon;
     const watermark = item.isFeaturedItem && item.iconWatermarkShelved ? item.iconWatermarkShelved : item.iconWatermark;
 
     const badges = [
@@ -79,9 +83,9 @@ const TooltipHeader = ({
                 }}
             >
                 <div className="flex w-full flex-row items-center gap-3">
-                    {item.displayProperties.icon && (
+                    {icon && (
                         <div className="relative size-12 shrink-0 border border-white/40">
-                            <Image src={`https://www.bungie.net${item.displayProperties.icon}`} fill sizes="48px" alt="" />
+                            <Image src={`https://www.bungie.net${icon}`} fill sizes="48px" alt="" />
                             {watermark && <Image src={`https://www.bungie.net${watermark}`} fill sizes="48px" alt="" />}
                             {gearTierOverlay && <Image src={`https://www.bungie.net${gearTierOverlay}`} fill sizes="48px" alt={`Tier ${instance?.gearTier}`} />}
                         </div>
