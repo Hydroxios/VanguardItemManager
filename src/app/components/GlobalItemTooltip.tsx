@@ -15,6 +15,8 @@ import TooltipSubclass from "./tooltip/TooltipSubclass";
 import { getArmorSockets, getItemKind, getWeaponSockets, isEnhancedPerk } from "@/lib/helpers/item-sockets";
 import { getArmorStatRows, getWeaponStatRows } from "@/lib/helpers/item-stats";
 import { placeTooltip } from "@/lib/helpers/tooltip-position";
+import { isFreePlug } from "@/lib/helpers/mods";
+import useSocketPlug from "@/lib/hooks/useSocketPlug";
 
 const TOOLTIP_WIDTH = "min(400px, calc(100vw - 20px))";
 
@@ -67,9 +69,11 @@ const GlobalItemTooltip = () => {
     itemConstantsDefinitions,
     statGroupDefinitions,
     equipableItemSetDefinitions,
+    materialRequirementDefinitions,
   } = useDefinitions();
   const { itemComponents, characters, characterEquipment } = useProfile();
   const { locateItem } = useTransferItem();
+  const { canChange: canChangePerks, pendingSocket, insertPlug } = useSocketPlug(itemInstanceId);
 
   const kind = item ? getItemKind(item) : "generic";
   const weaponSockets = useMemo(() => item && kind === "weapon" ? getWeaponSockets(item, itemInstanceId, itemComponents, itemDefinitions) : undefined,
@@ -186,7 +190,16 @@ const GlobalItemTooltip = () => {
             statsDefinitions={statsDefinitions}
             comparing={!!compareStats}
           />
-          {weaponSockets && <WeaponPerks sockets={weaponSockets} perksDefinitions={perksDefinitions} />}
+          {weaponSockets && (
+            <WeaponPerks
+              sockets={weaponSockets}
+              perksDefinitions={perksDefinitions}
+              // Perks that cost materials (enhanced, crafted) can only be changed in game
+              canSelect={canChangePerks ? (plug) => isFreePlug(plug, materialRequirementDefinitions) : undefined}
+              onSelect={insertPlug}
+              pendingSocket={pendingSocket}
+            />
+          )}
           {armorSockets && (
             <ArmorPerks sockets={armorSockets} perksDefinitions={perksDefinitions} itemSet={itemSet} equippedSetCount={equippedSetCount} />
           )}

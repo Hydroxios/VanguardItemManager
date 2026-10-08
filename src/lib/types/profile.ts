@@ -126,6 +126,13 @@ export interface ItemPlugObjectives {
     objectivesPerPlug: Record<string, ItemObjective[]>
 }
 
+/** The components of one item instance that change with its plugs */
+export interface InstanceComponents {
+    sockets?: ItemSockets
+    stats?: ItemStats
+    perks?: ItemPerks
+}
+
 export interface ItemComponents {
     instances: Record<string, ItemInstance>
     perks: Record<string, ItemPerks>

@@ -35,8 +35,18 @@ const ModRow = ({ plugs, perksDefinitions, handlers, showCost }: { plugs: ItemDe
     </div>
 );
 
-export const WeaponPerks = ({ sockets, perksDefinitions }: { sockets: WeaponSockets, perksDefinitions: PerksDefinitions }) => {
-    const { tooltip, handlers } = usePlugTooltip();
+interface WeaponPerksProps {
+    sockets: WeaponSockets
+    perksDefinitions: PerksDefinitions
+    /** Whether a perk of the roll can be selected from here; nothing is selectable without it */
+    canSelect?: (plug: ItemDefinition) => boolean
+    onSelect?: (socketIndex: number, plug: ItemDefinition) => void
+    /** The socket whose perk is being changed */
+    pendingSocket?: number
+}
+
+export const WeaponPerks = ({ sockets, perksDefinitions, canSelect, onSelect, pendingSocket }: WeaponPerksProps) => {
+    const { tooltip, handlers, hideTooltip } = usePlugTooltip();
     const { intrinsic, columns, masterwork, mods } = sockets;
     if (!intrinsic && columns.length === 0 && !masterwork && mods.length === 0) return null;
 
@@ -53,24 +63,45 @@ export const WeaponPerks = ({ sockets, perksDefinitions }: { sockets: WeaponSock
                         <div key={column.socketIndex} className={`flex flex-col items-center gap-1 px-1 ${column.origin ? "border-l border-white/15 pl-2" : ""}`}>
                             {column.options.map((option) => {
                                 const active = option.hash === column.current.hash;
+                                const selectable = !active && !!onSelect && !!canSelect?.(option);
+                                const pending = pendingSocket === column.socketIndex;
                                 const base = plugTooltipContent(option, perksDefinitions);
                                 const content: PlugTooltipContent = active ? base : {
                                     ...base,
-                                    typeName: [base.typeName, "Also on this roll"].filter(Boolean).join(" · "),
+                                    typeName: [base.typeName, selectable ? "Click to select" : "Also on this roll"].filter(Boolean).join(" · "),
                                 };
-                                return (
-                                    <span
-                                        key={option.hash}
-                                        {...handlers(content)}
-                                        // Every perk sits in a white bubble, like in game; the selected one is filled with blue
-                                        className={`relative cursor-help rounded-full border-2 p-0.5 ${active ? "border-white bg-[#4887ba]" : "border-white/70 opacity-50"}`}
-                                    >
+                                // Every perk sits in a white bubble, like in game; the selected one is filled with blue
+                                const className = `relative rounded-full border-2 p-0.5 ${active ? "border-white bg-[#4887ba]" : "border-white/70 opacity-50"}`;
+                                const icon = (
+                                    <>
                                         <span className="block size-9 overflow-hidden rounded-full">
                                             <Image src={`https://www.bungie.net${option.displayProperties.icon}`} width={36} height={36} alt={option.displayProperties.name} />
                                         </span>
                                         {isEnhancedPerk(option) && (
                                             <span className="absolute -right-0.5 -top-0.5 flex size-3.5 items-center justify-center rounded-full bg-[#f2c94c] text-[9px] font-bold leading-none text-black" title="Enhanced">▲</span>
                                         )}
+                                    </>
+                                );
+                                return selectable ? (
+                                    <button
+                                        key={option.hash}
+                                        {...handlers(content)}
+                                        onClick={() => {
+                                            if (pendingSocket !== undefined) return;
+                                            // The perk turns active and is rendered anew, so its hover tooltip would never get its mouse leave
+                                            hideTooltip();
+                                            onSelect(column.socketIndex, option);
+                                        }}
+                                        // aria-disabled rather than disabled: a disabled button gets no hover events, so no tooltip
+                                        aria-disabled={pendingSocket !== undefined}
+                                        aria-label={`Select ${option.displayProperties.name}`}
+                                        className={`${className} cursor-pointer transition hover:border-white hover:opacity-100 aria-disabled:cursor-wait`}
+                                    >
+                                        {icon}
+                                    </button>
+                                ) : (
+                                    <span key={option.hash} {...handlers(content)} className={`${className} cursor-help ${active && pending ? "animate-pulse" : ""}`}>
+                                        {icon}
                                     </span>
                                 );
                             })}
