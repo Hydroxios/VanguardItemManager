@@ -385,6 +385,7 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
       // No transfer buttons: the editor decides where items go
       drawTransfert: false,
       anchor: { left, top, right, bottom },
+      anchorElement: tile,
     });
   };
 

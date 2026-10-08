@@ -52,8 +52,8 @@ const subscribeToShift = (callback: () => void) => {
 const useShiftHeld = () => useSyncExternalStore(subscribeToShift, () => shiftHeld, () => false);
 
 const GlobalItemTooltip = () => {
-  const { tooltipState, closeTooltip, scheduleHide, cancelHide } = useItemTooltip();
-  const { item, itemInstanceId, anchor, open, pinned, characterId, state, drawTransfert } = tooltipState;
+  const { tooltipState, keepOpen, closeTooltip, scheduleHide, cancelHide, registerTooltipElement } = useItemTooltip();
+  const { item, itemInstanceId, anchor, anchorElement, open, pinned, characterId, state, drawTransfert } = tooltipState;
 
   const tooltipRef = useRef<HTMLDivElement>(null);
   const sheet = useSheetLayout();
@@ -110,8 +110,14 @@ const GlobalItemTooltip = () => {
     ? equippedGear.filter((i) => itemDefinitions[i.itemHash].equippingBlock?.equipableItemSetHash === itemSet.hash).length
     : 0;
 
-  // Next to the item, in the viewport. It is measured once rendered, then moved before the browser paints,
-  // straight on the element so placing it doesn't cost another render
+  // The provider reads the tooltip's box to tell when the pointer heads for it
+  useLayoutEffect(() => {
+    registerTooltipElement(open && item ? tooltipRef.current : null);
+  }, [open, item, registerTooltipElement]);
+
+  // Next to the item, in the viewport, and kept there as long as it is open: the item can scroll, the window
+  // can resize and the tooltip's content can grow (icons loading, Shift comparison, a new perk). Positions are
+  // written straight on the element, so following the item doesn't cost a render
   useLayoutEffect(() => {
     const tooltipElement = tooltipRef.current;
     if (!open || !item || !tooltipElement) return;
@@ -121,11 +127,45 @@ const GlobalItemTooltip = () => {
       tooltipElement.style.top = "";
       return;
     }
-    const { width, height } = tooltipElement.getBoundingClientRect();
-    const { left, top } = placeTooltip(anchor, { width, height }, { width: window.innerWidth, height: window.innerHeight });
-    tooltipElement.style.left = `${left}px`;
-    tooltipElement.style.top = `${top}px`;
-  }, [open, item, anchor, sheet, shift]);
+
+    // The item's last known box, for when it leaves the page (moved, filtered out)
+    let lastAnchor = anchor;
+    const place = () => {
+      if (anchorElement?.isConnected) {
+        const { left, top, right, bottom } = anchorElement.getBoundingClientRect();
+        lastAnchor = { left, top, right, bottom };
+      }
+      const viewport = { width: window.innerWidth, height: window.innerHeight };
+      // An unpinned tooltip goes away with its item when the item is scrolled out of sight, unless it is kept open
+      if (!pinned && !keepOpen && (lastAnchor.bottom < 0 || lastAnchor.top > viewport.height || lastAnchor.right < 0 || lastAnchor.left > viewport.width)) {
+        closeTooltip();
+        return;
+      }
+      const { width, height } = tooltipElement.getBoundingClientRect();
+      const { left, top } = placeTooltip(lastAnchor, { width, height }, viewport);
+      tooltipElement.style.left = `${left}px`;
+      tooltipElement.style.top = `${top}px`;
+    };
+    place();
+
+    // Several changes in one frame only place it once
+    let frame = 0;
+    const schedule = () => {
+      if (!frame) frame = requestAnimationFrame(() => { frame = 0; place(); });
+    };
+    const observer = new ResizeObserver(schedule);
+    observer.observe(tooltipElement);
+    if (anchorElement) observer.observe(anchorElement);
+    window.addEventListener("resize", schedule);
+    // Capture: scrolling any container (inventory, vault) can move the item
+    window.addEventListener("scroll", schedule, { capture: true, passive: true });
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+      window.removeEventListener("resize", schedule);
+      window.removeEventListener("scroll", schedule, { capture: true });
+    };
+  }, [open, item, anchor, anchorElement, pinned, keepOpen, sheet, closeTooltip]);
 
   // Escape always closes; a click elsewhere closes a pinned tooltip (a click on another item opens that one instead)
   useEffect(() => {
