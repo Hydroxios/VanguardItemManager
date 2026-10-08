@@ -9,8 +9,8 @@ Vanguard Item Manager is a custom inventory management application for Destiny 2
 - **Unified Inventory View**: See all your items, equipment, engrams, currencies and postmaster across all characters and the vault in one place.
 - **Advanced Search**: One query syntax, shared by the search modal and the vault, to filter items by name, perk, slot, element, tier, power or stat (see [Search syntax](#-search-syntax)).
 - **Loadout Editor**: Create, view and edit loadouts, with perk, mod and subclass editors, loadout stats and save checks, then equip them in one go.
-- **Item Tooltips**: Detailed stats, perks and subclass information, with quick links to external databases.
-- **Quick Actions**: Move items between characters and the vault, equip them, pull them from the postmaster, and lock or unlock weapons and armor from the tooltip or the context menu.
+- **Item Tooltips**: Every perk column with the perks the roll can switch to, stats in the game's order (hidden stats and recoil included) with masterwork and mod bonuses, armor set bonuses, and quick links to external databases. Hover to peek, click to pin, hold Shift to compare with the equipped item.
+- **Quick Actions**: Equip items on any character, move them between characters and the vault, pull them from the postmaster, and lock or unlock weapons and armor from the tooltip or the context menu.
 - **Secure Bungie Login**: OAuth with a CSRF-protected `state`; the refresh token is kept in an `httpOnly` cookie and never exposed to client scripts.
 - **Manifest Caching**: Destiny manifest files are cached in the browser between visits and refreshed only when Bungie publishes a new version.
 - **Localization**: The Destiny data can be displayed in English, French, Spanish, German, Italian, Japanese, Russian, Polish or Korean.
@@ -102,7 +102,7 @@ The CI workflow (`.github/workflows/ci.yml`) runs lint, typecheck, tests and bui
 
 - Log in with your Bungie account to access your Destiny inventory.
 - Use the search bar to find items quickly.
-- Hover or click on items for detailed tooltips, stats and actions.
+- Hover an item for its tooltip, click it to pin the tooltip (Escape or a click elsewhere closes it), and hold Shift to compare with the equipped item.
 - Right-click an item to move it to another character or to the vault.
 - Create, edit and equip loadouts for your characters.
 - Open the settings to change the language, toggle debug mode or log out.

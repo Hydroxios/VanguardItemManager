@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
 import ItemComponent from "./Item";
@@ -24,7 +24,6 @@ import { Item } from "@/lib/types";
 const EXOTIC_TIER = 6;
 const ANY_CLASS = 3;
 // Width of the global item tooltip, to open it on the side of a tile that has room
-const TOOLTIP_WIDTH = 285;
 
 const SLOT_GROUPS = [
   { label: "Subclass", slots: [{ hash: EQUIPMENT_SLOTS.SUBCLASS, name: "Subclass" }] },
@@ -101,7 +100,7 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
   } = useDefinitions();
   const { move } = useTransferItem();
   const { addNotification } = useNotifications();
-  const { showTooltip, hideTooltip } = useItemTooltipActions();
+  const { showTooltip, hideTooltip, scheduleHide } = useItemTooltipActions();
 
   const loadout = characterLoadouts[characterId]?.loadouts[loadoutIndex];
   // Same rule as the loadout grid: a slot without an icon is empty
@@ -374,43 +373,20 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
   }, [activeSlot, search, ownedItems, itemDefinitions, itemComponents, characterId, classType]);
 
   // Item tooltips open on hover (a click selects) and stay open while the pointer is on the tile or the tooltip
-  const hoveredTileRef = useRef<HTMLElement | null>(null);
-  const [tooltipOpen, setTooltipOpen] = useState(false);
-
   const openTooltip = (owned: OwnedItem, tile: HTMLElement) => {
     const definition = itemDefinitions[owned.item.itemHash];
     if (!definition || saving) return;
-    const rect = tile.getBoundingClientRect();
-    hoveredTileRef.current = tile;
+    const { left, top, right, bottom } = tile.getBoundingClientRect();
     showTooltip({
       item: definition,
       itemInstanceId: owned.item.itemInstanceId,
       characterId,
-      armor: ARMOR_SLOTS.includes(slotOf(owned.item) ?? 0),
       state: owned.item.state,
       // No transfer buttons: the editor decides where items go
       drawTransfert: false,
-      x: rect.right + TOOLTIP_WIDTH + 8 > window.innerWidth ? rect.left - TOOLTIP_WIDTH - 4 : rect.right + 4,
-      y: rect.top,
+      anchor: { left, top, right, bottom },
     });
-    setTooltipOpen(true);
   };
-
-  useEffect(() => {
-    if (!tooltipOpen) return;
-    const isOver = (element: Element | null, e: MouseEvent) => {
-      if (!element) return false;
-      const rect = element.getBoundingClientRect();
-      return e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom;
-    };
-    const handleMouseMove = (e: MouseEvent) => {
-      if (isOver(hoveredTileRef.current, e) || isOver(document.querySelector(".item-tooltip"), e)) return;
-      hideTooltip();
-      setTooltipOpen(false);
-    };
-    document.addEventListener("mousemove", handleMouseMove);
-    return () => document.removeEventListener("mousemove", handleMouseMove);
-  }, [tooltipOpen, hideTooltip]);
 
   // Never leave a tooltip behind when the editor closes
   useEffect(() => () => hideTooltip(), [hideTooltip]);
@@ -452,7 +428,6 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
     setError(undefined);
 
     hideTooltip();
-    setTooltipOpen(false);
 
     try {
       if (!gearChanged) {
@@ -530,7 +505,6 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
         itemInstanceId={item.itemInstanceId}
         state={item.state}
         characterId={characterId}
-        armor={ARMOR_SLOTS.includes(slotOf(item) ?? 0)}
         ornamentItem={item.overrideStyleItemHash ? itemDefinitions[item.overrideStyleItemHash] : undefined}
         perks={itemComponents.perks[item.itemInstanceId]}
         stats={itemComponents.stats[item.itemInstanceId]}
@@ -634,6 +608,7 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
                           setSearch("");
                         }}
                         onMouseEnter={(e) => owned && openTooltip(owned, e.currentTarget)}
+                        onMouseLeave={scheduleHide}
                         title={owned ? undefined : slot.name}
                         className={`relative size-14 ring-offset-2 ring-offset-[#141414] transition-shadow ${isActive ? "ring-2 ring-[#7e57c2]" : "hover:ring-2 hover:ring-white/30"}`}
                       >
@@ -730,6 +705,7 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
                         {...blockItemActions}
                         onClick={() => setSelection((prev) => ({ ...prev, [activeSlot]: id }))}
                         onMouseEnter={(e) => openTooltip(owned, e.currentTarget)}
+                        onMouseLeave={scheduleHide}
                         className={`flex items-center justify-center rounded-md p-1 transition-colors ${isSelected ? "bg-[#7e57c2]/30 ring-1 ring-[#7e57c2]" : "hover:bg-white/10"}`}
                       >
                         {renderItem(owned, 56)}

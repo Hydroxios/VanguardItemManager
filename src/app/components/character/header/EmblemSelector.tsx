@@ -97,7 +97,6 @@ const EmblemSelector = ({ isOpen, onClose, characterId }: EmblemSelectorProps) =
                             characterId={characterId}
                             perks={undefined}
                             stats={undefined}
-                            armor={false}
                             tooltipDisabled={true}
                         />
                     </div>

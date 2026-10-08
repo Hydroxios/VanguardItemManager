@@ -11,15 +11,13 @@ interface InventoryItemsProps {
     open: boolean,
     characterId: string;
     right: boolean
-    armors: boolean
 }
 
 const InventoryItems = ({
     items,
     open,
     characterId,
-    right,
-    armors
+    right
 }: InventoryItemsProps) => {
 
     const { addNotification } = useNotifications()
@@ -51,7 +49,6 @@ const InventoryItems = ({
                                 characterId={characterId}
                                 perks={item.perks}
                                 stats={item.stats}
-                                armor={armors}
                                 quantity={item.quantity || 1}
                             />
                         </div>
