@@ -212,7 +212,6 @@ const SearchBar = ({ currentCharacterId, open, onClose }: { currentCharacterId?:
                         perks={result.perks}
                         stats={result.stats}
                         characterId={result.characterId}
-                        armor={false}
                         quantity={1}
                         size={52}
                       />

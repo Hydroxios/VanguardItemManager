@@ -1,9 +1,10 @@
 "use client";
 
-import { safeTransferItem, transferItem } from "@/lib/bungie";
+import { equipItem, safeTransferItem, transferItem } from "@/lib/bungie";
 import { useNotifications } from "@/app/components/NotificationsProvider";
 import { useDefinitions } from "./useDefinitions";
 import { useProfile } from "./useProfile";
+import { Item } from "@/lib/types";
 
 export interface TransferRequest {
     itemHash: number
@@ -23,17 +24,20 @@ export interface TransferRequest {
 const useTransferItem = () => {
     const { itemDefinitions } = useDefinitions();
     const { addNotification, updateNotification } = useNotifications();
-    const { user, profileInventory, characterInventories, characterEquipment, moveItem, transferEquippedItem } = useProfile();
+    const { user, profileInventory, characterInventories, characterEquipment, moveItem, transferEquippedItem, equipItemLocally } = useProfile();
 
-    /** Returns "vault", a character id, or undefined when the instance isn't found. */
-    const locateItem = (itemInstanceId?: string): { location?: string, equipped: boolean } => {
+    /** Returns "vault", a character id, or undefined when the instance isn't found, with the profile entry of the item. */
+    const locateItem = (itemInstanceId?: string): { location?: string, equipped: boolean, item?: Item } => {
         if (!itemInstanceId || itemInstanceId === "0") return { equipped: false };
-        if (profileInventory.some(i => i.itemInstanceId === itemInstanceId)) return { location: "vault", equipped: false };
+        const inVault = profileInventory.find(i => i.itemInstanceId === itemInstanceId);
+        if (inVault) return { location: "vault", equipped: false, item: inVault };
         for (const [charId, eq] of Object.entries(characterEquipment)) {
-            if (eq.items.some(i => i.itemInstanceId === itemInstanceId)) return { location: charId, equipped: true };
+            const item = eq.items.find(i => i.itemInstanceId === itemInstanceId);
+            if (item) return { location: charId, equipped: true, item };
         }
         for (const [charId, inv] of Object.entries(characterInventories)) {
-            if (inv.items.some(i => i.itemInstanceId === itemInstanceId)) return { location: charId, equipped: false };
+            const item = inv.items.find(i => i.itemInstanceId === itemInstanceId);
+            if (item) return { location: charId, equipped: false, item };
         }
         return { equipped: false };
     };
@@ -55,7 +59,9 @@ const useTransferItem = () => {
 
         if (sourceId === "vault") {
             await transferItem(user.membershipType, itemHash, instanceId, toId, false, quantity);
-            moveItem(itemHash, itemInstanceId, "vault", toId, quantity);
+            // Vault items carry the vault's bucket; on a character an instanced item sits in its own slot's bucket
+            const bucketHash = itemInstanceId ? itemDefinitions[itemHash]?.inventory?.bucketTypeHash : undefined;
+            moveItem(itemHash, itemInstanceId, "vault", toId, quantity, bucketHash ? { bucketHash } : undefined);
         } else if (equipped) {
             const replacementItem = await safeTransferItem(user.membershipType, itemHash, instanceId, sourceId, toId, user.membershipId, itemDefinitions);
             if (replacementItem) {
@@ -108,7 +114,29 @@ const useTransferItem = () => {
         }
     };
 
-    return { transfer, move, locateItem };
+    /** Equips an item on a character, bringing it there first when it's elsewhere. Reports through notifications. */
+    const equip = async ({ itemHash, itemInstanceId, characterId }: { itemHash: number, itemInstanceId: string, characterId: string }): Promise<boolean> => {
+        const located = locateItem(itemInstanceId);
+        if (located.equipped && located.location === characterId) return false;
+
+        const definition = itemDefinitions[itemHash];
+        const name = definition?.displayProperties?.name ?? "item";
+        const icon = definition?.displayProperties?.icon ? `https://www.bungie.net${definition.displayProperties.icon}` : "";
+        const notificationId = addNotification("Equipping item...", name, "info", icon, 5000, true);
+
+        try {
+            if (located.location !== characterId) await move({ itemHash, itemInstanceId, toId: characterId });
+            await equipItem(user.membershipType, characterId, itemInstanceId);
+            equipItemLocally(characterId, itemInstanceId);
+            updateNotification(notificationId, "Item equipped", name, "success", icon, 5000, false);
+            return true;
+        } catch (error) {
+            updateNotification(notificationId, `Error while equipping ${name}!`, error instanceof Error ? error.message : undefined, "error", icon, 5000, false);
+            return false;
+        }
+    };
+
+    return { transfer, move, equip, locateItem };
 };
 
 export default useTransferItem;

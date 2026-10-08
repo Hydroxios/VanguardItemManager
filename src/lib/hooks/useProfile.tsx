@@ -1,9 +1,8 @@
 import { createContext, ReactNode, useCallback, useContext, useEffect, useState, useMemo, useRef } from "react";
 import { getCurrentUser, getProfile } from "@/lib/bungie";
-import { BungieUser, Character, Currency, Item, ItemInstance, ItemComponents, ItemPlug, Loadout, PlugSets, ProfileData } from "@/lib/types";
-import { BUCKETS } from "@/lib/constants";
+import { BungieUser, Character, Currency, InstanceComponents, Item, ItemInstance, ItemComponents, ItemPlug, Loadout, PlugSets, ProfileData } from "@/lib/types";
+import { BUCKETS, ITEM_STATE } from "@/lib/constants";
 import { moveItemInState } from "@/lib/helpers/inventory";
-import { ITEM_STATE } from "@/lib/search";
 
 
 export interface Profile {
@@ -32,6 +31,7 @@ export interface Profile {
     equipLoadoutLocally: (characterId: string, loadoutItems: Item[]) => void;
     updateLoadoutLocally: (characterId: string, loadoutIndex: number, loadout: Loadout) => void;
     setItemLockedLocally: (itemInstanceId: string, locked: boolean) => void;
+    setItemComponentsLocally: (itemInstanceId: string, components: InstanceComponents) => void;
 }
 
 const ProfileContext = createContext<Profile | undefined>(undefined)
@@ -210,6 +210,16 @@ export const ProfileProvider = ({ children }: ProfileProviderProps) => {
             if (equipment) return setCharacterEquipment(characterId, equipment);
         }
     }, [setCharacterEquipment, setCharacterInventory, setProfileInventory]);
+
+    /** Replaces an item's sockets, stats or perks, e.g. with the ones Bungie sends back after a change */
+    const setItemComponentsLocally = useCallback((itemInstanceId: string, { sockets, stats, perks }: InstanceComponents) => {
+        setItemComponents(prev => ({
+            ...prev,
+            sockets: sockets ? { ...prev.sockets, [itemInstanceId]: sockets } : prev.sockets,
+            stats: stats ? { ...prev.stats, [itemInstanceId]: stats } : prev.stats,
+            perks: perks ? { ...prev.perks, [itemInstanceId]: perks } : prev.perks,
+        }));
+    }, []);
 
     const changeEmblem = useCallback((characterId: string, emblemHash: number) => {
         setCharacters(prev => ({
@@ -424,9 +434,10 @@ export const ProfileProvider = ({ children }: ProfileProviderProps) => {
         transferEquippedItem,
         equipLoadoutLocally,
         updateLoadoutLocally,
-        setItemLockedLocally
+        setItemLockedLocally,
+        setItemComponentsLocally
     }), [loading, loadError, user, refreshing, refresh, characterEquipment, characterInventories, characterLoadouts, characters, itemComponents, plugSets, profileData, profileCurrencies, profileInventory, lastRefresh,
-        setCharacterEquipment, setCharacterInventory, setProfileInventory, moveItem, changeEmblem, equipItemLocally, transferEquippedItem, equipLoadoutLocally, updateLoadoutLocally, setItemLockedLocally]);
+        setCharacterEquipment, setCharacterInventory, setProfileInventory, moveItem, changeEmblem, equipItemLocally, transferEquippedItem, equipLoadoutLocally, updateLoadoutLocally, setItemLockedLocally, setItemComponentsLocally]);
 
     return (
         <ProfileContext.Provider value={contextValue}>

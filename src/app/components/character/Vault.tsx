@@ -519,7 +519,6 @@ const Vault: React.FC<VaultProps> = ({
                       perks={item.perks || {}}
                       stats={item.stats || {}}
                       characterId={characterId}
-                      armor={item.item.equippingBlock ? ARMOR_SLOTS.includes(item.item.equippingBlock?.equipmentSlotTypeHash) : false}
                       quantity={item.itemInstance.quantity || 1}
                       size={56}
                     />

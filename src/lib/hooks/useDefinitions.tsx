@@ -1,6 +1,6 @@
 import { createContext, ReactNode, useContext, useEffect, useState, useMemo } from "react";
 import { DestinyDefinitionTableName, getDefinitions, getDefinitionTable } from "../bungie";
-import { BucketDefinitions, ClassDefinitions, ItemConstantsDefinitions, ItemDefinitions, LoadoutColorDefinitions, LoadoutIconDefinitions, LoadoutNameDefinitions, MaterialRequirementSetDefinitions, ObjectiveDefinitions, PerksDefinitions, RaceDefinitions, RecordsDefinitions, SeasonDefinitions, SocketCategoryDefinitions, StatsDefinitions } from "@/lib/types";
+import { BucketDefinitions, ClassDefinitions, ItemConstantsDefinitions, ItemDefinitions, LoadoutColorDefinitions, LoadoutIconDefinitions, LoadoutNameDefinitions, MaterialRequirementSetDefinitions, ObjectiveDefinitions, PerksDefinitions, RaceDefinitions, RecordsDefinitions, SeasonDefinitions, SocketCategoryDefinitions, StatsDefinitions, StatGroupDefinitions, EquipableItemSetDefinitions } from "@/lib/types";
 
 interface DefinitionsAggregate {
     DestinyInventoryItemDefinition?: ItemDefinitions
@@ -18,6 +18,8 @@ interface DefinitionsAggregate {
     DestinySeasonDefinition?: SeasonDefinitions
     DestinySocketCategoryDefinition?: SocketCategoryDefinitions
     DestinyMaterialRequirementSetDefinition?: MaterialRequirementSetDefinitions
+    DestinyStatGroupDefinition?: StatGroupDefinitions
+    DestinyEquipableItemSetDefinition?: EquipableItemSetDefinitions
 }
 
 type DefinitionLoadState = Record<DestinyDefinitionTableName, boolean>
@@ -41,6 +43,8 @@ interface Definitions {
     seasonDefinitions: SeasonDefinitions
     socketCategoryDefinitions: SocketCategoryDefinitions
     materialRequirementDefinitions: MaterialRequirementSetDefinitions
+    statGroupDefinitions: StatGroupDefinitions
+    equipableItemSetDefinitions: EquipableItemSetDefinitions
 }
 
 const DefinitionsContext = createContext<Definitions | undefined>(undefined)
@@ -61,6 +65,8 @@ const initialDefinitionsLoaded: DefinitionLoadState = {
     DestinySeasonDefinition: false,
     DestinySocketCategoryDefinition: false,
     DestinyMaterialRequirementSetDefinition: false,
+    DestinyStatGroupDefinition: false,
+    DestinyEquipableItemSetDefinition: false,
 }
 
 export const DefinitionsProvider = ({ children }: { children: ReactNode }) => {
@@ -83,6 +89,8 @@ export const DefinitionsProvider = ({ children }: { children: ReactNode }) => {
     const [seasonDefinitions, setSeasonDefinitions] = useState<SeasonDefinitions>({})
     const [socketCategoryDefinitions, setSocketCategoryDefinitions] = useState<SocketCategoryDefinitions>({})
     const [materialRequirementDefinitions, setMaterialRequirementDefinitions] = useState<MaterialRequirementSetDefinitions>({})
+    const [statGroupDefinitions, setStatGroupDefinitions] = useState<StatGroupDefinitions>({})
+    const [equipableItemSetDefinitions, setEquipableItemSetDefinitions] = useState<EquipableItemSetDefinitions>({})
     useEffect(() => {
         let active = true;
         const locale = localStorage.getItem("locale") ?? "en";
@@ -114,6 +122,8 @@ export const DefinitionsProvider = ({ children }: { children: ReactNode }) => {
             setSeasonDefinitions(db.DestinySeasonDefinition ?? {})
             setSocketCategoryDefinitions(db.DestinySocketCategoryDefinition ?? {})
             setMaterialRequirementDefinitions(db.DestinyMaterialRequirementSetDefinition ?? {})
+            setStatGroupDefinitions(db.DestinyStatGroupDefinition ?? {})
+            setEquipableItemSetDefinitions(db.DestinyEquipableItemSetDefinition ?? {})
             setDefinitionsLoaded(Object.fromEntries(
                 Object.keys(initialDefinitionsLoaded).map((key) => [key, true])
             ) as DefinitionLoadState)
@@ -142,6 +152,8 @@ export const DefinitionsProvider = ({ children }: { children: ReactNode }) => {
                     loadTable<SeasonDefinitions>("DestinySeasonDefinition", setSeasonDefinitions),
                     loadTable<SocketCategoryDefinitions>("DestinySocketCategoryDefinition", setSocketCategoryDefinitions),
                     loadTable<MaterialRequirementSetDefinitions>("DestinyMaterialRequirementSetDefinition", setMaterialRequirementDefinitions),
+                    loadTable<StatGroupDefinitions>("DestinyStatGroupDefinition", setStatGroupDefinitions),
+                    loadTable<EquipableItemSetDefinitions>("DestinyEquipableItemSetDefinition", setEquipableItemSetDefinitions),
                 ]);
             } catch (error) {
                 console.error("Failed to load component definitions, falling back to aggregate manifest", error);
@@ -181,8 +193,10 @@ export const DefinitionsProvider = ({ children }: { children: ReactNode }) => {
         itemConstantsDefinitions,
         seasonDefinitions,
         socketCategoryDefinitions,
-        materialRequirementDefinitions
-    }), [loading, loadError, definitionsLoaded, itemDefinitions, classDefinitions, statsDefinitions, perksDefinitions, objectiveDefinitions, recordsDefinitions, loadoutColorDefinitions, loadoutIconDefinitions, loadoutNameDefinitions, raceDefinitions, bucketDefinitions, itemConstantsDefinitions, seasonDefinitions, socketCategoryDefinitions, materialRequirementDefinitions]);
+        materialRequirementDefinitions,
+        statGroupDefinitions,
+        equipableItemSetDefinitions
+    }), [loading, loadError, definitionsLoaded, itemDefinitions, classDefinitions, statsDefinitions, perksDefinitions, objectiveDefinitions, recordsDefinitions, loadoutColorDefinitions, loadoutIconDefinitions, loadoutNameDefinitions, raceDefinitions, bucketDefinitions, itemConstantsDefinitions, seasonDefinitions, socketCategoryDefinitions, materialRequirementDefinitions, statGroupDefinitions, equipableItemSetDefinitions]);
 
     return (
         <DefinitionsContext.Provider

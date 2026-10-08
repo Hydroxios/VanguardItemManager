@@ -222,6 +222,21 @@ footer {
   }
 }
 
+/* The item tooltip only scrolls on short screens: keep its scrollbar out of the way */
+.item-tooltip::-webkit-scrollbar {
+  width: 4px;
+  background: transparent;
+}
+.item-tooltip::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.25);
+  border: none;
+  box-shadow: none;
+}
+.item-tooltip {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+}
+
 .masterwork-shine-bar {
   position: relative;
   width: 100%;

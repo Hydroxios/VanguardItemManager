@@ -1,4 +1,4 @@
-import { BungieUser, Item, ItemDefinitions } from "@/lib/types";
+import { BungieUser, InstanceComponents, Item, ItemDefinitions } from "@/lib/types";
 import { fetchManifestFile, pruneManifestCache } from "./manifest-cache";
 
 const apiKey = process.env.NODE_ENV === 'production' ? process.env.NEXT_PUBLIC_BUNGIE_API_KEY! : process.env.NEXT_PUBLIC_BUNGIE_API_KEY_DEV!;
@@ -204,7 +204,9 @@ export type DestinyDefinitionTableName =
     | "DestinyInventoryItemConstantsDefinition"
     | "DestinySeasonDefinition"
     | "DestinySocketCategoryDefinition"
-    | "DestinyMaterialRequirementSetDefinition";
+    | "DestinyMaterialRequirementSetDefinition"
+    | "DestinyStatGroupDefinition"
+    | "DestinyEquipableItemSetDefinition";
 
 interface DestinyManifest {
     jsonWorldContentPaths: Record<string, string>;
@@ -494,7 +496,7 @@ export const updateLoadoutIdentifiers = async (
 
 /**
  * Inserts a plug (mod...) in an item socket. Only works for plugs that cost no materials,
- * on items held by a character (not in the vault).
+ * on items held by a character (not in the vault). Resolves with the item's components as they are after the change.
  */
 export const insertSocketPlugFree = async (
     membershipType: number,
@@ -502,8 +504,8 @@ export const insertSocketPlugFree = async (
     itemInstanceId: string,
     socketIndex: number,
     plugItemHash: number
-) => {
-    await bungie(`/Destiny2/Actions/Items/InsertSocketPlugFree/`, {
+): Promise<InstanceComponents> => {
+    const response = await bungie(`/Destiny2/Actions/Items/InsertSocketPlugFree/`, {
         method: "POST",
         body: JSON.stringify({
             // socketArrayType 0: the item's default sockets
@@ -514,6 +516,9 @@ export const insertSocketPlugFree = async (
         }),
         auth: true
     })
+    // A DestinyItemChangeResponse: the changed item comes back with its components
+    const item = response?.item;
+    return { sockets: item?.sockets?.data, stats: item?.stats?.data, perks: item?.perks?.data };
 }
 
 /** Locks or unlocks an item. A vault item takes any of the player's characters as `characterId`. */

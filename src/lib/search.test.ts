@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { ARMOR_STATS, EQUIPMENT_SLOTS } from "@/lib/constants";
+import { ARMOR_STATS, EQUIPMENT_SLOTS, ITEM_STATE } from "@/lib/constants";
 import { DamageType } from "@/lib/helpers/damage-type";
 import { ItemInstance, PerksDefinitions } from "@/lib/types";
 import { components, definition, item } from "@/test/fixtures";
-import { findDupes, isEmptySearch, ITEM_STATE, matchesSearch, parseSearch, SearchableItem, SearchContext } from "./search";
+import { findDupes, isEmptySearch, matchesSearch, parseSearch, SearchableItem, SearchContext } from "./search";
 
 const weapon = (hash: number, name: string, fields: { slot?: number, element?: number, tierType?: number } = {}) => definition({
     hash,

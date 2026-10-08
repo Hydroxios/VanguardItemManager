@@ -1,12 +1,78 @@
 import React, { useState } from "react";
-import { pullFromPostmaster } from "@/lib/bungie";
-import { useNotifications } from "@/app/components/NotificationsProvider";
+import usePullFromPostmaster from "@/lib/hooks/usePullFromPostmaster";
 import { useDefinitions } from "@/lib/hooks/useDefinitions";
 import { useProfile } from "@/lib/hooks/useProfile";
 import Image from "next/image";
 import { Item } from "@/lib/types";
 import { BUCKETS } from "@/lib/constants";
+import { useItemTooltipActions, useItemTooltipTrigger } from "@/lib/hooks/useItemTooltip";
 
+
+/** A postmaster tile: its tooltip offers to pull it, as does a double click */
+const PostmasterItem = ({ item, characterId, onCollect }: { item: Item; characterId: string; onCollect: () => void }) => {
+  const { itemDefinitions } = useDefinitions();
+  const { closeTooltip } = useItemTooltipActions();
+  const itemDefinition = itemDefinitions[item.itemHash];
+  const tooltipTrigger = useItemTooltipTrigger(() => itemDefinition && ({
+    item: itemDefinition,
+    itemInstanceId: item.itemInstanceId,
+    characterId,
+    state: item.state,
+    drawTransfert: true,
+  }));
+  if (!itemDefinition) return null;
+
+  // Determine item rarity color
+  let rarityColor = "border-gray-500";
+  if (itemDefinition.inventory?.tierType) {
+    switch (itemDefinition.inventory.tierType) {
+      case 6: // Exotic
+        rarityColor = "border-yellow-500";
+        break;
+      case 5: // Legendary
+        rarityColor = "border-purple-500";
+        break;
+      case 4: // Rare
+        rarityColor = "border-blue-500";
+        break;
+      case 3: // Uncommon
+        rarityColor = "border-green-500";
+        break;
+      default:
+        rarityColor = "border-gray-500";
+    }
+  }
+
+  return (
+    <div
+      {...tooltipTrigger}
+      aria-label={itemDefinition.displayProperties?.name}
+      className="relative w-12 h-12 flex items-center justify-center cursor-pointer group"
+      onDoubleClick={() => {
+        closeTooltip();
+        onCollect();
+      }}
+    >
+      <div className={`absolute inset-0 border ${rarityColor} opacity-70`}></div>
+      <div className="w-full h-full flex items-center justify-center">
+        {itemDefinition?.displayProperties?.icon && (
+          <Image
+            height={56}
+            width={56}
+            src={`https://www.bungie.net${itemDefinition.displayProperties.icon}`}
+            alt={itemDefinition.displayProperties.name || "Item"}
+            className="w-10 h-10 object-contain"
+          />
+        )}
+      </div>
+      {item.quantity > 1 && (
+        <div className="absolute bottom-0 right-0 bg-black bg-opacity-70 px-1 rounded text-xs text-white">
+          {item.quantity}
+        </div>
+      )}
+    </div>
+  );
+};
 
 interface PostmasterProps {
   characterId: string;
@@ -15,12 +81,10 @@ interface PostmasterProps {
 const Postmaster: React.FC<PostmasterProps> = ({
   characterId,
 }) => {
-  const { addNotification, updateNotification } = useNotifications();
   const [isCollapsed, setIsCollapsed] = useState(true);
   const [isCollectingAll, setIsCollectingAll] = useState(false);
 
-  const { itemDefinitions } = useDefinitions()
-  const { user, characterInventories, moveItem } = useProfile()
+  const { characterInventories } = useProfile()
 
   // Filter for postmaster items from the current character's inventory
   const postmasterItems = characterInventories[characterId]?.items.filter(
@@ -33,133 +97,26 @@ const Postmaster: React.FC<PostmasterProps> = ({
     setIsCollapsed(!isCollapsed);
   };
 
-  // Collect from postmaster to character inventory
-  const collectItem = async (item: Item, needRefresh?: boolean) => {
-    const itemDef = itemDefinitions[item.itemHash];
-    const itemName = itemDef?.displayProperties?.name || "Item";
-    const itemIcon = itemDef?.displayProperties?.icon || "";
-
-    const notificationId = addNotification(
-      `Collecting ${itemName}...`,
-      "Pulling item from Postmaster",
-      "info",
-      `https://www.bungie.net${itemIcon}`,
-      3000,
-      true
-    );
-
-    try {
-
-      await pullFromPostmaster(
-        user.membershipType,
-        characterId,
-        item.itemHash,
-        item.itemInstanceId,
-        item.quantity ?? 1
-      )
-
-      // Update local state
-      if (itemDef) {
-        moveItem(
-          item.itemHash,
-          item.itemInstanceId,
-          characterId,
-          characterId,
-          item.quantity ?? 1,
-          { bucketHash: itemDef.inventory?.bucketTypeHash || BUCKETS.GENERAL }, // Default to general if unknown, but def should exist
-          BUCKETS.POSTMASTER // Take the stack from the postmaster, not a matching stack already in the inventory
-        );
-      }
-
-      updateNotification(
-        notificationId,
-        `Collected ${itemName}`,
-        "",
-        "success",
-        `https://www.bungie.net${itemIcon}`,
-        5000,
-        false
-      );
-
-      if (needRefresh) {
-        // await refresh();
-      }
-    } catch (err) {
-      updateNotification(
-        notificationId,
-        `Error collecting ${itemName}`,
-        err instanceof Error ? err.message : "",
-        "error",
-        `https://www.bungie.net${itemIcon}`,
-        5000,
-        false
-      );
-    }
-  };
+  const pull = usePullFromPostmaster();
+  const collectItem = (item: Item) => pull(item, characterId);
 
   // Collect all postmaster items
   const collectAllItems = async () => {
     setIsCollectingAll(true);
     for (let i = 0; i < postmasterItems.length; i++) {
-      const isLast = i === postmasterItems.length - 1;
-      await collectItem(postmasterItems[i], isLast);
+      await collectItem(postmasterItems[i]);
     }
     setIsCollectingAll(false);
   };
 
-  // Render a postmaster item
-  const renderPostmasterItem = (item: Item) => {
-    const itemDefinition = itemDefinitions[item.itemHash];
-    if (!itemDefinition) return null;
-
-    // Determine item rarity color
-    let rarityColor = "border-gray-500";
-    if (itemDefinition.inventory?.tierType) {
-      switch (itemDefinition.inventory.tierType) {
-        case 6: // Exotic
-          rarityColor = "border-yellow-500";
-          break;
-        case 5: // Legendary
-          rarityColor = "border-purple-500";
-          break;
-        case 4: // Rare
-          rarityColor = "border-blue-500";
-          break;
-        case 3: // Uncommon
-          rarityColor = "border-green-500";
-          break;
-        default:
-          rarityColor = "border-gray-500";
-      }
-    }
-
-    return (
-      <div
-        key={item.itemInstanceId || `${item.itemHash}-${item.quantity}`}
-        className="relative w-12 h-12 flex items-center justify-center cursor-pointer group"
-        onDoubleClick={() => collectItem(item)}
-      >
-        <div className={`absolute inset-0 border ${rarityColor} opacity-70`}></div>
-        <div className="w-full h-full flex items-center justify-center">
-          {itemDefinition?.displayProperties?.icon && (
-            <Image
-              height={56}
-              width={56}
-              src={`https://www.bungie.net${itemDefinition.displayProperties.icon}`}
-              alt={itemDefinition.displayProperties.name || "Item"}
-              className="w-10 h-10 object-contain"
-              title={itemDefinition.displayProperties.name}
-            />
-          )}
-        </div>
-        {item.quantity > 1 && (
-          <div className="absolute bottom-0 right-0 bg-black bg-opacity-70 px-1 rounded text-xs text-white">
-            {item.quantity}
-          </div>
-        )}
-      </div>
-    );
-  };
+  const renderPostmasterItem = (item: Item) => (
+    <PostmasterItem
+      key={item.itemInstanceId || `${item.itemHash}-${item.quantity}`}
+      item={item}
+      characterId={characterId}
+      onCollect={() => collectItem(item)}
+    />
+  );
 
   // Render empty slot
   const renderEmptySlot = (index: number) => {

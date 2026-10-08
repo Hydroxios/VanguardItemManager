@@ -191,7 +191,7 @@ const CharacterView: React.FC<CharacterViewProps> = ({
 
   // Render equipment section
   const renderEquipmentSection = useCallback(
-    (section: string, isWeapon: boolean, isRightSide: boolean) => {
+    (section: string, isRightSide: boolean) => {
       const { current, inventory } = equipment[section];
       const isOpen = !!openSections[section];
 
@@ -209,7 +209,6 @@ const CharacterView: React.FC<CharacterViewProps> = ({
             items={inventory}
             open={isOpen}
             right={isRightSide}
-            armors={!isWeapon}
             characterId={characterId}
           />
           <Item
@@ -219,7 +218,6 @@ const CharacterView: React.FC<CharacterViewProps> = ({
             state={state}
             perks={perks}
             stats={stats}
-            armor={!isWeapon}
             characterId={characterId}
           />
         </div>
@@ -261,18 +259,18 @@ const CharacterView: React.FC<CharacterViewProps> = ({
         <div className="flex flex-row gap-10 items-center">
           {/* Weapons Column */}
           <div className="flex flex-col gap-5">
-            {renderEquipmentSection("primary", true, false)}
-            {renderEquipmentSection("energetic", true, false)}
-            {renderEquipmentSection("heavy", true, false)}
+            {renderEquipmentSection("primary", false)}
+            {renderEquipmentSection("energetic", false)}
+            {renderEquipmentSection("heavy", false)}
           </div>
 
           {/* Armor Column */}
           <div className="flex flex-col gap-5">
-            {renderEquipmentSection("helmet", false, true)}
-            {renderEquipmentSection("arms", false, true)}
-            {renderEquipmentSection("chest", false, true)}
-            {renderEquipmentSection("legs", false, true)}
-            {renderEquipmentSection("classItem", false, true)}
+            {renderEquipmentSection("helmet", true)}
+            {renderEquipmentSection("arms", true)}
+            {renderEquipmentSection("chest", true)}
+            {renderEquipmentSection("legs", true)}
+            {renderEquipmentSection("classItem", true)}
           </div>
         </div>
       </div>

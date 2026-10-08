@@ -36,9 +36,46 @@ export const ARMOR_SLOTS = [
 
 export const SOCKET_CATEGORIES = {
   ARMOR_MODS: 590099826,
+  ARMOR_PERKS: 3154740035,
+  ARMOR_TIER: 760375309,
+  WEAPON_INTRINSIC: 3956125808,
   WEAPON_MODS: 2685412949,
   WEAPON_PERKS: 4241085061,
 };
+
+// `itemType` values
+export const ITEM_TYPES = {
+  ARMOR: 2,
+  WEAPON: 3,
+  SUBCLASS: 16,
+};
+
+// `inventory.tierType` values
+export const TIER_TYPES = {
+  BASIC: 2,
+  COMMON: 3,
+  RARE: 4,
+  LEGENDARY: 5,
+  EXOTIC: 6,
+};
+
+/** Bits of an item's `state` */
+export const ITEM_STATE = {
+  LOCKED: 1,
+  TRACKED: 2,
+  MASTERWORK: 4,
+  CRAFTED: 8,
+};
+
+/** `equippingBlock.ammoType` values */
+export const AMMO_TYPES = {
+  PRIMARY: 1,
+  SPECIAL: 2,
+  HEAVY: 3,
+};
+
+/** Item category of materials (`itemCategoryHashes`) */
+export const MATERIAL_CATEGORY = 40;
 
 /** In a loadout's plugItemHashes, marks a socket the loadout leaves as is */
 export const UNSET_PLUG_HASH = 2166136261;
@@ -51,4 +88,23 @@ export const ARMOR_STATS = {
   DISCIPLINE: 1735777505,
   INTELLECT: 144602215,
   STRENGTH: 4244567218,
+};
+
+// Weapon stat hashes
+export const WEAPON_STATS = {
+  IMPACT: 4043523819,
+  RANGE: 1240592695,
+  STABILITY: 155624089,
+  HANDLING: 943549884,
+  RELOAD_SPEED: 4188031367,
+  AIM_ASSISTANCE: 1345609583,
+  ZOOM: 3555269338,
+  AIRBORNE: 2714457168,
+  RECOIL_DIRECTION: 2715839340,
+  CHARGE_TIME: 2961396640,
+  DRAW_TIME: 447667954,
+  BLAST_RADIUS: 3614673599,
+  VELOCITY: 2523465841,
+  ROUNDS_PER_MINUTE: 4284893193,
+  MAGAZINE: 3871231066,
 };

@@ -98,7 +98,6 @@ const LoadoutViewerModal: React.FC<LoadoutViewerModalProps> = ({
                                         itemInstanceId={item.itemInstanceId}
                                         state={item.state}
                                         characterId={characterId}
-                                        armor={def.itemType === 2} // Simple check, might need refinement
                                         ornamentItem={ornamentDef}
                                         perks={itemComponents.perks[item.itemInstanceId]} // Not strictly needed for basic view
                                         stats={itemComponents.stats[item.itemInstanceId]} // Not strictly needed for basic view
