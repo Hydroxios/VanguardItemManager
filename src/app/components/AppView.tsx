@@ -8,6 +8,7 @@ import { useDebug } from "@/app/components/debug/DebugProvider";
 import { useDefinitions } from "@/lib/hooks/useDefinitions";
 import { useProfile } from "@/lib/hooks/useProfile";
 import { useItemTooltip } from "@/lib/hooks/useItemTooltip";
+import { useSettings } from "@/lib/hooks/useSettings";
 import LoadingStatus from "./LoadingStatus";
 import SettingsModal from "./SettingsModal";
 import Image from "next/image";
@@ -28,6 +29,7 @@ const AppView = () => {
   const { loadingProfile, profile, lastRefresh, refresh } = useProfile()
   const { keepOpen, setKeepOpen } = useItemTooltip()
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const { settings: { refreshInterval } } = useSettings();
 
   // Bungie's global alerts (maintenance announcements...)
   useEffect(() => {
@@ -38,17 +40,19 @@ const AppView = () => {
     return () => { active = false; };
   }, []);
 
-  // Keeps the profile in sync with the game; the API layer renews the access token when needed
+  // Keeps the profile in sync with the game, as often as set (never at 0); the API layer renews the access token when needed
   useEffect(() => {
+    if (refreshInterval === 0) return;
+    const interval = refreshInterval * 60 * 1000;
     const intervalId = setInterval(() => {
-      if (lastRefresh && Date.now() - lastRefresh < 3 * 60 * 1000) {
+      if (lastRefresh && Date.now() - lastRefresh < interval) {
         return;
       }
       refresh();
-    }, 3 * 60 * 1000);
+    }, interval);
 
     return () => clearInterval(intervalId);
-  }, [lastRefresh, refresh]);
+  }, [lastRefresh, refresh, refreshInterval]);
 
   return (
     <div>

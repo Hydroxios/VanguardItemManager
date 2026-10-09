@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, createContext, useContext, ReactNode, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, createContext, useContext, ReactNode, useEffect, useCallback, useMemo, useRef, useSyncExternalStore } from 'react';
 import { ItemDefinition } from "@/lib/types";
 import { Anchor } from "@/lib/helpers/tooltip-position";
 import { isAimingAt, PointerSample, recentMove } from "@/lib/helpers/hover-intent";
+import { getSettings, TOOLTIP_INTENT_INTERVALS } from "@/lib/hooks/useSettings";
 
 export interface ShowTooltipProps {
   item: ItemDefinition | undefined;
@@ -74,9 +75,23 @@ const TooltipContext = createContext<TooltipContextType | undefined>(undefined);
 // Separate context with stable callbacks only: its consumers don't re-render when the tooltip opens or moves
 const TooltipActionsContext = createContext<TooltipActions | undefined>(undefined);
 
+// The "keep open" setting lives in localStorage; these listeners let the page hear its own changes
+const keepOpenListeners = new Set<() => void>();
+const subscribeKeepOpen = (listener: () => void) => {
+  keepOpenListeners.add(listener);
+  return () => { keepOpenListeners.delete(listener); };
+};
+const getKeepOpen = () => localStorage.getItem("keepTooltipOpen") === "true";
+// Off while rendering on the server, so hydration matches
+const getServerKeepOpen = () => false;
+
 export const ItemTooltipProvider = ({ children }: { children: ReactNode }) => {
   const [tooltipState, setTooltipState] = useState<TooltipState>(initialState);
-  const [keepOpen, setKeepOpen] = useState(false);
+  const keepOpen = useSyncExternalStore(subscribeKeepOpen, getKeepOpen, getServerKeepOpen);
+  const setKeepOpen = useCallback((value: boolean) => {
+    localStorage.setItem("keepTooltipOpen", value.toString());
+    keepOpenListeners.forEach((listener) => listener());
+  }, []);
 
   const keepOpenRef = useRef(keepOpen);
   useEffect(() => { keepOpenRef.current = keepOpen; }, [keepOpen]);
@@ -163,7 +178,7 @@ export const ItemTooltipProvider = ({ children }: { children: ReactNode }) => {
 
   const value = useMemo(
     () => ({ tooltipState, keepOpen, setKeepOpen, ...actions }),
-    [tooltipState, keepOpen, actions]
+    [tooltipState, keepOpen, setKeepOpen, actions]
   );
 
   return (
@@ -195,8 +210,8 @@ export const useItemTooltipActions = () => {
 /** Marks the elements that open item tooltips, so a click on one isn't taken as a click outside the tooltip */
 export const ITEM_TILE_ATTRIBUTE = "data-item-tile";
 
-/** How often the pointer is checked while it is on an item, to tell a rest from a pass */
-const INTENT_INTERVAL = 80;
+/** How often the pointer is checked while it is on an item, to tell a rest from a pass (set by the tooltip speed) */
+const intentInterval = () => TOOLTIP_INTENT_INTERVALS[getSettings().tooltipSpeed];
 /** Moving less than this between two checks is resting on the item: its tooltip opens */
 const INTENT_SENSITIVITY = 6;
 /** Moving less than this is a full stop: the tooltip opens even if the pointer was heading for another one */
@@ -225,7 +240,7 @@ export const useItemTooltipTrigger = (getProps: () => Omit<ShowTooltipProps, "an
     if (props) togglePinnedTooltip({ ...props, anchor: anchorOf(element), anchorElement: element });
   };
 
-  // Checks the pointer every INTENT_INTERVAL: it opens the tooltip once it slows down on the item, unless it is
+  // Checks the pointer every intentInterval(): it opens the tooltip once it slows down on the item, unless it is
   // still heading for the tooltip already open
   const watchIntent = (element: Element) => {
     let last = { ...pointerRef.current };
@@ -238,10 +253,10 @@ export const useItemTooltipTrigger = (getProps: () => Omit<ShowTooltipProps, "an
         if (props) showTooltip({ ...props, anchor: anchorOf(element), anchorElement: element });
         return;
       }
-      showTimerRef.current = setTimeout(check, INTENT_INTERVAL);
+      showTimerRef.current = setTimeout(check, intentInterval());
     };
     clearTimeout(showTimerRef.current);
-    showTimerRef.current = setTimeout(check, INTENT_INTERVAL);
+    showTimerRef.current = setTimeout(check, intentInterval());
   };
 
   if (disabled) return {};

@@ -10,6 +10,7 @@ import Image from "next/image";
 import { ItemDefinition, Item as ItemInstance, ItemPerks, ItemStats } from "@/lib/types";
 import { ARMOR_SLOTS, WEAPON_SLOTS } from "@/lib/constants";
 import { findDupes, isEmptySearch, matchesSearch, parseSearch } from "@/lib/search";
+import { getSettings, useSettings, VAULT_ITEM_SIZES } from "@/lib/hooks/useSettings";
 
 interface VaultProps {
   isOpen: boolean;
@@ -18,6 +19,27 @@ interface VaultProps {
 }
 
 
+
+type VaultTab = 'weapons' | 'armor' | 'misc';
+
+interface VaultFilters {
+  activeTab: VaultTab;
+  weaponTypeFilter: string;
+  elementFilter: DamageType | 'all';
+  showDuplicates: boolean;
+}
+
+const DEFAULT_FILTERS: VaultFilters = { activeTab: 'weapons', weaponTypeFilter: 'all', elementFilter: 'all', showDuplicates: false };
+
+// The filters left last time, when the settings say to remember them
+const loadFilters = (): VaultFilters => {
+  if (!getSettings().rememberVaultFilters) return DEFAULT_FILTERS;
+  try {
+    return { ...DEFAULT_FILTERS, ...JSON.parse(localStorage.getItem('vaultFilters') ?? '{}') };
+  } catch {
+    return DEFAULT_FILTERS;
+  }
+};
 
 interface ProcessedItem {
   item: ItemDefinition,
@@ -33,12 +55,14 @@ const Vault: React.FC<VaultProps> = ({
   setIsOpen,
   characterId,
 }) => {
-  const [activeTab, setActiveTab] = useState<'weapons' | 'armor' | 'misc'>('weapons');
-  const [weaponTypeFilter, setWeaponTypeFilter] = useState<string>('all');
-  const [elementFilter, setElementFilter] = useState<DamageType | 'all'>('all');
+  // Read once: the vault only renders on the client, after login
+  const [initialFilters] = useState(loadFilters);
+  const [activeTab, setActiveTab] = useState<VaultTab>(initialFilters.activeTab);
+  const [weaponTypeFilter, setWeaponTypeFilter] = useState<string>(initialFilters.weaponTypeFilter);
+  const [elementFilter, setElementFilter] = useState<DamageType | 'all'>(initialFilters.elementFilter);
   const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState<boolean>(false);
   const [isElementDropdownOpen, setIsElementDropdownOpen] = useState<boolean>(false);
-  const [showDuplicates, setShowDuplicates] = useState<boolean>(false);
+  const [showDuplicates, setShowDuplicates] = useState<boolean>(initialFilters.showDuplicates);
   const [isAnimatingOut, setIsAnimatingOut] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>("");
   // Height in vh, as last resized; the vault only renders on the client, after login
@@ -46,6 +70,15 @@ const Vault: React.FC<VaultProps> = ({
   const [isResizing, setIsResizing] = useState<boolean>(false);
 
   const resizeRef = useRef<HTMLDivElement>(null);
+
+  const { settings: { rememberVaultFilters, vaultItemSize } } = useSettings();
+  const itemSize = VAULT_ITEM_SIZES[vaultItemSize];
+
+  useEffect(() => {
+    if (!rememberVaultFilters) return;
+    const filters: VaultFilters = { activeTab, weaponTypeFilter, elementFilter, showDuplicates };
+    localStorage.setItem('vaultFilters', JSON.stringify(filters));
+  }, [rememberVaultFilters, activeTab, weaponTypeFilter, elementFilter, showDuplicates]);
 
   const { itemDefinitions, perksDefinitions } = useDefinitions()
 
@@ -505,7 +538,7 @@ const Vault: React.FC<VaultProps> = ({
                 <div
                   key={item.itemInstance.itemInstanceId || `${item.item.hash}-${index}`}
                   className="aspect-square cursor-pointer hover:z-10 hover:scale-110 transition-all duration-200 relative group shadow-lg hover:shadow-purple-500/20 border border-transparent hover:border-white/20"
-                  style={{ width: 56, height: 56 }}
+                  style={{ width: itemSize, height: itemSize }}
                   onDoubleClick={() => handleTransfer(item)}
                   draggable
                   onDragStart={(e) => handleDragStart(e, item)}
@@ -520,7 +553,7 @@ const Vault: React.FC<VaultProps> = ({
                       stats={item.stats || {}}
                       characterId={characterId}
                       quantity={item.itemInstance.quantity || 1}
-                      size={56}
+                      size={itemSize}
                     />
                   </div>
                 </div>

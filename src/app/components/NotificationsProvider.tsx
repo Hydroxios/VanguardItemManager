@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Loader from "./Loader";
+import { getSettings, NOTIFICATION_DURATION_FACTORS } from "@/lib/hooks/useSettings";
 import React, { createContext, useContext, useState, useCallback, ReactNode, useRef } from "react";
 
 type Notification = {
@@ -20,6 +21,9 @@ type NotificationsContextType = {
 
 const NotificationsContext = createContext<NotificationsContextType | undefined>(undefined);
 
+// Notifications stay up longer or shorter than asked, as set
+const displayDuration = (duration: number) => duration * NOTIFICATION_DURATION_FACTORS[getSettings().notificationDuration];
+
 export const NotificationsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   // Incrementing ids: Date.now() collides when two notifications are created in the same millisecond
@@ -32,7 +36,7 @@ export const NotificationsProvider: React.FC<{ children: ReactNode }> = ({ child
     if (!loading) {
       setTimeout(() => {
         setNotifications((prev) => prev.filter((notif) => notif.id !== id));
-      }, duration);
+      }, displayDuration(duration));
     }
     return id;
   }, []);
@@ -48,7 +52,7 @@ export const NotificationsProvider: React.FC<{ children: ReactNode }> = ({ child
     if (!loading) {
       setTimeout(() => {
         setNotifications((prev) => prev.filter((notif) => notif.id !== id));
-      }, duration);
+      }, displayDuration(duration));
     }
   }, []);
 

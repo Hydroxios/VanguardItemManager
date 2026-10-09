@@ -5,6 +5,7 @@ import "./globals.css";
 import { NotificationsProvider } from "./components/NotificationsProvider";
 import { DebugProvider } from "@/app/components/debug/DebugProvider";
 import { AuthProvider } from "@/lib/hooks/useAuth";
+import MotionPreference from "./components/MotionPreference";
 
 
 import { Analytics } from "@vercel/analytics/next"
@@ -31,6 +32,7 @@ export default function RootLayout({
         className={`${roboto.className} antialiased`}
         role="main"
       >
+        <MotionPreference />
         <NotificationsProvider>
           <AuthProvider>
             <DebugProvider>

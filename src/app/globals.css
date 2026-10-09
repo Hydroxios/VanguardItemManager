@@ -347,3 +347,25 @@ footer {
 @media (prefers-reduced-motion: reduce) {
   .prismatic-lines { animation: none; }
 }
+
+/* ===== Reduced motion: set in the settings, or following the system when left on "system" ===== */
+/* The loader keeps moving, so loading still shows */
+html[data-motion="reduced"] *:not(.loader-sweep),
+html[data-motion="reduced"] *::before,
+html[data-motion="reduced"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html:not([data-motion]) *:not(.loader-sweep),
+  html:not([data-motion]) *::before,
+  html:not([data-motion]) *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
