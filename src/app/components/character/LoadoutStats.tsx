@@ -10,8 +10,15 @@ const STAT_MAX = 200;
 const formatDelta = (delta: number) => (delta > 0 ? `+${delta}` : delta < 0 ? `${delta}` : "—");
 const deltaColor = (delta: number) => (delta > 0 ? "text-green-400" : delta < 0 ? "text-red-400" : "text-gray-600");
 
+interface LoadoutStatsProps {
+  stats: StatTotals;
+  compareTo: StatTotals;
+  /** What `compareTo` is, next to the title */
+  compareLabel?: string;
+}
+
 /** The loadout's armor stats, with the difference from what the character wears now. */
-const LoadoutStats = ({ stats, compareTo }: { stats: StatTotals; compareTo: StatTotals }) => {
+const LoadoutStats = ({ stats, compareTo, compareLabel = "vs equipped" }: LoadoutStatsProps) => {
   const { statsDefinitions } = useDefinitions();
   const total = ARMOR_STAT_HASHES.reduce((sum, hash) => sum + stats[hash], 0);
   const totalDelta = total - ARMOR_STAT_HASHES.reduce((sum, hash) => sum + compareTo[hash], 0);
@@ -19,7 +26,7 @@ const LoadoutStats = ({ stats, compareTo }: { stats: StatTotals; compareTo: Stat
   return (
     <div className="flex flex-col gap-1.5">
       <span className="text-xs uppercase tracking-wider text-gray-400">
-        Stats <span className="normal-case text-gray-600">vs equipped</span>
+        Stats <span className="normal-case text-gray-600">{compareLabel}</span>
       </span>
       {ARMOR_STAT_HASHES.map((hash) => {
         const definition = statsDefinitions[hash];

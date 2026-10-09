@@ -4,13 +4,15 @@ import React, { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
 import SubclassEditor from "./SubclassEditor";
+import LoadoutStats from "./LoadoutStats";
 import { useProfile } from "@/lib/hooks/useProfile";
 import { useDefinitions } from "@/lib/hooks/useDefinitions";
 import { useItemTooltipActions } from "@/lib/hooks/useItemTooltip";
 import { useNotifications } from "@/app/components/NotificationsProvider";
 import { insertSocketPlugFree } from "@/lib/bungie";
 import { countFragments, getEditableSubclassSockets, getFragmentCapacity, planSubclassChanges } from "@/lib/helpers/subclass";
-import { statsWithSubclassChange } from "@/lib/helpers/stats";
+import { ARMOR_STAT_HASHES, statsWithSubclassChange, StatTotals } from "@/lib/helpers/stats";
+import { ITEM_TYPES } from "@/lib/constants";
 
 interface SubclassEditorModalProps {
   itemHash: number;
@@ -55,6 +57,22 @@ const SubclassEditorModal = ({ itemHash, itemInstanceId, characterId, onClose }:
     ? planSubclassChanges(definition, groups, currentSockets.map((socket) => socket.plugHash), desired, fragmentCapacity)
     : [];
   const canApply = steps.length > 0 && !fragmentOverflow && !saving;
+
+  // The character's stats now, and once this subclass is applied (and equipped, when it isn't): the fragments of the
+  // equipped subclass make way for the ones picked here
+  const character = characters[characterId];
+  const equippedSubclass = characterEquipment[characterId]?.items
+    .find((item) => itemDefinitions[item.itemHash]?.itemType === ITEM_TYPES.SUBCLASS);
+  const isEquipped = equippedSubclass?.itemInstanceId === itemInstanceId;
+  const toTotals = (stats: Record<string, number>): StatTotals => Object.fromEntries(ARMOR_STAT_HASHES.map((hash) => [hash, stats[hash] ?? 0]));
+  const statsNow = character ? toTotals(character.stats) : undefined;
+  const statsAfter = character && toTotals(statsWithSubclassChange(
+    character.stats,
+    (itemComponents.sockets[equippedSubclass?.itemInstanceId ?? ""]?.sockets ?? []).map((socket) => socket.plugHash),
+    currentSockets.map((socket, socketIndex) => desired[socketIndex] ?? socket.plugHash),
+    itemDefinitions,
+    character.classType
+  ));
 
   const changePlug = (socketIndex: number, plugHash: number) => {
     setError(undefined);
@@ -103,8 +121,6 @@ const SubclassEditorModal = ({ itemHash, itemInstanceId, characterId, onClose }:
       setChanges({});
     } finally {
       // Only the equipped subclass counts in the character's stats
-      const character = characters[characterId];
-      const isEquipped = characterEquipment[characterId]?.items.some((item) => item.itemInstanceId === itemInstanceId);
       if (character && isEquipped) {
         setCharacterStatsLocally(characterId, statsWithSubclassChange(character.stats, initialPlugs, appliedPlugs, itemDefinitions, character.classType));
       }
@@ -137,14 +153,21 @@ const SubclassEditorModal = ({ itemHash, itemInstanceId, characterId, onClose }:
         </button>
       </header>
 
-      <div className={`flex flex-1 min-h-0 flex-col p-6 ${saving ? "pointer-events-none opacity-60" : ""}`}>
-        <SubclassEditor
-          itemHash={itemHash}
-          itemInstanceId={itemInstanceId}
-          characterId={characterId}
-          plugs={desired}
-          onChange={changePlug}
-        />
+      <div className={`flex flex-1 min-h-0 flex-col lg:flex-row gap-6 p-6 ${saving ? "pointer-events-none opacity-60" : ""}`}>
+        <div className="flex flex-1 min-h-0 flex-col">
+          <SubclassEditor
+            itemHash={itemHash}
+            itemInstanceId={itemInstanceId}
+            characterId={characterId}
+            plugs={desired}
+            onChange={changePlug}
+          />
+        </div>
+        {statsNow && statsAfter && (
+          <aside className="shrink-0 lg:w-80 border-t lg:border-t-0 lg:border-l border-white/10 pt-4 lg:pt-0 lg:pl-6">
+            <LoadoutStats stats={statsAfter} compareTo={statsNow} compareLabel={isEquipped ? "vs now" : "if equipped, vs now"} />
+          </aside>
+        )}
       </div>
 
       <footer className="flex items-center justify-end gap-3 px-6 py-4 border-t border-white/10 shrink-0">
