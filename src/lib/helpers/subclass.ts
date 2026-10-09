@@ -1,5 +1,5 @@
 import { ItemComponents, ItemDefinition, ItemDefinitions, PlugSets } from "@/lib/types";
-import { getAvailablePlugs } from "./mods";
+import { getAvailablePlugs, getLockedPlugs } from "./mods";
 
 /** Aspects and fragments are unordered sets of unique plugs; supers and abilities are one plug per socket. */
 export type SubclassSocketKind = "aspects" | "fragments" | "other";
@@ -56,27 +56,31 @@ interface EditableSubclassContext {
 }
 
 /**
- * The subclass sockets a player can change, with the plugs available in each. Hidden sockets and sockets
- * with a single option are left out; fragment sockets always stay, locked or not, so their positions match the game.
+ * The subclass sockets a player can change, with the plugs available in each and those not unlocked yet. Hidden
+ * sockets and sockets with a single option are left out; fragment sockets always stay, locked or not, so their
+ * positions match the game.
  */
 export const getEditableSubclassSockets = (
     definition: ItemDefinition | undefined,
     { itemInstanceId, characterId, itemComponents, plugSets, itemDefinitions }: EditableSubclassContext
 ) => {
     const optionsBySocket: Record<number, number[]> = {};
-    if (!definition) return { groups: [], optionsBySocket };
+    const lockedBySocket: Record<number, number[]> = {};
+    if (!definition) return { groups: [], optionsBySocket, lockedBySocket };
     const sockets = itemComponents.sockets[itemInstanceId]?.sockets ?? [];
     const groups = getSubclassSocketGroups(definition, itemDefinitions, () => true)
         .map((group) => ({
             ...group,
             socketIndexes: group.socketIndexes.filter((socketIndex) => {
                 if (group.kind !== "fragments" && sockets[socketIndex]?.isVisible === false) return false;
-                optionsBySocket[socketIndex] = getAvailablePlugs(socketIndex, { definition, itemInstanceId, characterId, itemComponents, plugSets });
+                const context = { definition, itemInstanceId, characterId, itemComponents, plugSets };
+                optionsBySocket[socketIndex] = getAvailablePlugs(socketIndex, context);
+                lockedBySocket[socketIndex] = getLockedPlugs(socketIndex, optionsBySocket[socketIndex], context);
                 return optionsBySocket[socketIndex].length > 1;
             }),
         }))
         .filter((group) => group.socketIndexes.length > 0);
-    return { groups, optionsBySocket };
+    return { groups, optionsBySocket, lockedBySocket };
 };
 
 const socketsOf = (groups: SubclassSocketGroup[], kind: SubclassSocketKind) =>

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { SOCKET_CATEGORIES } from "@/lib/constants";
 import { MaterialRequirementSetDefinitions } from "@/lib/types";
 import { components, definition, definitions, plug } from "@/test/fixtures";
-import { getAvailablePlugs, getEnergyCapacity, getModSockets, getPerkOptions, getPerkSockets, isFreePlug } from "./mods";
+import { getAvailablePlugs, getEnergyCapacity, getLockedPlugs, getModSockets, getPerkOptions, getPerkSockets, isFreePlug } from "./mods";
 
 describe("getModSockets", () => {
     it("lists armor mod sockets and the weapon sockets that hold actual mods", () => {
@@ -57,6 +57,27 @@ describe("getAvailablePlugs", () => {
         const itemComponents = components({ sockets: { a: { sockets: [{ plugHash: 77 }] } } });
         const plugSets = { profile: {}, characters: {} };
         expect(getAvailablePlugs(0, { definition: def, itemInstanceId: "a", characterId: "c1", itemComponents, plugSets })).toContain(77);
+    });
+});
+
+describe("getLockedPlugs", () => {
+    const def = definition({
+        sockets: { socketEntries: [{ socketTypeHash: 0, singleInitialItemHash: 1, reusablePlugSetHash: 50 }], socketCategories: [] },
+    });
+
+    it("lists the plugs the plug sets hold but the player can't insert yet", () => {
+        const plugSets = {
+            profile: { 50: [plug(3), plug(4, { canInsert: false }), plug(6, { enabled: false })] },
+            characters: { c1: { 50: [plug(4, { canInsert: false }), plug(5)] } },
+        };
+        const context = { definition: def, itemInstanceId: "a", characterId: "c1", itemComponents: components(), plugSets };
+        const available = getAvailablePlugs(0, context);
+        expect(getLockedPlugs(0, available, context)).toEqual([4, 6]);
+    });
+
+    it("is empty when nothing is listed", () => {
+        const context = { definition: def, itemInstanceId: "a", characterId: "c1", itemComponents: components(), plugSets: { profile: {}, characters: {} } };
+        expect(getLockedPlugs(0, [], context)).toEqual([]);
     });
 });
 

@@ -31,7 +31,7 @@ const SubclassEditor = ({ itemHash, itemInstanceId, characterId, plugs, onChange
   const { tooltip, handlers: tooltipHandlers } = usePlugTooltip();
 
   const definition = itemDefinitions[itemHash];
-  const { groups, optionsBySocket } = useMemo(
+  const { groups, optionsBySocket, lockedBySocket } = useMemo(
     () => getEditableSubclassSockets(definition, { itemInstanceId, characterId, itemComponents, plugSets, itemDefinitions }),
     [definition, itemInstanceId, characterId, itemComponents, plugSets, itemDefinitions]
   );
@@ -47,13 +47,15 @@ const SubclassEditor = ({ itemHash, itemInstanceId, characterId, plugs, onChange
     kind === "fragments" && fragmentCapacity !== undefined && position >= fragmentCapacity;
   const activeLocked = !!activeGroup && activeSocket !== undefined && isLocked(activeGroup.kind, activeGroup.socketIndexes.indexOf(activeSocket));
 
-  const options = useMemo(() => {
-    if (activeSocket === undefined) return [];
+  // The plugs of the active socket matching the search, the ones not unlocked yet after the others
+  const { options, lockedOptions } = useMemo(() => {
+    if (activeSocket === undefined) return { options: [], lockedOptions: [] };
     const query = search.trim().toLowerCase();
-    return (optionsBySocket[activeSocket] ?? [])
+    const matching = (hashes: number[] | undefined) => (hashes ?? [])
       .map((hash) => itemDefinitions[hash])
       .filter((plug): plug is ItemDefinition => !!plug && (!query || plug.displayProperties.name.toLowerCase().includes(query)));
-  }, [activeSocket, search, optionsBySocket, itemDefinitions]);
+    return { options: matching(optionsBySocket[activeSocket]), lockedOptions: matching(lockedBySocket[activeSocket]) };
+  }, [activeSocket, search, optionsBySocket, lockedBySocket, itemDefinitions]);
 
   if (!definition || groups.length === 0) {
     return <div className="flex flex-1 items-center justify-center text-sm text-gray-500">This subclass can&apos;t be configured.</div>;
@@ -134,7 +136,9 @@ const SubclassEditor = ({ itemHash, itemInstanceId, characterId, plugs, onChange
           placeholder="Search..."
           className="grow max-w-md bg-[#2a2a2a] border border-white/10 rounded-md px-3 py-1.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[#7e57c2]"
         />
-        <span className="ml-auto text-xs text-gray-500 shrink-0">{options.length} options</span>
+        <span className="ml-auto text-xs text-gray-500 shrink-0">
+          {options.length} options{lockedOptions.length > 0 && ` · ${lockedOptions.length} locked`}
+        </span>
       </div>
 
       <div className="flex flex-wrap content-start gap-1 flex-1 min-h-0 overflow-y-auto custom-scrollbar pr-1">
@@ -154,6 +158,22 @@ const SubclassEditor = ({ itemHash, itemInstanceId, characterId, plugs, onChange
             </button>
           );
         })}
+        {lockedOptions.map((plug) => (
+          <button
+            key={plug.hash}
+            aria-disabled
+            {...tooltipHandlers(tooltipFor(plug, "Not unlocked yet"))}
+            className="relative rounded p-0.5 cursor-not-allowed"
+          >
+            <span className="block opacity-30 grayscale">
+              <PlugIcon plug={plug} size={48} showCost={false} />
+            </span>
+            {/* Padlock, like in game */}
+            <svg aria-hidden className="absolute bottom-1 right-1 drop-shadow" width="14" height="14" viewBox="0 0 24 24" fill="white">
+              <path d="M12 2a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-1V7a5 5 0 0 0-5-5zm-3 8V7a3 3 0 0 1 6 0v3H9z" />
+            </svg>
+          </button>
+        ))}
       </div>
 
       <PlugTooltip tooltip={tooltip} />

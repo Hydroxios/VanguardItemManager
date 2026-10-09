@@ -63,6 +63,23 @@ export const getAvailablePlugs = (
     return [...hashes];
 };
 
+/**
+ * Plugs of a socket the player hasn't unlocked yet (fragments, aspects...): the ones the item, account or character
+ * plug sets list but can't insert, minus those already available. Empty when Bungie doesn't list them.
+ */
+export const getLockedPlugs = (socketIndex: number, available: number[], context: AvailablePlugsContext): number[] => {
+    const { definition, itemInstanceId, characterId, itemComponents, plugSets } = context;
+    const entry = definition.sockets?.socketEntries[socketIndex];
+    if (!entry) return [];
+    const listed = [
+        ...(itemComponents.reusablePlugs[itemInstanceId]?.plugs[socketIndex] ?? []),
+        ...(entry.reusablePlugSetHash ? plugSets.profile[entry.reusablePlugSetHash] ?? [] : []),
+        ...(entry.reusablePlugSetHash ? plugSets.characters[characterId]?.[entry.reusablePlugSetHash] ?? [] : []),
+    ];
+    const unlocked = new Set(available);
+    return [...new Set(listed.map((plug) => plug.plugItemHash))].filter((plugHash) => !unlocked.has(plugHash));
+};
+
 export const getEnergyCost = (plug: ItemDefinition | undefined) => plug?.plug?.energyCost?.energyCost ?? 0;
 
 /**
