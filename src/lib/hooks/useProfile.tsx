@@ -25,7 +25,6 @@ export interface Profile {
     setCharacterInventory: (characterId: string, items: Item[]) => void;
     setProfileInventory: (items: Item[]) => void;
     moveItem: (itemHash: number, itemInstanceId: string | undefined, fromId: string, toId: string, quantity: number, updates?: Partial<Item>, sourceBucketHash?: number) => void;
-    changeEmblem: (characterId: string, emblemHash: number) => void;
     setCharacterStatsLocally: (characterId: string, stats: Record<string, number>) => void;
     equipItemLocally: (characterId: string, itemInstanceId: string) => void;
     transferEquippedItem: (itemHash: number, itemInstanceId: string, fromId: string, toId: string, replacementItemInstanceId: string) => void;
@@ -147,6 +146,13 @@ export const ProfileProvider = ({ children }: ProfileProviderProps) => {
         const newState = { ...characterEquipmentRef.current, [characterId]: { items } };
         characterEquipmentRef.current = newState;
         setCharacterEquipementState(newState);
+        // The header shows the character's emblemHash; keep it on the equipped emblem, whatever equipped it
+        const emblem = items.find(i => i.bucketHash === BUCKETS.EMBLEM);
+        if (emblem) {
+            setCharacters(prev => prev[characterId] && prev[characterId].emblemHash !== emblem.itemHash
+                ? { ...prev, [characterId]: { ...prev[characterId], emblemHash: emblem.itemHash } }
+                : prev);
+        }
     }, []);
     const setCharacterInventory = useCallback((characterId: string, items: Item[]) => {
         const newState = { ...characterInventoriesRef.current, [characterId]: { items } };
@@ -225,40 +231,6 @@ export const ProfileProvider = ({ children }: ProfileProviderProps) => {
     const setCharacterStatsLocally = useCallback((characterId: string, stats: Record<string, number>) => {
         setCharacters(prev => prev[characterId] ? { ...prev, [characterId]: { ...prev[characterId], stats } } : prev);
     }, []);
-
-    const changeEmblem = useCallback((characterId: string, emblemHash: number) => {
-        setCharacters(prev => ({
-            ...prev,
-            [characterId]: {
-                ...prev[characterId],
-                emblemHash
-            }
-        }));
-
-        const currentEquipment = characterEquipmentRef.current[characterId]?.items || [];
-        const currentInventory = characterInventoriesRef.current[characterId]?.items || [];
-
-        const newEmblemIndex = currentInventory.findIndex(i => i.itemHash === emblemHash);
-
-        if (newEmblemIndex !== -1) {
-            const newEmblemItem = currentInventory[newEmblemIndex];
-            const oldEmblemIndex = currentEquipment.findIndex(i => i.bucketHash === BUCKETS.EMBLEM);
-
-            if (oldEmblemIndex !== -1) {
-                const oldEmblemItem = currentEquipment[oldEmblemIndex];
-                const updatedInventory = [...currentInventory];
-                updatedInventory.splice(newEmblemIndex, 1);
-                updatedInventory.push(oldEmblemItem);
-
-                const updatedEquipment = [...currentEquipment];
-                updatedEquipment.splice(oldEmblemIndex, 1);
-                updatedEquipment.push(newEmblemItem);
-
-                setCharacterInventory(characterId, updatedInventory);
-                setCharacterEquipment(characterId, updatedEquipment);
-            }
-        }
-    }, [setCharacterEquipment, setCharacterInventory]);
 
     const equipItemLocally = useCallback((characterId: string, itemInstanceId: string) => {
         const inventory = characterInventoriesRef.current[characterId];
@@ -443,7 +415,6 @@ export const ProfileProvider = ({ children }: ProfileProviderProps) => {
         setCharacterInventory,
         setProfileInventory,
         moveItem,
-        changeEmblem,
         setCharacterStatsLocally,
         equipItemLocally,
         transferEquippedItem,
@@ -452,7 +423,7 @@ export const ProfileProvider = ({ children }: ProfileProviderProps) => {
         setItemLockedLocally,
         setItemComponentsLocally
     }), [loading, loadError, user, refreshing, refresh, characterEquipment, characterInventories, characterLoadouts, characters, itemComponents, plugSets, profileData, profileCurrencies, profileInventory, lastRefresh,
-        setCharacterEquipment, setCharacterInventory, setProfileInventory, moveItem, changeEmblem, setCharacterStatsLocally, equipItemLocally, transferEquippedItem, equipLoadoutLocally, updateLoadoutLocally, setItemLockedLocally, setItemComponentsLocally]);
+        setCharacterEquipment, setCharacterInventory, setProfileInventory, moveItem, setCharacterStatsLocally, equipItemLocally, transferEquippedItem, equipLoadoutLocally, updateLoadoutLocally, setItemLockedLocally, setItemComponentsLocally]);
 
     return (
         <ProfileContext.Provider value={contextValue}>

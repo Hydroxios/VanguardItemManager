@@ -18,7 +18,7 @@ const EmblemSelector = ({ isOpen, onClose, characterId }: EmblemSelectorProps) =
     const {
         characterInventories,
         user,
-        changeEmblem
+        equipItemLocally
     } = useProfile();
 
     const { itemDefinitions } = useDefinitions();
@@ -55,7 +55,7 @@ const EmblemSelector = ({ isOpen, onClose, characterId }: EmblemSelectorProps) =
                 emblem.itemInstanceId
             );
 
-            changeEmblem(characterId, emblem.itemHash);
+            equipItemLocally(characterId, emblem.itemInstanceId);
             addNotification("Emblem equipped", "The emblem has been successfully equipped.", "success");
             onClose();
 
