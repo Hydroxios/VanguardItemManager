@@ -24,6 +24,16 @@ export const getModSockets = (definition: ItemDefinition | undefined, itemDefini
             .map((socketIndex) => ({ socketIndex, categoryHash: category.socketCategoryHash })));
 };
 
+/** Ornament and shader sockets of a weapon or armor piece, in the game's order. Hidden ones are left out. */
+export const getCosmeticSockets = (definition: ItemDefinition | undefined, itemInstanceId: string, itemComponents: ItemComponents): ModSocket[] => {
+    const sockets = itemComponents.sockets[itemInstanceId]?.sockets ?? [];
+    return (definition?.sockets?.socketCategories ?? [])
+        .filter((category) => category.socketCategoryHash === SOCKET_CATEGORIES.WEAPON_COSMETICS || category.socketCategoryHash === SOCKET_CATEGORIES.ARMOR_COSMETICS)
+        .flatMap((category) => category.socketIndexes
+            .filter((socketIndex) => sockets[socketIndex]?.isVisible !== false)
+            .map((socketIndex) => ({ socketIndex, categoryHash: category.socketCategoryHash })));
+};
+
 interface AvailablePlugsContext {
     definition: ItemDefinition
     itemInstanceId: string

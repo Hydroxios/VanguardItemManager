@@ -10,7 +10,7 @@ import {
   LoadoutIdentifiers
 } from "@/lib/bungie";
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { defaultLoadoutIdentifiers, getLoadoutChoices } from "@/lib/helpers/loadouts";
+import { defaultLoadoutIdentifiers, getLoadoutChoices, loadoutEquipChanges } from "@/lib/helpers/loadouts";
 import { useNotifications } from "@/app/components/NotificationsProvider";
 import { useDefinitions } from "@/lib/hooks/useDefinitions";
 import { useProfile } from "@/lib/hooks/useProfile";
@@ -21,7 +21,7 @@ import { Item, Loadout } from "@/lib/types";
 import { ARMOR_SLOTS, BUCKETS, EQUIPMENT_SLOTS, WEAPON_SLOTS } from "@/lib/constants";
 
 // The equipment an in-game loadout records
-const LOADOUT_BUCKETS = [EQUIPMENT_SLOTS.SUBCLASS, ...WEAPON_SLOTS, ...ARMOR_SLOTS];
+const LOADOUT_BUCKETS = [EQUIPMENT_SLOTS.SUBCLASS, ...WEAPON_SLOTS, ...ARMOR_SLOTS, EQUIPMENT_SLOTS.ARTIFACT];
 
 // Paths of the context menu icons (24x24 outline)
 const MENU_ICONS = {
@@ -87,6 +87,11 @@ const Loadouts = ({
     profileInventory,
     moveItem,
     equipLoadoutLocally,
+    equipItemLocally,
+    characters,
+    itemComponents,
+    setItemComponentsLocally,
+    setCharacterStatsLocally,
     updateLoadoutLocally
   } = useProfile()
 
@@ -144,6 +149,11 @@ const Loadouts = ({
       if (itemMap[id]) itemMap[id] = { ...itemMap[id], characterId };
     });
 
+    // Vault items carry the vault's bucket; on the character an item sits in its own slot's bucket,
+    // which is where equipLoadoutLocally looks for what it replaces
+    const moveToCharacter = (itemHash: number, itemInstanceId: string) =>
+      moveItem(itemHash, itemInstanceId, "vault", characterId, 1, { bucketHash: itemDefinitions[itemHash]?.inventory?.bucketTypeHash ?? BUCKETS.GENERAL });
+
     for (let i = 0; i < l.items.length; i++) {
       const loadoutItem = l.items[i];
       const found = itemMap[loadoutItem.itemInstanceId];
@@ -157,7 +167,7 @@ const Loadouts = ({
       } else if (itemCharId === "vault") {
         // L'item est dans le coffre
         await transferItem(user.membershipType, itemInstance.itemHash, loadoutItem.itemInstanceId, characterId, false);
-        moveItem(itemInstance.itemHash, loadoutItem.itemInstanceId, "vault", characterId, 1);
+        moveToCharacter(itemInstance.itemHash, loadoutItem.itemInstanceId);
         setEquipedItemIds(prev => [...prev, loadoutItem.itemInstanceId]);
       } else if (itemInstance.transferStatus & 1) {
         // Équipé sur un autre perso, il faudra le déséquiper
@@ -167,7 +177,7 @@ const Loadouts = ({
         await transferItem(user.membershipType, itemInstance.itemHash, loadoutItem.itemInstanceId, itemCharId, true);
         moveItem(itemInstance.itemHash, loadoutItem.itemInstanceId, itemCharId, "vault", 1);
         await transferItem(user.membershipType, itemInstance.itemHash, loadoutItem.itemInstanceId, characterId, false);
-        moveItem(itemInstance.itemHash, loadoutItem.itemInstanceId, "vault", characterId, 1);
+        moveToCharacter(itemInstance.itemHash, loadoutItem.itemInstanceId);
         setEquipedItemIds(prev => [...prev, loadoutItem.itemInstanceId]);
       }
     }
@@ -185,10 +195,12 @@ const Loadouts = ({
       });
       if (validItem) {
         await equipItem(user.membershipType, itemCharId, validItem.itemInstanceId);
+        // The item goes back to that character's inventory, where moveItem takes it from
+        equipItemLocally(itemCharId, validItem.itemInstanceId);
         await transferItem(user.membershipType, item.itemHash, item.itemInstanceId, itemCharId, true);
         moveItem(item.itemHash, item.itemInstanceId, itemCharId, "vault", 1);
         await transferItem(user.membershipType, item.itemHash, item.itemInstanceId, characterId, false);
-        moveItem(item.itemHash, item.itemInstanceId, "vault", characterId, 1);
+        moveToCharacter(item.itemHash, item.itemInstanceId);
         setEquipedItemIds(prev => [...prev, item.itemInstanceId]);
       }
     }
@@ -204,12 +216,39 @@ const Loadouts = ({
     loadoutItems.forEach(item => onCharacter.add(item.itemInstanceId));
   };
 
+  /**
+   * Shows what the game did when equipping the loadout: its mods, subclass setup and artifact perks on its items, and
+   * the character's stats with them. Uses the profile as it was before the loadout, which this render still holds.
+   * No refresh: Bungie serves a cached profile for a while after a change, which would undo it.
+   */
+  const applyLoadoutPlugsLocally = (l: Loadout) => {
+    const character = characters[characterId];
+    const { components, statDelta } = loadoutEquipChanges({
+      loadoutItems: l.items,
+      equipped: characterEquipment[characterId]?.items ?? [],
+      itemsById: itemsByInstanceId,
+      itemComponents,
+      itemDefinitions,
+      classType: character?.classType,
+    });
+    Object.entries(components).forEach(([itemInstanceId, changed]) => setItemComponentsLocally(itemInstanceId, changed));
+    if (character) {
+      const stats = { ...character.stats };
+      Object.entries(statDelta).forEach(([statHash, delta]) => {
+        // Armor stats on a character go from 0 to 200
+        if (stats[statHash] !== undefined) stats[statHash] = Math.min(200, Math.max(0, stats[statHash] + delta));
+      });
+      setCharacterStatsLocally(characterId, stats);
+    }
+  };
+
   const handleEquip = async (index: number) => {
     setBusyStep("Equipping loadout...");
     setOnCooldown(() => true);
     const l = characterLoadouts[characterId].loadouts[index];
     try {
       await equipLoadoutAt(index, l);
+      applyLoadoutPlugsLocally(l);
       const icon = loadoutIconDefinitions[l.iconHash];
       addNotification("Successfully equipped your loadout!", "", "success", icon ? "https://www.bungie.net" + icon.iconImagePath : "", 5000);
     } catch (error) {

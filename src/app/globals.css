@@ -28,6 +28,20 @@
   font-family: "Destiny Keys";
 }
 
+/* Glyphs the game puts in its texts (elements, weapon types...), from DIM */
+@font-face {
+  font-family: 'Destiny Symbols';
+  src: url('/fonts/DestinySymbols.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+.destiny-symbols {
+  font-family: "Destiny Symbols";
+  font-style: normal;
+}
+
 
 body {
   color: var(--foreground);

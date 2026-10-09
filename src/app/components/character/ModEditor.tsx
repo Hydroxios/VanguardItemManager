@@ -5,9 +5,10 @@ import PlugIcon from "./PlugIcon";
 import PlugTooltip, { plugTooltipContent, usePlugTooltip } from "../tooltip/PlugTooltip";
 import { useProfile } from "@/lib/hooks/useProfile";
 import { useDefinitions } from "@/lib/hooks/useDefinitions";
-import { getAvailablePlugs, getEnergyCapacity, getEnergyCost, getModSockets, isFreePlug } from "@/lib/helpers/mods";
+import { getAvailablePlugs, getCosmeticSockets, getEnergyCapacity, getEnergyCost, getModSockets, isFreePlug } from "@/lib/helpers/mods";
 import { SOCKET_CATEGORIES } from "@/lib/constants";
 import { ItemDefinition } from "@/lib/types";
+import DestinyText from "@/app/components/destiny-ui/DestinyText";
 
 interface ModEditorProps {
   itemHash: number;
@@ -16,15 +17,21 @@ interface ModEditorProps {
   /** Plug wanted in each mod socket, by socket index */
   plugs: Record<number, number>;
   onChange: (socketIndex: number, plugHash: number) => void;
+  /** "cosmetics" edits the ornament and shader sockets instead of the mods */
+  kind?: "mods" | "cosmetics";
 }
 
-/** Picks the mod of each mod socket of one item. Changes are reported to the parent, which applies them. */
-const ModEditor = ({ itemHash, itemInstanceId, characterId, plugs, onChange }: ModEditorProps) => {
+/** Picks the mod (or ornament and shader) of each socket of one item. Changes are reported to the parent, which applies them. */
+const ModEditor = ({ itemHash, itemInstanceId, characterId, plugs, onChange, kind = "mods" }: ModEditorProps) => {
   const { itemComponents, plugSets } = useProfile();
   const { itemDefinitions, perksDefinitions, materialRequirementDefinitions } = useDefinitions();
 
   const definition = itemDefinitions[itemHash];
-  const modSockets = useMemo(() => getModSockets(definition, itemDefinitions), [definition, itemDefinitions]);
+  const modSockets = useMemo(
+    () => kind === "cosmetics" ? getCosmeticSockets(definition, itemInstanceId, itemComponents) : getModSockets(definition, itemDefinitions),
+    [kind, definition, itemInstanceId, itemComponents, itemDefinitions]
+  );
+  const label = kind === "cosmetics" ? "cosmetics" : "mods";
   const [activeSocket, setActiveSocket] = useState<number | undefined>(modSockets[0]?.socketIndex);
   const [search, setSearch] = useState("");
   const { tooltip, handlers: tooltipHandlers } = usePlugTooltip();
@@ -47,7 +54,7 @@ const ModEditor = ({ itemHash, itemInstanceId, characterId, plugs, onChange }: M
   }, [activeSocket, search, definition, itemInstanceId, characterId, itemComponents, plugSets, itemDefinitions]);
 
   if (modSockets.length === 0) {
-    return <div className="flex flex-1 items-center justify-center text-sm text-gray-500">This item has no mod sockets.</div>;
+    return <div className="flex flex-1 items-center justify-center text-sm text-gray-500">This item has no {kind === "cosmetics" ? "ornament or shader" : "mod"} sockets.</div>;
   }
 
   const activePlug = activeSocket !== undefined ? itemDefinitions[plugs[activeSocket]] : undefined;
@@ -100,7 +107,7 @@ const ModEditor = ({ itemHash, itemInstanceId, characterId, plugs, onChange }: M
       {activePlug && (
         <div className="flex flex-col gap-1 shrink-0">
           <span className="text-sm font-medium text-white">{activePlug.displayProperties.name}</span>
-          {activePlugDescription && <p className="text-xs text-gray-400 line-clamp-3">{activePlugDescription}</p>}
+          {activePlugDescription && <p className="text-xs text-gray-400 line-clamp-3"><DestinyText text={activePlugDescription} /></p>}
         </div>
       )}
 
@@ -108,10 +115,10 @@ const ModEditor = ({ itemHash, itemInstanceId, characterId, plugs, onChange }: M
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search mods..."
+          placeholder={`Search ${label}...`}
           className="grow max-w-md bg-[#2a2a2a] border border-white/10 rounded-md px-3 py-1.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[#7e57c2]"
         />
-        <span className="ml-auto text-xs text-gray-500 shrink-0">{options.length} mods</span>
+        <span className="ml-auto text-xs text-gray-500 shrink-0">{options.length} {label}</span>
       </div>
 
       <div className="flex flex-wrap content-start gap-1 flex-1 min-h-0 overflow-y-auto custom-scrollbar pr-1">

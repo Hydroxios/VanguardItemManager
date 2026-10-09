@@ -4,6 +4,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { getEnergyCost } from "@/lib/helpers/mods";
 import { ItemDefinition, PerksDefinitions } from "@/lib/types";
+import DestinyText from "@/app/components/destiny-ui/DestinyText";
 
 const TOOLTIP_MARGIN = 8;
 const TOOLTIP_OFFSET = 14;
@@ -93,7 +94,7 @@ const PlugTooltip = ({ tooltip }: { tooltip: PlugTooltipState | null }) => {
             </div>
             {tooltip.description && (
                 <div className="px-3 py-2 text-xs leading-relaxed text-gray-300">
-                    {tooltip.description}
+                    <DestinyText text={tooltip.description} />
                 </div>
             )}
             {!!tooltip.stats?.length && (

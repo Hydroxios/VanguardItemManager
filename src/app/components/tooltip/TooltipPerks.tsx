@@ -5,6 +5,7 @@ import PlugIcon from "../character/PlugIcon";
 import PlugTooltip, { plugTooltipContent, PlugTooltipContent, usePlugTooltip } from "./PlugTooltip";
 import { ArmorSockets, isEnhancedPerk, WeaponSockets } from "@/lib/helpers/item-sockets";
 import { EquipableItemSetDefinition, ItemDefinition, PerksDefinitions } from "@/lib/types";
+import DestinyText from "@/app/components/destiny-ui/DestinyText";
 
 type TooltipHandlers = ReturnType<typeof usePlugTooltip>["handlers"];
 
@@ -18,7 +19,7 @@ const PlugLine = ({ plug, perksDefinitions, handlers }: { plug: ItemDefinition, 
             </span>
             <div className="flex min-w-0 flex-1 flex-col">
                 <span className="text-sm font-semibold text-gray-100">{plug.displayProperties.name}</span>
-                {description && <span className="break-words text-xs text-gray-400">{description}</span>}
+                {description && <span className="break-words text-xs text-gray-400"><DestinyText text={description} /></span>}
             </div>
         </div>
     );
@@ -152,7 +153,7 @@ export const ArmorPerks = ({ sockets, perksDefinitions, itemSet, equippedSetCoun
                                     {definition.displayProperties.name}
                                 </span>
                                 {definition.displayProperties.description && (
-                                    <span className="text-xs text-gray-400">{definition.displayProperties.description}</span>
+                                    <span className="text-xs text-gray-400"><DestinyText text={definition.displayProperties.description} /></span>
                                 )}
                             </div>
                         );

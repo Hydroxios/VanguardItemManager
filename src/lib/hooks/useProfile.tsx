@@ -365,18 +365,19 @@ export const ProfileProvider = ({ children }: ProfileProviderProps) => {
         const newEquipmentItems = [...equipment.items];
         const updatedInstances: Record<string, ItemInstance> = {};
 
-        loadoutItems.forEach(itemToEquip => {
+        loadoutItems.forEach(loadoutItem => {
             // Check if already equipped
-            const isAlreadyEquipped = newEquipmentItems.some(i => i.itemInstanceId === itemToEquip.itemInstanceId);
+            const isAlreadyEquipped = newEquipmentItems.some(i => i.itemInstanceId === loadoutItem.itemInstanceId);
             if (isAlreadyEquipped) return;
 
             // Find item in inventory
-            const itemIndex = newInventoryItems.findIndex(i => i.itemInstanceId === itemToEquip.itemInstanceId);
+            const itemIndex = newInventoryItems.findIndex(i => i.itemInstanceId === loadoutItem.itemInstanceId);
             if (itemIndex === -1) {
-                // Item might have been just transferred and is in the ref but maybe we missed it?
-                // Or it's not on the character yet (shouldn't happen if we called moveItem correctly before)
+                console.warn("Could not equip loadout item locally: not in the character's inventory", loadoutItem.itemInstanceId);
                 return;
             }
+            // The inventory's copy, not the caller's: an item brought from the vault has its slot's bucket only there
+            const itemToEquip = newInventoryItems[itemIndex];
 
             // Find what to unequip
             const bucketHash = itemToEquip.bucketHash;

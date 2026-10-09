@@ -17,6 +17,7 @@ import { getArmorStatRows, getWeaponStatRows } from "@/lib/helpers/item-stats";
 import { placeTooltip } from "@/lib/helpers/tooltip-position";
 import { isFreePlug } from "@/lib/helpers/mods";
 import useSocketPlug from "@/lib/hooks/useSocketPlug";
+import DestinyText from "@/app/components/destiny-ui/DestinyText";
 
 const TOOLTIP_WIDTH = "min(400px, calc(100vw - 20px))";
 
@@ -246,7 +247,7 @@ const GlobalItemTooltip = () => {
         </>
       ) : item.displayProperties.description ? (
         <div className={`w-full p-4 text-left text-gray-200 ${kind === "subclass" ? "text-center" : ""}`}>
-          {item.displayProperties.description}
+          <DestinyText text={item.displayProperties.description} />
         </div>
       ) : null}
 

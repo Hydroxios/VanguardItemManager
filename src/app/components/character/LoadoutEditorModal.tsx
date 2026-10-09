@@ -11,10 +11,12 @@ import { useItemTooltipActions } from "@/lib/hooks/useItemTooltip";
 import useTransferItem from "@/lib/hooks/useTransferItem";
 import { useNotifications } from "@/app/components/NotificationsProvider";
 import { equipItems, insertSocketPlugFree, LoadoutIdentifiers, snapshotLoadout, updateLoadoutIdentifiers } from "@/lib/bungie";
-import { getEnergyCapacity, getEnergyCost, getModSockets, getPerkSockets, isFreePlug } from "@/lib/helpers/mods";
+import { getCosmeticSockets, getEnergyCapacity, getEnergyCost, getModSockets, getPerkSockets, isFreePlug } from "@/lib/helpers/mods";
 import PerkEditor from "./PerkEditor";
 import { countFragments, getEditableSubclassSockets, getFragmentCapacity, planSubclassChanges } from "@/lib/helpers/subclass";
 import SubclassEditor from "./SubclassEditor";
+import ArtifactEditor from "./ArtifactEditor";
+import { getEditableArtifactSockets, planArtifactChanges } from "@/lib/helpers/artifact";
 import LoadoutStats from "./LoadoutStats";
 import { getLoadoutChoices } from "@/lib/helpers/loadouts";
 import { armorStatsWithPlugs, plugsStats, sumStats } from "@/lib/helpers/stats";
@@ -46,6 +48,7 @@ const SLOT_GROUPS = [
       { hash: EQUIPMENT_SLOTS.CLASS_ITEM, name: "Class item" },
     ],
   },
+  { label: "Artifact", slots: [{ hash: EQUIPMENT_SLOTS.ARTIFACT, name: "Artifact" }] },
 ];
 const LOADOUT_SLOTS = SLOT_GROUPS.flatMap((group) => group.slots.map((slot) => slot.hash));
 const SLOT_NAMES = Object.fromEntries(SLOT_GROUPS.flatMap((group) => group.slots.map((slot) => [slot.hash, slot.name])));
@@ -159,7 +162,7 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
   const [identifiers, setIdentifiers] = useState(initialIdentifiers);
   const [activeSlot, setActiveSlot] = useState<number | null>(null);
   // "config" is the mod editor for weapons and armor, the subclass editor for the subclass
-  const [panel, setPanel] = useState<"items" | "perks" | "config">("items");
+  const [panel, setPanel] = useState<"items" | "perks" | "config" | "cosmetics">("items");
   const [search, setSearch] = useState("");
   // Plugs (mods, abilities, aspects...) picked in the editor, by item instance id then socket index
   const [plugChanges, setPlugChanges] = useState<Record<string, Record<number, number>>>({});
@@ -168,6 +171,13 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
   const [error, setError] = useState<string>();
 
   const isSubclass = (item: Item) => slotOf(item) === EQUIPMENT_SLOTS.SUBCLASS;
+  const isArtifact = (item: Item) => slotOf(item) === EQUIPMENT_SLOTS.ARTIFACT;
+  const artifactSocketsOf = (item: Item) => getEditableArtifactSockets(itemDefinitions[item.itemHash], {
+    itemInstanceId: item.itemInstanceId,
+    characterId,
+    itemComponents,
+    plugSets,
+  }).tiers.flatMap((tier) => tier.socketIndexes);
   const subclassSocketsOf = (item: Item) => getEditableSubclassSockets(itemDefinitions[item.itemHash], {
     itemInstanceId: item.itemInstanceId,
     characterId,
@@ -177,9 +187,12 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
   });
   const editableSocketsOf = (item: Item) => isSubclass(item)
     ? subclassSocketsOf(item).groups.flatMap((group) => group.socketIndexes)
+    : isArtifact(item)
+    ? artifactSocketsOf(item)
     : [
       ...getModSockets(itemDefinitions[item.itemHash], itemDefinitions).map((socket) => socket.socketIndex),
       ...getPerkSockets(itemDefinitions[item.itemHash], item.itemInstanceId, itemComponents),
+      ...getCosmeticSockets(itemDefinitions[item.itemHash], item.itemInstanceId, itemComponents).map((socket) => socket.socketIndex),
     ];
 
   // Plugs an item gets in this loadout: the ones the loadout records, else the ones it has now
@@ -217,6 +230,9 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
     if (isSubclass(item) && definition) {
       const { groups } = subclassSocketsOf(item);
       return planSubclassChanges(definition, groups, current.map((socket) => socket.plugHash), desired, getFragmentCapacity(groups, desired, itemDefinitions));
+    }
+    if (isArtifact(item) && definition) {
+      return planArtifactChanges(definition, artifactSocketsOf(item), current.map((socket) => socket.plugHash), desired);
     }
 
     const costOf = (plugHash?: number) => getEnergyCost(plugHash ? itemDefinitions[plugHash] : undefined);
@@ -347,14 +363,16 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
   };
 
   const activeOwned = activeSlot !== null && selection[activeSlot] ? ownedItems.get(selection[activeSlot]) : undefined;
-  // Subclass: pick it, then its abilities. Weapons: item, perks, mods. Armor: item, mods
+  // Subclass: pick it, then its abilities. Artifact: pick it, then its perks. Weapons: item, perks, mods, cosmetics. Armor: item, mods, cosmetics
   const tabs: { id: typeof panel; label: string }[] = !activeOwned
     ? []
     : activeSlot === EQUIPMENT_SLOTS.SUBCLASS
       ? [{ id: "items", label: "Subclasses" }, { id: "config", label: "Abilities" }]
+      : activeSlot === EQUIPMENT_SLOTS.ARTIFACT
+      ? [{ id: "items", label: "Artifacts" }, { id: "config", label: "Perks" }]
       : WEAPON_SLOTS.includes(activeSlot ?? 0)
-        ? [{ id: "items", label: "Items" }, { id: "perks", label: "Perks" }, { id: "config", label: "Mods" }]
-        : [{ id: "items", label: "Items" }, { id: "config", label: "Mods" }];
+        ? [{ id: "items", label: "Items" }, { id: "perks", label: "Perks" }, { id: "config", label: "Mods" }, { id: "cosmetics", label: "Cosmetics" }]
+        : [{ id: "items", label: "Items" }, { id: "config", label: "Mods" }, { id: "cosmetics", label: "Cosmetics" }];
   const shownPanel = tabs.some((tab) => tab.id === panel) ? panel : "items";
 
   const candidates = useMemo(() => {
@@ -365,8 +383,8 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
       .filter(({ item, location }) => {
         const definition = itemDefinitions[item.itemHash];
         if (!definition || definition.inventory?.bucketTypeHash !== activeSlot) return false;
-        // Subclasses never leave their character
-        if (activeSlot === EQUIPMENT_SLOTS.SUBCLASS && location !== characterId) return false;
+        // Subclasses and artifacts never leave their character
+        if ((activeSlot === EQUIPMENT_SLOTS.SUBCLASS || activeSlot === EQUIPMENT_SLOTS.ARTIFACT) && location !== characterId) return false;
         if (definition.classType !== undefined && definition.classType !== ANY_CLASS && definition.classType !== classType) return false;
         return !query || definition.displayProperties.name.toLowerCase().includes(query);
       })
@@ -667,6 +685,25 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
               plugs={desiredPlugs(activeOwned.item.itemInstanceId)}
               onChange={(socketIndex, plugHash) => changePlug(activeOwned.item.itemInstanceId, socketIndex, plugHash)}
             />
+          ) : shownPanel === "config" && activeOwned && isArtifact(activeOwned.item) ? (
+            <ArtifactEditor
+              key={activeOwned.item.itemInstanceId}
+              itemHash={activeOwned.item.itemHash}
+              itemInstanceId={activeOwned.item.itemInstanceId}
+              characterId={characterId}
+              plugs={desiredPlugs(activeOwned.item.itemInstanceId)}
+              onChange={(socketIndex, plugHash) => changePlug(activeOwned.item.itemInstanceId, socketIndex, plugHash)}
+            />
+          ) : shownPanel === "cosmetics" && activeOwned ? (
+            <ModEditor
+              key={`${activeOwned.item.itemInstanceId}-cosmetics`}
+              kind="cosmetics"
+              itemHash={activeOwned.item.itemHash}
+              itemInstanceId={activeOwned.item.itemInstanceId}
+              characterId={characterId}
+              plugs={desiredPlugs(activeOwned.item.itemInstanceId)}
+              onChange={(socketIndex, plugHash) => changePlug(activeOwned.item.itemInstanceId, socketIndex, plugHash)}
+            />
           ) : shownPanel === "config" && activeOwned ? (
             <ModEditor
               key={activeOwned.item.itemInstanceId}
@@ -732,7 +769,7 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
                   )}
                   {toEquip.length > 0 && <li>Equip {plural(toEquip.length, "item")}</li>}
                   {plannedSwaps.length > 0 && (
-                    <li>Apply {plural(plannedSwaps.length, "perk, mod or subclass change")}: they stay on the items</li>
+                    <li>Apply {plural(plannedSwaps.length, "perk, mod, cosmetic, artifact or subclass change")}: they stay on the items</li>
                   )}
                   <li>Record the loadout{restoreGear && toEquip.length > 0 ? ", then re-equip your current gear" : ""}</li>
                 </ul>
