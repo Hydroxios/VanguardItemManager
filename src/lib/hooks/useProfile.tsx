@@ -26,6 +26,7 @@ export interface Profile {
     setProfileInventory: (items: Item[]) => void;
     moveItem: (itemHash: number, itemInstanceId: string | undefined, fromId: string, toId: string, quantity: number, updates?: Partial<Item>, sourceBucketHash?: number) => void;
     changeEmblem: (characterId: string, emblemHash: number) => void;
+    setCharacterStatsLocally: (characterId: string, stats: Record<string, number>) => void;
     equipItemLocally: (characterId: string, itemInstanceId: string) => void;
     transferEquippedItem: (itemHash: number, itemInstanceId: string, fromId: string, toId: string, replacementItemInstanceId: string) => void;
     equipLoadoutLocally: (characterId: string, loadoutItems: Item[]) => void;
@@ -219,6 +220,10 @@ export const ProfileProvider = ({ children }: ProfileProviderProps) => {
             stats: stats ? { ...prev.stats, [itemInstanceId]: stats } : prev.stats,
             perks: perks ? { ...prev.perks, [itemInstanceId]: perks } : prev.perks,
         }));
+    }, []);
+
+    const setCharacterStatsLocally = useCallback((characterId: string, stats: Record<string, number>) => {
+        setCharacters(prev => prev[characterId] ? { ...prev, [characterId]: { ...prev[characterId], stats } } : prev);
     }, []);
 
     const changeEmblem = useCallback((characterId: string, emblemHash: number) => {
@@ -430,6 +435,7 @@ export const ProfileProvider = ({ children }: ProfileProviderProps) => {
         setProfileInventory,
         moveItem,
         changeEmblem,
+        setCharacterStatsLocally,
         equipItemLocally,
         transferEquippedItem,
         equipLoadoutLocally,
@@ -437,7 +443,7 @@ export const ProfileProvider = ({ children }: ProfileProviderProps) => {
         setItemLockedLocally,
         setItemComponentsLocally
     }), [loading, loadError, user, refreshing, refresh, characterEquipment, characterInventories, characterLoadouts, characters, itemComponents, plugSets, profileData, profileCurrencies, profileInventory, lastRefresh,
-        setCharacterEquipment, setCharacterInventory, setProfileInventory, moveItem, changeEmblem, equipItemLocally, transferEquippedItem, equipLoadoutLocally, updateLoadoutLocally, setItemLockedLocally, setItemComponentsLocally]);
+        setCharacterEquipment, setCharacterInventory, setProfileInventory, moveItem, changeEmblem, setCharacterStatsLocally, equipItemLocally, transferEquippedItem, equipLoadoutLocally, updateLoadoutLocally, setItemLockedLocally, setItemComponentsLocally]);
 
     return (
         <ProfileContext.Provider value={contextValue}>

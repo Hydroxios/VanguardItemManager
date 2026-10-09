@@ -10,6 +10,7 @@ import { useItemTooltipActions } from "@/lib/hooks/useItemTooltip";
 import { useNotifications } from "@/app/components/NotificationsProvider";
 import { insertSocketPlugFree } from "@/lib/bungie";
 import { countFragments, getEditableSubclassSockets, getFragmentCapacity, planSubclassChanges } from "@/lib/helpers/subclass";
+import { statsWithSubclassChange } from "@/lib/helpers/stats";
 
 interface SubclassEditorModalProps {
   itemHash: number;
@@ -20,7 +21,7 @@ interface SubclassEditorModalProps {
 
 /** Edits the super, abilities, aspects and fragments of a subclass the character holds, and applies them in game. */
 const SubclassEditorModal = ({ itemHash, itemInstanceId, characterId, onClose }: SubclassEditorModalProps) => {
-  const { user, itemComponents, plugSets, setItemComponentsLocally } = useProfile();
+  const { user, characters, characterEquipment, itemComponents, plugSets, setItemComponentsLocally, setCharacterStatsLocally } = useProfile();
   const { itemDefinitions } = useDefinitions();
   const { hideTooltip } = useItemTooltipActions();
   const { addNotification } = useNotifications();
@@ -79,11 +80,15 @@ const SubclassEditorModal = ({ itemHash, itemInstanceId, characterId, onClose }:
     hideTooltip();
     setSaving(true);
     setError(undefined);
+    // The plugs as they go in, to update the character's stats with what actually got applied
+    const initialPlugs = currentSockets.map((socket) => socket.plugHash);
+    const appliedPlugs = [...initialPlugs];
     try {
       for (const { socketIndex, plugHash } of steps) {
         try {
           const changed = await insertSocketPlugFree(user.membershipType, characterId, itemInstanceId, socketIndex, plugHash);
           setItemComponentsLocally(itemInstanceId, changed);
+          appliedPlugs[socketIndex] = plugHash;
         } catch (plugError) {
           const plugName = itemDefinitions[plugHash]?.displayProperties.name ?? "a plug";
           throw new Error(`Could not apply ${plugName}: ${plugError instanceof Error ? plugError.message : "unknown error"}`);
@@ -97,6 +102,12 @@ const SubclassEditorModal = ({ itemHash, itemInstanceId, characterId, onClose }:
       // The plugs that went in before the failure are already applied locally: the remaining changes are dropped
       setChanges({});
     } finally {
+      // Only the equipped subclass counts in the character's stats
+      const character = characters[characterId];
+      const isEquipped = characterEquipment[characterId]?.items.some((item) => item.itemInstanceId === itemInstanceId);
+      if (character && isEquipped) {
+        setCharacterStatsLocally(characterId, statsWithSubclassChange(character.stats, initialPlugs, appliedPlugs, itemDefinitions, character.classType));
+      }
       setSaving(false);
     }
   };

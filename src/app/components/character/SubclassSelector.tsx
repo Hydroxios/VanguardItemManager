@@ -7,6 +7,8 @@ import { useNotifications } from "@/app/components/NotificationsProvider";
 import { useProfile } from "@/lib/hooks/useProfile";
 import { useItemTooltipActions } from "@/lib/hooks/useItemTooltip";
 import { DamageType } from "@/lib/helpers/damage-type";
+import { statsWithSubclassChange } from "@/lib/helpers/stats";
+import { useDefinitions } from "@/lib/hooks/useDefinitions";
 import { EquipmentItem } from "@/lib/types";
 
 interface SubclassSelectorProps {
@@ -130,7 +132,8 @@ const ElementsDiamond = ({ size }: { size: number }) => (
  */
 const SubclassSelector = ({ characterId, equipped, others, onEdit }: SubclassSelectorProps) => {
   const [open, setOpen] = useState(false);
-  const { user, characters, equipItemLocally } = useProfile();
+  const { user, characters, itemComponents, equipItemLocally, setCharacterStatsLocally } = useProfile();
+  const { itemDefinitions } = useDefinitions();
   const { addNotification } = useNotifications();
   const { hideTooltip } = useItemTooltipActions();
 
@@ -153,6 +156,14 @@ const SubclassSelector = ({ characterId, equipped, others, onEdit }: SubclassSel
     try {
       await equipItem(user.membershipType, characterId, subclass.itemInstanceId);
       equipItemLocally(characterId, subclass.itemInstanceId);
+      // The fragments of the new subclass replace those of the old one in the character's stats
+      const character = characters[characterId];
+      const plugsOf = (instanceId: string) => (itemComponents.sockets[instanceId]?.sockets ?? []).map((socket) => socket.plugHash);
+      if (character) {
+        setCharacterStatsLocally(characterId, statsWithSubclassChange(
+          character.stats, plugsOf(equipped.itemInstanceId), plugsOf(subclass.itemInstanceId), itemDefinitions, character.classType
+        ));
+      }
       // No refresh: Bungie serves a cached profile for a while after a change, which would undo the local update
       addNotification(`Successfully Equipped ${subclass.item.displayProperties.name} !`, "", "success", icon, 5000);
     } catch (err) {
