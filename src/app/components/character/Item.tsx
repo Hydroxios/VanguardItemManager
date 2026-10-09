@@ -7,6 +7,7 @@ import { useProfile } from "@/lib/hooks/useProfile";
 import ItemContextMenu from "./ItemContextMenu";
 import Image from "next/image";
 import { ItemDefinition, ItemPerks, ItemStats } from "@/lib/types";
+import { ITEM_TYPES } from "@/lib/constants";
 
 interface ItemProps {
   itemHash: number;
@@ -39,6 +40,10 @@ const Item = ({
 
   const { itemComponents } = useProfile()
   const { itemDefinitions, itemConstantsDefinitions } = useDefinitions()
+
+  // Subclass icons are diamonds: no square frame around them
+  const isSubclass = itemDefinitions[itemHash]?.itemType === ITEM_TYPES.SUBCLASS;
+  const border = isSubclass ? "none" : "2px solid " + (state & 4 && !(state & 8) ? "#FFBB00" : state & 8 ? "red" : "white");
 
   const tooltipTrigger = useItemTooltipTrigger(() => ({
     item: itemDefinitions[itemHash],
@@ -84,7 +89,7 @@ const Item = ({
         aria-label={itemDefinitions[itemHash]?.displayProperties?.name}
         key={itemHash}
         style={{
-          boxShadow: "0 4px 8px rgba(0, 0, 0, 0.3)",
+          boxShadow: isSubclass ? undefined : "0 4px 8px rgba(0, 0, 0, 0.3)",
           height: size,
           cursor: "pointer",
           width: size,
@@ -112,7 +117,7 @@ const Item = ({
                 height={size}
                 width={size}
                 style={{
-                  border: "2px solid " + (state & 4 && !(state & 8) ? "#FFBB00" : state & 8 ? "red" : "white"),
+                  border,
                 }}
                 alt={ornamentItem.displayProperties.name || "Item"}
               />
@@ -130,7 +135,7 @@ const Item = ({
                 height={size}
                 width={size}
                 style={{
-                  border: "2px solid " + (state & 4 && !(state & 8) ? "#FFBB00" : state & 8 ? "red" : "white"),
+                  border,
                 }}
                 alt={itemDefinitions[itemHash].displayProperties.name || "Item"}
               />
@@ -163,7 +168,7 @@ const Item = ({
               ) : ""}
             </>
           )}
-          <div style={{
+          {!isSubclass && <div style={{
             position: "absolute",
             top: 2,
             left: 2,
@@ -171,7 +176,7 @@ const Item = ({
             height: size - 4,
             boxShadow: `inset 0 0 12px rgba(0,0,0,0.9)`,
             pointerEvents: "none"
-          }} />
+          }} />}
           {/* Display quantity for stackable items */}
           {quantity > 1 && (
             <div style={{

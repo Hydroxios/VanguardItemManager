@@ -332,3 +332,18 @@ footer {
   .loader-sweep { animation-duration: 3s; }
   .loader-core { animation: none; transform: rotate(45deg) scale(0.8); opacity: 0.8; }
 }
+
+/* ===== Prismatic switch button: the lines around it turn slowly ===== */
+.prismatic-lines {
+  transform-origin: 50px 50px;
+  transform-box: view-box;
+  animation: prismatic-turn 24s linear infinite reverse;
+}
+
+@keyframes prismatic-turn {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .prismatic-lines { animation: none; }
+}

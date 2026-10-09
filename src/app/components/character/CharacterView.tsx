@@ -10,6 +10,8 @@ import useTransferItem from "@/lib/hooks/useTransferItem";
 import Vault from "./Vault";
 import Engrams from "./Engrams";
 import Postmaster from "./Postmaster";
+import SubclassEditorModal from "./SubclassEditorModal";
+import SubclassSelector from "./SubclassSelector";
 import { useDefinitions } from "@/lib/hooks/useDefinitions";
 import { useProfile } from "@/lib/hooks/useProfile";
 import DestinyIcon from "../destiny-ui/DestinyIcon";
@@ -21,6 +23,7 @@ import { CURRENCIES, EQUIPMENT_SLOTS } from "@/lib/constants";
 
 // The flyout section of each equipment slot type
 const SECTION_BY_SLOT: Record<number, string> = {
+  [EQUIPMENT_SLOTS.SUBCLASS]: "subclass",
   [EQUIPMENT_SLOTS.PRIMARY]: "primary",
   [EQUIPMENT_SLOTS.ENERGETIC]: "energetic",
   [EQUIPMENT_SLOTS.HEAVY]: "heavy",
@@ -46,6 +49,8 @@ const CharacterView: React.FC<CharacterViewProps> = ({
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
   const [isVaultOpen, setIsVaultOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false)
+  // The subclass being edited, equipped or not
+  const [editedSubclass, setEditedSubclass] = useState<EquipmentItem>()
   const { transfer } = useTransferItem();
 
   const {
@@ -157,6 +162,8 @@ const CharacterView: React.FC<CharacterViewProps> = ({
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // The subclass editor handles its own keys
+      if (editedSubclass) return;
       if (e.key === 'Escape') {
         if (isVaultOpen) {
           setIsVaultOpen(false)
@@ -174,6 +181,7 @@ const CharacterView: React.FC<CharacterViewProps> = ({
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
+      if (editedSubclass) return;
       if (e.key === "s" && !searchOpen && !isVaultOpen) {
         setSearchOpen(true)
         hideTooltip();
@@ -187,7 +195,12 @@ const CharacterView: React.FC<CharacterViewProps> = ({
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [isVaultOpen, searchOpen, hideTooltip, changeCharacter]);
+  }, [isVaultOpen, searchOpen, editedSubclass, hideTooltip, changeCharacter]);
+
+  const editSubclass = useCallback((subclass: EquipmentItem) => {
+    hideTooltip();
+    setEditedSubclass(subclass);
+  }, [hideTooltip]);
 
   // Render equipment section
   const renderEquipmentSection = useCallback(
@@ -257,8 +270,16 @@ const CharacterView: React.FC<CharacterViewProps> = ({
 
       <div className="flex justify-center items-center mt-4">
         <div className="flex flex-row gap-10 items-center">
-          {/* Weapons Column */}
-          <div className="flex flex-col gap-5">
+          {/* Weapons Column, under the subclass like in game */}
+          <div className="flex flex-col items-center gap-5">
+            {equipment.subclass.current && (
+              <SubclassSelector
+                characterId={characterId}
+                equipped={equipment.subclass.current}
+                others={equipment.subclass.inventory}
+                onEdit={editSubclass}
+              />
+            )}
             {renderEquipmentSection("primary", false)}
             {renderEquipmentSection("energetic", false)}
             {renderEquipmentSection("heavy", false)}
@@ -308,6 +329,16 @@ const CharacterView: React.FC<CharacterViewProps> = ({
         setIsOpen={setIsVaultOpen}
         characterId={characterId}
       />
+
+      {editedSubclass && (
+        <SubclassEditorModal
+          key={editedSubclass.itemInstanceId}
+          itemHash={editedSubclass.hash}
+          itemInstanceId={editedSubclass.itemInstanceId}
+          characterId={characterId}
+          onClose={() => setEditedSubclass(undefined)}
+        />
+      )}
 
       <SearchBar open={searchOpen} currentCharacterId={characterId} onClose={() => setSearchOpen(false)} />
 

@@ -28,6 +28,8 @@ export interface ItemDefinition {
     itemType: number
     itemSubType: number
     defaultDamageType: number
+    /** Subclasses: the element they show in the HUD (a DamageType), kinetic for prismatic */
+    talentGrid?: { hudDamageType?: number }
     /** 0 Titan, 1 Hunter, 2 Warlock, 3 any class */
     classType?: number
     hash: number
