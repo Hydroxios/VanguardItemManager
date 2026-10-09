@@ -6,6 +6,7 @@ import { equipItem } from "@/lib/bungie";
 import { useNotifications } from "@/app/components/NotificationsProvider";
 import { BUCKETS } from "@/lib/constants";
 import { Item as ProfileItem } from "@/lib/types";
+import useModalKeys from "@/lib/hooks/useModalKeys";
 
 interface EmblemSelectorProps {
     isOpen: boolean;
@@ -63,6 +64,8 @@ const EmblemSelector = ({ isOpen, onClose, characterId }: EmblemSelectorProps) =
             addNotification("Error equipping emblem", error instanceof Error ? error.message : "", "error");
         }
     };
+
+    useModalKeys(onClose, { enabled: isOpen });
 
     if (!isOpen) return null;
 

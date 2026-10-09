@@ -4,6 +4,13 @@ import { BungieUser, Character, Currency, InstanceComponents, Item, ItemInstance
 import { BUCKETS, ITEM_STATE } from "@/lib/constants";
 import { moveItemInState } from "@/lib/helpers/inventory";
 
+// How long a loadout changed here wins over the fetched one: Bungie serves a cached profile for a while after a change
+const LOADOUT_OVERRIDE_MS = 60_000;
+
+const sameLoadout = (a?: Loadout, b?: Loadout) => !!a && !!b
+    && a.colorHash === b.colorHash && a.iconHash === b.iconHash && a.nameHash === b.nameHash
+    && a.items.map(i => i.itemInstanceId).join() === b.items.map(i => i.itemInstanceId).join();
+
 
 export interface Profile {
     loadingProfile: boolean
@@ -77,6 +84,27 @@ export const ProfileProvider = ({ children }: ProfileProviderProps) => {
     const userRef = useRef<BungieUser | undefined>(undefined);
     const loadedRef = useRef(false);
     const fetchingRef = useRef<Promise<void> | null>(null);
+    // Loadouts changed here, by "characterId:index", kept over fetched data that doesn't show the change yet
+    const loadoutOverridesRef = useRef(new Map<string, { loadout: Loadout, at: number }>());
+
+    /** The fetched loadouts, with the ones changed here recently in place of stale copies. */
+    const applyLoadoutOverrides = (fetched: Record<string, { loadouts: Loadout[] }>) => {
+        const overrides = loadoutOverridesRef.current;
+        if (overrides.size === 0) return fetched;
+        const result = Object.fromEntries(Object.entries(fetched).map(([id, { loadouts }]) => [id, { loadouts: [...loadouts] }]));
+        overrides.forEach(({ loadout, at }, key) => {
+            const [characterId, index] = key.split(":");
+            const loadouts = result[characterId]?.loadouts;
+            const fetchedLoadout = loadouts?.[Number(index)];
+            // The game caught up, or the change is old enough that the fetched data is the truth
+            if (!loadouts || sameLoadout(fetchedLoadout, loadout) || Date.now() - at > LOADOUT_OVERRIDE_MS) {
+                overrides.delete(key);
+            } else {
+                loadouts[Number(index)] = loadout;
+            }
+        });
+        return result;
+    };
 
     /** Loads the profile into the state. A fetch already running serves every caller; errors only block the UI on the first load. */
     const fetchProfile = useCallback(() => {
@@ -90,7 +118,7 @@ export const ProfileProvider = ({ children }: ProfileProviderProps) => {
 
             setCharacterEquipementState(profile.characterEquipment.data)
             setCharacterInventoriesState(profile.characterInventories.data)
-            setCharacterLoadouts(profile.characterLoadouts.data)
+            setCharacterLoadouts(applyLoadoutOverrides(profile.characterLoadouts.data))
             setCharacters(profile.characters.data)
 
             const itemcomps: ItemComponents = {
@@ -388,6 +416,7 @@ export const ProfileProvider = ({ children }: ProfileProviderProps) => {
     }, [setCharacterEquipment, setCharacterInventory]);
 
     const updateLoadoutLocally = useCallback((characterId: string, loadoutIndex: number, loadout: Loadout) => {
+        loadoutOverridesRef.current.set(`${characterId}:${loadoutIndex}`, { loadout, at: Date.now() });
         setCharacterLoadouts(prev => {
             const loadouts = [...(prev[characterId]?.loadouts ?? [])];
             loadouts[loadoutIndex] = loadout;

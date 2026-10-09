@@ -2,6 +2,7 @@ import React, { useMemo } from "react";
 import { useProfile } from "@/lib/hooks/useProfile";
 import { useDefinitions } from "@/lib/hooks/useDefinitions";
 import ItemComponent from "./Item";
+import useModalKeys from "@/lib/hooks/useModalKeys";
 import { Item, Loadout } from "@/lib/types";
 
 interface LoadoutViewerModalProps {
@@ -38,6 +39,8 @@ const LoadoutViewerModal: React.FC<LoadoutViewerModalProps> = ({
             })
             .filter((item): item is Item => item !== undefined);
     }, [loadout, characterInventories, characterEquipment, profileInventory]);
+
+    useModalKeys(onClose, { enabled: open && !!loadout });
 
     if (!open || !loadout) return null;
 

@@ -11,6 +11,7 @@ Vanguard Item Manager is a custom inventory management application for Destiny 2
 - **Loadout Editor**: Create, view and edit loadouts, with perk, mod and subclass editors, loadout stats and save checks, then equip them in one go.
 - **Item Tooltips**: Every perk column with the perks the roll can switch to, stats in the game's order (hidden stats and recoil included) with masterwork and mod bonuses, armor set bonuses, and quick links to external databases. Hover to peek, click to pin, hold Shift to compare with the equipped item.
 - **Quick Actions**: Equip items on any character, move them between characters and the vault, pull them from the postmaster, and lock or unlock weapons and armor from the tooltip or the context menu.
+- **Inventory Cleaner**: Send a character's unequipped weapons and armor to the vault in one click, or list the junk (worse duplicates, armor under a stat total, gear under a tier) across the vault and characters and bring it to the character to dismantle in game. Locked items and loadout items are never flagged.
 - **Secure Bungie Login**: OAuth with a CSRF-protected `state`; the refresh token is kept in an `httpOnly` cookie and never exposed to client scripts.
 - **Manifest Caching**: Destiny manifest files are cached in the browser between visits and refreshed only when Bungie publishes a new version.
 - **Localization**: The Destiny data can be displayed in English, French, Spanish, German, Italian, Japanese, Russian, Polish or Korean.

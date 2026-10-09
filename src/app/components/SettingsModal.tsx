@@ -1,7 +1,8 @@
-import React, { ReactNode, useEffect, useState } from "react";
+import React, { ReactNode, useState } from "react";
 import { createPortal } from "react-dom";
 import DestinyCheckBox from "./destiny-ui/DestinyCheckbox";
 import { DEFAULT_SETTINGS, Settings, updateSettings, useSettings } from "@/lib/hooks/useSettings";
+import useModalKeys from "@/lib/hooks/useModalKeys";
 
 interface SettingsModalProps {
   open: boolean;
@@ -105,22 +106,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose, debugMode,
   const [section, setSection] = useState<SectionId>("general");
   const { settings, setSetting } = useSettings();
 
-  // Escape closes the settings. Keys stop here, before the page's shortcuts on window (Escape leaving the
-  // character, "z" opening the vault, "s" the search) act behind the modal
-  useEffect(() => {
-    if (!open) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      e.stopPropagation();
-      if (e.key === "Escape") onClose();
-    };
-    const handleKeyUp = (e: KeyboardEvent) => e.stopPropagation();
-    document.addEventListener("keydown", handleKeyDown);
-    document.addEventListener("keyup", handleKeyUp);
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-      document.removeEventListener("keyup", handleKeyUp);
-    };
-  }, [open, onClose]);
+  // Escape closes the settings, and no key reaches the page's shortcuts behind them
+  useModalKeys(onClose, { enabled: open });
 
   if (!open) return null;
 

@@ -369,10 +369,9 @@ const Loadouts = ({
       const icon = characterLoadouts[characterId].loadouts[loadoutToDelete].iconHash && loadoutIconDefinitions[characterLoadouts[characterId].loadouts[loadoutToDelete].iconHash] ?
         `https://www.bungie.net${loadoutIconDefinitions[characterLoadouts[characterId].loadouts[loadoutToDelete].iconHash].iconImagePath}` : "";
 
+      // Nothing else changes: no refetch, which could bring the cleared loadout back from Bungie's cache
+      updateLoadoutLocally(characterId, loadoutToDelete, { colorHash: 0, iconHash: 0, nameHash: 0, items: [] });
       addNotification("Loadout cleared", "", "success", icon, 5000);
-
-      // Refresh character data
-      await refresh();
     } catch (error) {
       addNotification("Error", (error instanceof Error && error.message) || "Failed to clear loadout", "error", "", 5000);
     }

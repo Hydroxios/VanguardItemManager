@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
 import SubclassEditor from "./SubclassEditor";
@@ -10,6 +10,7 @@ import { useDefinitions } from "@/lib/hooks/useDefinitions";
 import { useItemTooltipActions } from "@/lib/hooks/useItemTooltip";
 import { useNotifications } from "@/app/components/NotificationsProvider";
 import useEquipSubclass from "@/lib/hooks/useEquipSubclass";
+import useModalKeys from "@/lib/hooks/useModalKeys";
 import { insertSocketPlugFree } from "@/lib/bungie";
 import { countFragments, getEditableSubclassSockets, getFragmentCapacity, planSubclassChanges } from "@/lib/helpers/subclass";
 import { ARMOR_STAT_HASHES, statsWithSubclassChange, StatTotals } from "@/lib/helpers/stats";
@@ -89,13 +90,7 @@ const SubclassEditorModal = ({ itemHash, itemInstanceId, characterId, onClose }:
   };
 
   // Escape closes the editor, unless changes are being applied
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !saving) onClose();
-    };
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [saving, onClose]);
+  useModalKeys(onClose, { canClose: !saving });
 
   /** Applies the changes, then equips the subclass when asked (and only if every change went in). */
   const handleApply = async (andEquip: boolean) => {

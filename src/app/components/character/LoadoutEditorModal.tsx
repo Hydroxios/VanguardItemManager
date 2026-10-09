@@ -20,6 +20,7 @@ import { getLoadoutChoices } from "@/lib/helpers/loadouts";
 import { armorStatsWithPlugs, plugsStats, sumStats } from "@/lib/helpers/stats";
 import { ARMOR_SLOTS, BUCKETS, EQUIPMENT_SLOTS, SOCKET_CATEGORIES, UNSET_PLUG_HASH, WEAPON_SLOTS } from "@/lib/constants";
 import { Item } from "@/lib/types";
+import useModalKeys from "@/lib/hooks/useModalKeys";
 
 const EXOTIC_TIER = 6;
 const ANY_CLASS = 3;
@@ -393,13 +394,7 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
   useEffect(() => () => hideTooltip(), [hideTooltip]);
 
   // Escape closes the editor, unless a save is running
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !saving) onClose();
-    };
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [saving, onClose]);
+  useModalKeys(onClose, { canClose: !saving });
 
   const equipAll = async (instanceIds: string[]) => {
     // Exotics go last, so whatever exotic they replace is already unequipped

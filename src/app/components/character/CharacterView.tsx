@@ -12,6 +12,7 @@ import Engrams from "./Engrams";
 import Postmaster from "./Postmaster";
 import SubclassEditorModal from "./SubclassEditorModal";
 import SubclassSelector from "./SubclassSelector";
+import InventoryCleanerModal from "./InventoryCleanerModal";
 import { useDefinitions } from "@/lib/hooks/useDefinitions";
 import { useProfile } from "@/lib/hooks/useProfile";
 import DestinyIcon from "../destiny-ui/DestinyIcon";
@@ -49,6 +50,7 @@ const CharacterView: React.FC<CharacterViewProps> = ({
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
   const [isVaultOpen, setIsVaultOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false)
+  const [cleanerOpen, setCleanerOpen] = useState(false)
   // The subclass being edited, equipped or not
   const [editedSubclass, setEditedSubclass] = useState<EquipmentItem>()
   const { transfer } = useTransferItem();
@@ -162,8 +164,6 @@ const CharacterView: React.FC<CharacterViewProps> = ({
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // The subclass editor handles its own keys
-      if (editedSubclass) return;
       if (e.key === 'Escape') {
         if (isVaultOpen) {
           setIsVaultOpen(false)
@@ -181,9 +181,12 @@ const CharacterView: React.FC<CharacterViewProps> = ({
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
-      if (editedSubclass) return;
       if (e.key === "s" && !searchOpen && !isVaultOpen) {
         setSearchOpen(true)
+        hideTooltip();
+      }
+      if (e.key === "c" && !searchOpen && !isVaultOpen) {
+        setCleanerOpen(true)
         hideTooltip();
       }
     }
@@ -195,7 +198,9 @@ const CharacterView: React.FC<CharacterViewProps> = ({
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [isVaultOpen, searchOpen, editedSubclass, hideTooltip, changeCharacter]);
+  }, [isVaultOpen, searchOpen, hideTooltip, changeCharacter]);
+
+  const closeCleaner = useCallback(() => setCleanerOpen(false), []);
 
   const editSubclass = useCallback((subclass: EquipmentItem) => {
     hideTooltip();
@@ -340,6 +345,10 @@ const CharacterView: React.FC<CharacterViewProps> = ({
         />
       )}
 
+      {cleanerOpen && (
+        <InventoryCleanerModal characterId={characterId} onClose={closeCleaner} />
+      )}
+
       <SearchBar open={searchOpen} currentCharacterId={characterId} onClose={() => setSearchOpen(false)} />
 
       {/* Add bottom margin to prevent footer overlap */}
@@ -368,6 +377,16 @@ const CharacterView: React.FC<CharacterViewProps> = ({
           >
             <DestinyIcon icon="" />
             Search
+          </button>
+          <button
+            className="flex flex-row items-center gap-2 p-2 hover:shadow-lg hover:bg-gray-300/10 transition-all duration-300"
+            onClick={() => {
+              hideTooltip();
+              setCleanerOpen(true);
+            }}
+          >
+            <DestinyIcon icon="" />
+            Clean
           </button>
           <button
             className="flex flex-row items-center gap-2 p-2 hover:shadow-lg hover:bg-gray-300/10 transition-all duration-300"
