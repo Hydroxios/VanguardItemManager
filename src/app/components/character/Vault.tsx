@@ -11,6 +11,7 @@ import { ItemDefinition, Item as ItemInstance, ItemPerks, ItemStats } from "@/li
 import { ARMOR_SLOTS, WEAPON_SLOTS } from "@/lib/constants";
 import { findDupes, isEmptySearch, matchesSearch, parseSearch } from "@/lib/search";
 import { getSettings, useSettings, VAULT_ITEM_SIZES } from "@/lib/hooks/useSettings";
+import { SortDirection, sortVaultItems, VAULT_SORTS, VaultSort } from "@/lib/helpers/vault-sort";
 
 interface VaultProps {
   isOpen: boolean;
@@ -41,6 +42,15 @@ const loadFilters = (): VaultFilters => {
   }
 };
 
+// The sort is a display preference: always kept, like the vault's height
+const loadSort = (): { sort: VaultSort; direction: SortDirection } => {
+  try {
+    const saved = JSON.parse(localStorage.getItem('vaultSort') ?? 'null');
+    if (VAULT_SORTS.some(s => s.value === saved?.sort) && (saved.direction === 'asc' || saved.direction === 'desc')) return saved;
+  } catch { /* falls back to the default */ }
+  return { sort: 'name', direction: 'asc' };
+};
+
 interface ProcessedItem {
   item: ItemDefinition,
   itemInstance: ItemInstance,
@@ -63,6 +73,8 @@ const Vault: React.FC<VaultProps> = ({
   const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState<boolean>(false);
   const [isElementDropdownOpen, setIsElementDropdownOpen] = useState<boolean>(false);
   const [showDuplicates, setShowDuplicates] = useState<boolean>(initialFilters.showDuplicates);
+  const [{ sort, direction }, setSortState] = useState(loadSort);
+  const [isSortDropdownOpen, setIsSortDropdownOpen] = useState<boolean>(false);
   const [isAnimatingOut, setIsAnimatingOut] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>("");
   // Height in vh, as last resized; the vault only renders on the client, after login
@@ -79,6 +91,19 @@ const Vault: React.FC<VaultProps> = ({
     const filters: VaultFilters = { activeTab, weaponTypeFilter, elementFilter, showDuplicates };
     localStorage.setItem('vaultFilters', JSON.stringify(filters));
   }, [rememberVaultFilters, activeTab, weaponTypeFilter, elementFilter, showDuplicates]);
+
+  // A new sort starts in its natural direction (power highest first, name A to Z...)
+  const changeSort = (value: VaultSort) => {
+    const next = { sort: value, direction: VAULT_SORTS.find(s => s.value === value)!.direction };
+    setSortState(next);
+    localStorage.setItem('vaultSort', JSON.stringify(next));
+  };
+
+  const toggleDirection = () => {
+    const next = { sort, direction: direction === 'asc' ? 'desc' as const : 'asc' as const };
+    setSortState(next);
+    localStorage.setItem('vaultSort', JSON.stringify(next));
+  };
 
   const { itemDefinitions, perksDefinitions } = useDefinitions()
 
@@ -132,9 +157,8 @@ const Vault: React.FC<VaultProps> = ({
       }
     });
 
-    const byName = (a: ProcessedItem, b: ProcessedItem) => a.item.displayProperties.name.localeCompare(b.item.displayProperties.name);
     return {
-      processedItems: { weapons: weapons.sort(byName), armor: armor.sort(byName), misc: misc.sort(byName) },
+      processedItems: { weapons, armor, misc },
       weaponTypes: types,
     };
   }, [profileInventory, itemDefinitions, itemComponents]);
@@ -196,14 +220,25 @@ const Vault: React.FC<VaultProps> = ({
 
     // Apply search filter if search query exists
     const search = parseSearch(searchQuery);
-    if (isEmptySearch(search)) return itemsToFilter;
+    if (!isEmptySearch(search)) {
+      const searchable = (item: ProcessedItem) => ({ item: item.itemInstance, definition: item.item });
+      const allItems = [...processedItems.weapons, ...processedItems.armor, ...processedItems.misc].map(searchable);
+      const context = { itemComponents, perksDefinitions, dupes: findDupes(allItems) };
+      itemsToFilter = itemsToFilter.filter((item) => matchesSearch(search, searchable(item), context));
+    }
 
-    const searchable = (item: ProcessedItem) => ({ item: item.itemInstance, definition: item.item });
-    const allItems = [...processedItems.weapons, ...processedItems.armor, ...processedItems.misc].map(searchable);
-    const context = { itemComponents, perksDefinitions, dupes: findDupes(allItems) };
-    return itemsToFilter.filter((item) => matchesSearch(search, searchable(item), context));
-
-  }, [activeTab, processedItems, weaponTypeFilter, elementFilter, searchQuery, itemComponents, perksDefinitions, showDuplicates]);
+    return sortVaultItems(itemsToFilter, sort, direction, (item) => {
+      const instance = item.itemInstance.itemInstanceId ? itemComponents.instances[item.itemInstance.itemInstanceId] : undefined;
+      return {
+        name: item.item.displayProperties.name,
+        itemInstanceId: item.itemInstance.itemInstanceId,
+        rarity: item.item.inventory?.tierType,
+        power: instance?.primaryStat?.value,
+        tier: instance?.gearTier,
+        typeName: item.item.itemTypeDisplayName,
+      };
+    });
+  }, [activeTab, processedItems, weaponTypeFilter, elementFilter, searchQuery, itemComponents, perksDefinitions, showDuplicates, sort, direction]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -214,6 +249,9 @@ const Vault: React.FC<VaultProps> = ({
       }
       if (!target.closest('.element-filter')) {
         setIsElementDropdownOpen(false);
+      }
+      if (!target.closest('.vault-sort')) {
+        setIsSortDropdownOpen(false);
       }
     };
 
@@ -366,6 +404,55 @@ const Vault: React.FC<VaultProps> = ({
 
       {/* Filters Bar */}
       <div className="flex items-center p-3 border-b border-white/5 bg-black/10 gap-3">
+        {/* Sort, and its direction */}
+        <div className="relative vault-sort flex items-center gap-1">
+          <button
+            className="flex items-center gap-2 bg-black/20 px-3 py-1.5 rounded-lg text-sm text-gray-300 hover:text-white hover:bg-white/5 border border-white/5 transition-colors"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsSortDropdownOpen(!isSortDropdownOpen);
+              setIsFilterDropdownOpen(false);
+              setIsElementDropdownOpen(false);
+            }}
+          >
+            <span className="text-gray-500">Sort:</span>
+            <span className="font-medium">{VAULT_SORTS.find(s => s.value === sort)!.label}</span>
+            <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 text-gray-500 transition-transform ${isSortDropdownOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          <button
+            className="p-1.5 bg-black/20 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 border border-white/5 transition-colors"
+            onClick={toggleDirection}
+            title={direction === 'asc' ? 'Ascending' : 'Descending'}
+            aria-label={direction === 'asc' ? 'Ascending, switch to descending' : 'Descending, switch to ascending'}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 transition-transform ${direction === 'desc' ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19V5m-6 6l6-6 6 6" />
+            </svg>
+          </button>
+
+          {isSortDropdownOpen && (
+            <div className="absolute left-0 top-full mt-2 w-40 bg-[#1a1a1a] border border-white/10 rounded-xl shadow-xl z-20 overflow-hidden">
+              {VAULT_SORTS.map((option) => (
+                <button
+                  key={option.value}
+                  className={`block w-full text-left px-4 py-2 text-sm transition-colors ${sort === option.value
+                    ? 'bg-purple-500/10 text-purple-300'
+                    : 'text-gray-400 hover:bg-white/5 hover:text-white'
+                    }`}
+                  onClick={() => {
+                    changeSort(option.value);
+                    setIsSortDropdownOpen(false);
+                  }}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
         <div className="flex-1"></div>
 
         {activeTab === 'weapons' && (
@@ -378,6 +465,7 @@ const Vault: React.FC<VaultProps> = ({
                   e.stopPropagation();
                   setIsFilterDropdownOpen(!isFilterDropdownOpen);
                   setIsElementDropdownOpen(false);
+                  setIsSortDropdownOpen(false);
                 }}
               >
                 <span className="text-gray-500">Type:</span>
@@ -416,6 +504,7 @@ const Vault: React.FC<VaultProps> = ({
                   e.stopPropagation();
                   setIsElementDropdownOpen(!isElementDropdownOpen);
                   setIsFilterDropdownOpen(false);
+                  setIsSortDropdownOpen(false);
                 }}
               >
                 {elementFilter !== 'all' && (
