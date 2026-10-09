@@ -511,7 +511,7 @@ const Loadouts = ({
             )}
           </div>
         )}
-        <div className={`grid grid-cols-2 grid-rows-6 gap-1 p-4 fixed left-5 top-1/2 transform -translate-y-1/2 ${onCooldown ? 'grayscale' : ''}`}>
+        <div className={`grid grid-cols-4 grid-rows-5 gap-1 p-4 fixed left-5 top-1/2 transform -translate-y-1/2 ${onCooldown ? 'grayscale' : ''}`}>
           {elements.map((element, index) => (
               <div
                 key={index}
