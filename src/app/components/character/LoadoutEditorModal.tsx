@@ -728,7 +728,7 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
               {candidates.length === 0 ? (
                 <div className="flex flex-1 items-center justify-center text-sm text-gray-500">No item available for this slot.</div>
               ) : (
-                <div className="grid grid-cols-[repeat(auto-fill,minmax(64px,1fr))] content-start gap-2 flex-1 min-h-0 overflow-y-auto custom-scrollbar pr-1">
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(64px,1fr))] content-start gap-2 flex-1 min-h-0 overflow-y-auto custom-scrollbar p-1">
                   {candidates.map((owned) => {
                     const id = owned.item.itemInstanceId;
                     const isSelected = selection[activeSlot] === id;

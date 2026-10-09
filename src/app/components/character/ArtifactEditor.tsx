@@ -111,7 +111,7 @@ const ArtifactEditor = ({ itemHash, itemInstanceId, characterId, plugs, onChange
         </span>
       </div>
 
-      <div className="flex flex-wrap content-start gap-1 flex-1 min-h-0 overflow-y-auto custom-scrollbar pr-1">
+      <div className="flex flex-wrap content-start gap-1 flex-1 min-h-0 overflow-y-auto custom-scrollbar p-1">
         {options.map((plug) => {
           const isSelected = activeSocket !== undefined && plugs[activeSocket] === plug.hash;
           const available = isAvailable(plug);

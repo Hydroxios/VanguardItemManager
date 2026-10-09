@@ -121,7 +121,7 @@ const ModEditor = ({ itemHash, itemInstanceId, characterId, plugs, onChange, kin
         <span className="ml-auto text-xs text-gray-500 shrink-0">{options.length} {label}</span>
       </div>
 
-      <div className="flex flex-wrap content-start gap-1 flex-1 min-h-0 overflow-y-auto custom-scrollbar pr-1">
+      <div className="flex flex-wrap content-start gap-1 flex-1 min-h-0 overflow-y-auto custom-scrollbar p-1">
         {options.map((plug) => {
           const isSelected = activeSocket !== undefined && plugs[activeSocket] === plug.hash;
           const fits = fitsEnergy(plug);
