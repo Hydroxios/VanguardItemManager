@@ -264,16 +264,25 @@ export const ProfileProvider = ({ children }: ProfileProviderProps) => {
         const inventory = characterInventoriesRef.current[characterId];
         const equipment = characterEquipmentRef.current[characterId];
 
-        if (!inventory || !equipment) return;
+        if (!inventory || !equipment) {
+            console.warn("Could not equip locally: no inventory or equipment for character", characterId);
+            return;
+        }
 
         const itemToEquipIndex = inventory.items.findIndex(i => i.itemInstanceId === itemInstanceId);
-        if (itemToEquipIndex === -1) return;
+        if (itemToEquipIndex === -1) {
+            console.warn("Could not equip locally: item not in the character's inventory", itemInstanceId);
+            return;
+        }
 
         const itemToEquip = inventory.items[itemToEquipIndex];
         const bucketHash = itemToEquip.bucketHash;
 
         const currentlyEquippedIndex = equipment.items.findIndex(i => i.bucketHash === bucketHash);
-        if (currentlyEquippedIndex === -1) return;
+        if (currentlyEquippedIndex === -1) {
+            console.warn("Could not equip locally: nothing equipped in bucket", bucketHash);
+            return;
+        }
 
         const currentlyEquipped = equipment.items[currentlyEquippedIndex];
 

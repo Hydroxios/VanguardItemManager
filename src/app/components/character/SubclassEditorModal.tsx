@@ -9,6 +9,7 @@ import { useProfile } from "@/lib/hooks/useProfile";
 import { useDefinitions } from "@/lib/hooks/useDefinitions";
 import { useItemTooltipActions } from "@/lib/hooks/useItemTooltip";
 import { useNotifications } from "@/app/components/NotificationsProvider";
+import useEquipSubclass from "@/lib/hooks/useEquipSubclass";
 import { insertSocketPlugFree } from "@/lib/bungie";
 import { countFragments, getEditableSubclassSockets, getFragmentCapacity, planSubclassChanges } from "@/lib/helpers/subclass";
 import { ARMOR_STAT_HASHES, statsWithSubclassChange, StatTotals } from "@/lib/helpers/stats";
@@ -27,6 +28,7 @@ const SubclassEditorModal = ({ itemHash, itemInstanceId, characterId, onClose }:
   const { itemDefinitions } = useDefinitions();
   const { hideTooltip } = useItemTooltipActions();
   const { addNotification } = useNotifications();
+  const equipSubclass = useEquipSubclass(characterId);
 
   // Plugs picked in the editor, by socket index; the others keep what the subclass has now
   const [changes, setChanges] = useState<Record<number, number>>({});
@@ -57,6 +59,8 @@ const SubclassEditorModal = ({ itemHash, itemInstanceId, characterId, onClose }:
     ? planSubclassChanges(definition, groups, currentSockets.map((socket) => socket.plugHash), desired, fragmentCapacity)
     : [];
   const canApply = steps.length > 0 && !fragmentOverflow && !saving;
+  // Equipping works without changes too
+  const canApplyAndEquip = !fragmentOverflow && !saving;
 
   // The character's stats now, and once this subclass is applied (and equipped, when it isn't): the fragments of the
   // equipped subclass make way for the ones picked here
@@ -93,8 +97,9 @@ const SubclassEditorModal = ({ itemHash, itemInstanceId, characterId, onClose }:
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [saving, onClose]);
 
-  const handleApply = async () => {
-    if (!canApply) return;
+  /** Applies the changes, then equips the subclass when asked (and only if every change went in). */
+  const handleApply = async (andEquip: boolean) => {
+    if (andEquip ? !canApplyAndEquip : !canApply) return;
     hideTooltip();
     setSaving(true);
     setError(undefined);
@@ -112,7 +117,16 @@ const SubclassEditorModal = ({ itemHash, itemInstanceId, characterId, onClose }:
           throw new Error(`Could not apply ${plugName}: ${plugError instanceof Error ? plugError.message : "unknown error"}`);
         }
       }
-      addNotification("Subclass updated", definition?.displayProperties.name ?? "", "success", definition ? `https://www.bungie.net${definition.displayProperties.icon}` : "", 5000);
+      if (andEquip) {
+        try {
+          // Its stats come from the plugs just applied, which the profile doesn't have yet
+          await equipSubclass(itemInstanceId, appliedPlugs);
+        } catch (equipError) {
+          throw new Error(`Could not equip ${definition?.displayProperties.name ?? "the subclass"}: ${equipError instanceof Error ? equipError.message : "unknown error"}`);
+        }
+      }
+      const icon = definition ? `https://www.bungie.net${definition.displayProperties.icon}` : "";
+      addNotification(andEquip ? "Subclass equipped" : "Subclass updated", definition?.displayProperties.name ?? "", "success", icon, 5000);
       // No refresh: Bungie serves a cached profile for a while after a change, which would undo the local update
       onClose();
     } catch (applyError) {
@@ -176,7 +190,7 @@ const SubclassEditorModal = ({ itemHash, itemInstanceId, characterId, onClose }:
         ) : fragmentOverflow ? (
           <span className="mr-auto text-sm text-red-400">Your aspects only open {fragmentCapacity} fragment sockets.</span>
         ) : saving ? (
-          <span className="mr-auto text-sm text-gray-400">Applying changes...</span>
+          <span className="mr-auto text-sm text-gray-400">Applying...</span>
         ) : null}
         <button
           onClick={() => {
@@ -189,12 +203,24 @@ const SubclassEditorModal = ({ itemHash, itemInstanceId, characterId, onClose }:
           Reset
         </button>
         <button
-          onClick={handleApply}
+          onClick={() => handleApply(false)}
           disabled={!canApply}
-          className="px-4 py-2 text-sm text-white rounded-md bg-[#7e57c2] hover:bg-[#8e67d2] transition-colors disabled:opacity-40 disabled:hover:bg-[#7e57c2]"
+          className={`px-4 py-2 text-sm rounded-md transition-colors disabled:opacity-40 ${isEquipped
+            ? "text-white bg-[#7e57c2] hover:bg-[#8e67d2] disabled:hover:bg-[#7e57c2]"
+            : "text-gray-200 bg-white/10 hover:bg-white/20 disabled:hover:bg-white/10"}`}
         >
           Apply
         </button>
+        {!isEquipped && (
+          <button
+            onClick={() => handleApply(true)}
+            disabled={!canApplyAndEquip}
+            title={steps.length > 0 ? "Apply the changes, then equip this subclass" : "Equip this subclass"}
+            className="px-4 py-2 text-sm text-white rounded-md bg-[#7e57c2] hover:bg-[#8e67d2] transition-colors disabled:opacity-40 disabled:hover:bg-[#7e57c2]"
+          >
+            {steps.length > 0 ? "Apply & equip" : "Equip"}
+          </button>
+        )}
       </footer>
     </div>,
     document.body
