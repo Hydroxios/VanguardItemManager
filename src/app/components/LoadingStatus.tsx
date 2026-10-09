@@ -3,6 +3,7 @@
 import { useDefinitions } from "@/lib/hooks/useDefinitions";
 import { useProfile } from "@/lib/hooks/useProfile";
 import Image from "next/image";
+import Loader from "./Loader";
 
 interface StatusItemProps {
   label: string;
@@ -14,7 +15,7 @@ const StatusItem = ({ label, loading }: StatusItemProps) => {
     <div className="flex flex-row items-center justify-between px-4 py-2 w-72">
       <span className="text-gray-200 text-sm">{label}</span>
       {loading ? (
-        <Image src="/loader.gif" width={20} height={20} alt="Loading" className="w-10 h-10" unoptimized />
+        <Loader size={40} label={`Loading ${label}`} className="p-1" />
       ) : (
         <Image src="/success.png" width={20} height={20} alt="Ready" className="w-10 h-10" />
       )}

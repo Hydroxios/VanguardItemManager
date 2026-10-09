@@ -1,6 +1,7 @@
 "use client"
 
 import Image from "next/image";
+import Loader from "./Loader";
 import React, { createContext, useContext, useState, useCallback, ReactNode, useRef } from "react";
 
 type Notification = {
@@ -66,7 +67,7 @@ export const NotificationsProvider: React.FC<{ children: ReactNode }> = ({ child
             <div className="flex flex-row gap-2 items-center">
               <div>
                 {notif.loading ? (
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white p-4"></div>
+                  <Loader size={32} />
                 ) : (
                   notif.icon && (
                     <Image src={notif.icon} height={32} width={32} alt="Notification icon" />

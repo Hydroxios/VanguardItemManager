@@ -279,3 +279,56 @@ footer {
     cursor: pointer;
   }
 }
+/* Loader: a light sweeps around the diamond while its core turns a quarter and pulses.
+   Only transform and opacity animate, so it keeps running on the compositor while the main thread is busy */
+.loader {
+  --loader-color: #f2b632;
+  position: relative;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+/* The diamond outline: a square turned 45deg, hollowed by a mask so only a thin ring shows */
+.loader-ring {
+  position: absolute;
+  inset: 15%;
+  transform: rotate(45deg);
+  overflow: hidden;
+  padding: max(2px, 8%);
+  background: rgba(255, 255, 255, 0.15);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+}
+
+.loader-sweep {
+  position: absolute;
+  inset: -50%;
+  background: conic-gradient(from 0deg, transparent 0 65%, var(--loader-color) 100%);
+  will-change: transform;
+  animation: loader-sweep 1.4s linear infinite;
+}
+
+.loader-core {
+  position: absolute;
+  inset: 34%;
+  background: var(--loader-color);
+  box-shadow: 0 0 6px rgba(242, 182, 50, 0.6);
+  will-change: transform, opacity;
+  animation: loader-core 1.4s ease-in-out infinite;
+}
+
+@keyframes loader-sweep {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes loader-core {
+  0%   { transform: rotate(45deg) scale(0.55); opacity: 0.45; }
+  50%  { transform: rotate(135deg) scale(1); opacity: 1; }
+  100% { transform: rotate(225deg) scale(0.55); opacity: 0.45; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loader-sweep { animation-duration: 3s; }
+  .loader-core { animation: none; transform: rotate(45deg) scale(0.8); opacity: 0.8; }
+}

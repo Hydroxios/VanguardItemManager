@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import LoginButton from "../components/LoginButton";
+import Loader from "../components/Loader";
 
 /** Explains why /api/token refused the authorization code. */
 const loginErrorMessage = (status: number, data: { error?: string, error_description?: string }) => {
@@ -66,7 +67,7 @@ const Login = () => {
           </>
         ) : (
           <div className="flex items-center gap-3 text-gray-200">
-            <Image src="/loader.gif" width={40} height={40} alt="" unoptimized />
+            <Loader size={40} />
             Logging in...
           </div>
         )}
