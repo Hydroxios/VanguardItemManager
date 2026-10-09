@@ -21,6 +21,8 @@ interface ItemProps {
   quantity?: number;
   size?: number; // Add size prop
   tooltipDisabled?: boolean;
+  /** Replaces the fast transfer menu on right click */
+  onContextMenu?: () => void;
 }
 
 const Item = ({
@@ -32,7 +34,8 @@ const Item = ({
   onDoubleClick,
   quantity = 1,
   size = 64, // Default size to 64
-  tooltipDisabled = false
+  tooltipDisabled = false,
+  onContextMenu
 }: ItemProps) => {
 
   const { closeTooltip } = useItemTooltipActions();
@@ -69,8 +72,10 @@ const Item = ({
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setContextMenu({ x: e.clientX, y: e.clientY });
     closeTooltip();
+    if (onContextMenu) onContextMenu();
+    // Subclasses never leave the character: no fast transfer for them
+    else if (!isSubclass) setContextMenu({ x: e.clientX, y: e.clientY });
   };
 
   return (
@@ -100,8 +105,9 @@ const Item = ({
             onDoubleClick()
           }
         }}
-        draggable // Make the div draggable
-        onDragStart={handleDragStart}
+        // Subclasses never leave the character: they can't be dragged (not even as a plain image)
+        draggable={!isSubclass}
+        onDragStart={isSubclass ? (e) => e.preventDefault() : handleDragStart}
         onContextMenu={handleContextMenu}
       >
         <div

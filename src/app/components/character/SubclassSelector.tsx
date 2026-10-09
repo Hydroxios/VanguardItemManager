@@ -172,7 +172,7 @@ const SubclassSelector = ({ characterId, equipped, others, onEdit }: SubclassSel
   const renderSubclass = (subclass: EquipmentItem, size: number, isEquipped = false) => (
     <div
       onClick={() => edit(subclass, !isEquipped)}
-      title={isEquipped ? "Click to edit" : "Click to edit, double click to equip"}
+      title={isEquipped ? "Click or right click to edit" : "Click or right click to edit, double click to equip"}
     >
       <Item
         itemHash={subclass.hash}
@@ -181,6 +181,7 @@ const SubclassSelector = ({ characterId, equipped, others, onEdit }: SubclassSel
         characterId={characterId}
         size={size}
         onDoubleClick={isEquipped ? undefined : () => equip(subclass)}
+        onContextMenu={() => edit(subclass, false)}
       />
     </div>
   );
@@ -276,7 +277,11 @@ const SubclassSelector = ({ characterId, equipped, others, onEdit }: SubclassSel
           lastElemental && (
             <button
               onClick={() => equip(lastElemental)}
-              title={`Switch back to ${lastElemental.item.displayProperties.name}`}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                edit(lastElemental, false);
+              }}
+              title={`Switch back to ${lastElemental.item.displayProperties.name} (right click to edit)`}
               className="flex opacity-70 transition-opacity hover:opacity-100"
             >
               <ElementsDiamond size={ELEMENTS_BUTTON_SIZE} />
@@ -286,7 +291,11 @@ const SubclassSelector = ({ characterId, equipped, others, onEdit }: SubclassSel
           prismatic && (
             <button
               onClick={() => equip(prismatic)}
-              title={`Switch to ${prismatic.item.displayProperties.name}`}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                edit(prismatic, false);
+              }}
+              title={`Switch to ${prismatic.item.displayProperties.name} (right click to edit)`}
               className="flex transition-[filter] hover:brightness-125"
             >
               <PrismaticButton size={PRISMATIC_BUTTON_SIZE} classHash={characters[characterId]?.classHash} />
