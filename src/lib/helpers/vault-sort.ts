@@ -1,13 +1,13 @@
 export type VaultSort = "name" | "power" | "rarity" | "tier" | "type" | "newest";
 export type SortDirection = "asc" | "desc";
 
-export const VAULT_SORTS: { value: VaultSort; label: string; direction: SortDirection }[] = [
-  { value: "name", label: "Name", direction: "asc" },
-  { value: "power", label: "Power", direction: "desc" },
-  { value: "rarity", label: "Rarity", direction: "desc" },
-  { value: "tier", label: "Tier", direction: "desc" },
-  { value: "type", label: "Type", direction: "asc" },
-  { value: "newest", label: "Newest", direction: "desc" },
+export const VAULT_SORTS: { value: VaultSort; direction: SortDirection }[] = [
+  { value: "name", direction: "asc" },
+  { value: "power", direction: "desc" },
+  { value: "rarity", direction: "desc" },
+  { value: "tier", direction: "desc" },
+  { value: "type", direction: "asc" },
+  { value: "newest", direction: "desc" },
 ];
 
 /** What an item is sorted on; a missing value always goes last */

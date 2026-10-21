@@ -6,6 +6,7 @@ import Image from "next/image";
 import { useMemo } from "react";
 import PlugTooltip, { usePlugTooltip } from "./PlugTooltip";
 import { ItemDefinition, PerkDefinition, Perk } from "@/lib/types";
+import { useT } from "@/lib/i18n";
 
 const BUNGIE_BASE_URL = "https://www.bungie.net";
 const SUBCLASS_ABILITY_CATEGORY_HASH = 1043342778;
@@ -94,6 +95,7 @@ const TooltipSubclass = ({ item, itemInstanceId }: TooltipSubclassProps) => {
     const { tooltip: perkTooltip, handlers: perkTooltipHandlers } = usePlugTooltip();
     const { itemComponents } = useProfile();
     const { perksDefinitions, itemDefinitions } = useDefinitions();
+    const t = useT();
 
     const subclassAbilityItemsByPerk = getSubclassAbilityItemsByPerk(itemDefinitions);
 
@@ -123,7 +125,7 @@ const TooltipSubclass = ({ item, itemInstanceId }: TooltipSubclassProps) => {
 
                 return {
                     id: definition.hash,
-                    name: definition.displayProperties.name || "Subclass perk",
+                    name: definition.displayProperties.name || t.tooltip.subclassPerk,
                     description:
                         definition.displayProperties.description ||
                         perkDefinition?.displayProperties.description ||
@@ -139,6 +141,7 @@ const TooltipSubclass = ({ item, itemInstanceId }: TooltipSubclassProps) => {
         itemDefinitions,
         itemInstanceId,
         perksDefinitions,
+        t,
     ]);
 
     const activePerks = useMemo<ActiveSubclassPerk[]>(() => {
@@ -154,7 +157,7 @@ const TooltipSubclass = ({ item, itemInstanceId }: TooltipSubclassProps) => {
 
                 return [{
                     id: perk.perkHash,
-                    name: definition.displayProperties.name || "Subclass perk",
+                    name: definition.displayProperties.name || t.tooltip.subclassPerk,
                     description:
                         subclassAbilityItemsByPerk.get(perk.perkHash)?.[0]
                             ?.displayProperties.description ||
@@ -175,6 +178,7 @@ const TooltipSubclass = ({ item, itemInstanceId }: TooltipSubclassProps) => {
         itemInstanceId,
         perksDefinitions,
         subclassAbilityItemsByPerk,
+        t,
     ]);
 
     const displayedPerks = socketSubclassPerks.length

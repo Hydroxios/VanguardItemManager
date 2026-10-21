@@ -5,13 +5,14 @@ import Item from "./Item";
 import { useDefinitions } from "@/lib/hooks/useDefinitions";
 import useTransferItem from "@/lib/hooks/useTransferItem";
 import { useProfile } from "@/lib/hooks/useProfile";
-import { DamageType, getDamageType, getDamageTypeIcon, DAMAGE_TYPES_LIST } from "@/lib/helpers/damage-type";
+import { DamageType, getDamageTypeIcon, DAMAGE_TYPES_LIST } from "@/lib/helpers/damage-type";
 import Image from "next/image";
 import { ItemDefinition, Item as ItemInstance, ItemPerks, ItemStats } from "@/lib/types";
 import { ARMOR_SLOTS, WEAPON_SLOTS } from "@/lib/constants";
 import { findDupes, isEmptySearch, matchesSearch, parseSearch } from "@/lib/search";
 import { getSettings, useSettings, VAULT_ITEM_SIZES } from "@/lib/hooks/useSettings";
 import { SortDirection, sortVaultItems, VAULT_SORTS, VaultSort } from "@/lib/helpers/vault-sort";
+import { useT } from "@/lib/i18n";
 
 interface VaultProps {
   isOpen: boolean;
@@ -85,6 +86,7 @@ const Vault: React.FC<VaultProps> = ({
 
   const { settings: { rememberVaultFilters, vaultItemSize } } = useSettings();
   const itemSize = VAULT_ITEM_SIZES[vaultItemSize];
+  const t = useT();
 
   useEffect(() => {
     if (!rememberVaultFilters) return;
@@ -116,7 +118,7 @@ const Vault: React.FC<VaultProps> = ({
     const weapons: ProcessedItem[] = [];
     const armor: ProcessedItem[] = [];
     const misc: ProcessedItem[] = [];
-    const types: { [key: string]: string } = { all: 'All Weapons' };
+    const types: { [key: string]: string } = { all: t.vault.allWeapons };
 
     profileInventory.forEach((item) => {
       // Only process items in the vault (location 2)
@@ -161,7 +163,7 @@ const Vault: React.FC<VaultProps> = ({
       processedItems: { weapons, armor, misc },
       weaponTypes: types,
     };
-  }, [profileInventory, itemDefinitions, itemComponents]);
+  }, [profileInventory, itemDefinitions, itemComponents, t]);
 
   // Handle item transfer from vault to character
   const handleTransfer = useCallback((item: ProcessedItem) => {
@@ -369,9 +371,9 @@ const Vault: React.FC<VaultProps> = ({
       <div className="flex justify-between items-center border-b border-white/5 p-3 select-none">
         <div className="flex items-center gap-3 ml-2">
           <div className="p-1.5 bg-purple-500/10 rounded-lg border border-purple-500/20">
-            <Image src="./vault.svg" className="h-5 w-5 opacity-80" alt="Vault" height={20} width={20} />
+            <Image src="./vault.svg" className="h-5 w-5 opacity-80" alt={t.vault.title} height={20} width={20} />
           </div>
-          <h2 className="text-lg font-semibold text-white tracking-wide">Vault</h2>
+          <h2 className="text-lg font-semibold text-white tracking-wide">{t.vault.title}</h2>
         </div>
 
         <div className="flex bg-black/20 p-1 rounded-xl border border-white/5">
@@ -384,7 +386,7 @@ const Vault: React.FC<VaultProps> = ({
                 }`}
               onClick={() => changeTab(tab)}
             >
-              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+              {t.vault.tabs[tab]}
               <span className={`ml-2 text-xs ${activeTab === tab ? 'text-purple-200' : 'text-gray-600'}`}>
                 {processedItems[tab].length}
               </span>
@@ -395,6 +397,8 @@ const Vault: React.FC<VaultProps> = ({
         <button
           className="p-2 text-gray-500 hover:text-white transition-colors rounded-full hover:bg-white/10 mr-1"
           onClick={handleClose}
+          title={t.common.close}
+          aria-label={t.common.close}
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -415,8 +419,8 @@ const Vault: React.FC<VaultProps> = ({
               setIsElementDropdownOpen(false);
             }}
           >
-            <span className="text-gray-500">Sort:</span>
-            <span className="font-medium">{VAULT_SORTS.find(s => s.value === sort)!.label}</span>
+            <span className="text-gray-500">{t.vault.sort}</span>
+            <span className="font-medium">{t.vault.sorts[sort]}</span>
             <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 text-gray-500 transition-transform ${isSortDropdownOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>
@@ -424,8 +428,8 @@ const Vault: React.FC<VaultProps> = ({
           <button
             className="p-1.5 bg-black/20 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 border border-white/5 transition-colors"
             onClick={toggleDirection}
-            title={direction === 'asc' ? 'Ascending' : 'Descending'}
-            aria-label={direction === 'asc' ? 'Ascending, switch to descending' : 'Descending, switch to ascending'}
+            title={direction === 'asc' ? t.vault.ascending : t.vault.descending}
+            aria-label={direction === 'asc' ? t.vault.switchToDescending : t.vault.switchToAscending}
           >
             <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 transition-transform ${direction === 'desc' ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19V5m-6 6l6-6 6 6" />
@@ -446,7 +450,7 @@ const Vault: React.FC<VaultProps> = ({
                     setIsSortDropdownOpen(false);
                   }}
                 >
-                  {option.label}
+                  {t.vault.sorts[option.value]}
                 </button>
               ))}
             </div>
@@ -468,8 +472,8 @@ const Vault: React.FC<VaultProps> = ({
                   setIsSortDropdownOpen(false);
                 }}
               >
-                <span className="text-gray-500">Type:</span>
-                <span className="font-medium">{weaponTypeFilter === 'all' ? 'All' : weaponTypeFilter}</span>
+                <span className="text-gray-500">{t.vault.type}</span>
+                <span className="font-medium">{weaponTypeFilter === 'all' ? t.vault.all : weaponTypeFilter}</span>
                 <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 text-gray-500 transition-transform ${isFilterDropdownOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
@@ -513,11 +517,11 @@ const Vault: React.FC<VaultProps> = ({
                     width={16}
                     src={getDamageTypeIcon(elementFilter)}
                     className="h-4 w-4"
-                    alt={getDamageType(elementFilter)}
+                    alt={t.elements[elementFilter]}
                   />
                 )}
-                <span className="text-gray-500">Element:</span>
-                <span className="font-medium">{elementFilter === 'all' ? 'All' : getDamageType(elementFilter)}</span>
+                <span className="text-gray-500">{t.vault.element}</span>
+                <span className="font-medium">{elementFilter === 'all' ? t.vault.all : t.elements[elementFilter]}</span>
                 <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 text-gray-500 transition-transform ${isElementDropdownOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
@@ -535,7 +539,7 @@ const Vault: React.FC<VaultProps> = ({
                       setIsElementDropdownOpen(false);
                     }}
                   >
-                    All
+                    {t.vault.all}
                   </button>
                   {DAMAGE_TYPES_LIST.map((type) => (
                     <button
@@ -552,11 +556,11 @@ const Vault: React.FC<VaultProps> = ({
                       <Image
                         src={getDamageTypeIcon(type)}
                         className="h-4 w-4 mr-2"
-                        alt={getDamageType(type)}
+                        alt={t.elements[type]}
                         height={16}
                         width={16}
                       />
-                      {getDamageType(type)}
+                      {t.elements[type]}
                     </button>
                   ))}
                 </div>
@@ -572,19 +576,19 @@ const Vault: React.FC<VaultProps> = ({
             : 'bg-black/20 text-gray-400 border-white/5 hover:text-white hover:bg-white/5'
             }`}
           onClick={() => setShowDuplicates(!showDuplicates)}
-          title="Show Duplicates"
+          title={t.vault.showDuplicates}
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
           </svg>
-          <span className="hidden sm:inline">Duplicates</span>
+          <span className="hidden sm:inline">{t.vault.duplicates}</span>
         </button>
 
         {/* Search Input */}
         <div className="relative w-64 group">
           <input
             type="text"
-            placeholder="Search items, perk:name..."
+            placeholder={t.vault.searchPlaceholder}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full bg-black/20 text-white pl-10 pr-8 py-1.5 rounded-lg text-sm border border-white/5 focus:outline-none focus:border-purple-500/50 focus:bg-black/40 transition-all placeholder-gray-600"
@@ -602,6 +606,7 @@ const Vault: React.FC<VaultProps> = ({
             <button
               className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-white p-0.5 rounded-full hover:bg-white/10"
               onClick={() => setSearchQuery("")}
+              aria-label={t.vault.clearSearch}
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -619,7 +624,7 @@ const Vault: React.FC<VaultProps> = ({
               <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
               </svg>
-              <p>No items match the current filter</p>
+              <p>{t.vault.noMatch}</p>
             </div>
           ) : (
             <div className="flex flex-wrap gap-2 justify-center content-start">

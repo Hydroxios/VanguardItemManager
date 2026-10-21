@@ -13,6 +13,7 @@ import LoadingStatus from "./LoadingStatus";
 import SettingsModal from "./SettingsModal";
 import Image from "next/image";
 import { Alert } from "@/lib/types";
+import { useT } from "@/lib/i18n";
 
 // Bungie alerts are HTML snippets; show their text without rendering untrusted markup
 const htmlToText = (html: string) =>
@@ -30,6 +31,7 @@ const AppView = () => {
   const { keepOpen, setKeepOpen } = useItemTooltip()
   const [settingsOpen, setSettingsOpen] = useState(false);
   const { settings: { refreshInterval } } = useSettings();
+  const t = useT();
 
   // Bungie's global alerts (maintenance announcements...)
   useEffect(() => {
@@ -74,14 +76,14 @@ const AppView = () => {
               <>
                 <div className="p-10">
                   <div className="flex flex-col items-center">
-                    <Image src="./vanguard.svg" height={128} width={128} alt="Vanguard Item Manager logo" />
+                    <Image src="./vanguard.svg" height={128} width={128} alt={t.common.logoAlt} />
                     <span className="text-white text-xl font-bold">
-                      Welcome {profile.userInfo?.displayName}
+                      {t.home.welcome} {profile.userInfo?.displayName}
                       <span className="text-cyan-300">
                         #{profile.userInfo?.bungieGlobalDisplayNameCode}
                       </span>
                     </span>
-                    <h4>Select Your Character</h4>
+                    <h4>{t.home.selectCharacter}</h4>
                   </div>
                 </div>
                 <div className="p-10">

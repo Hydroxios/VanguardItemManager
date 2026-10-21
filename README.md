@@ -14,7 +14,7 @@ Vanguard Item Manager is a custom inventory management application for Destiny 2
 - **Inventory Cleaner**: Send a character's unequipped weapons and armor to the vault in one click, or list the junk (worse duplicates, armor under a stat total, gear under a tier) across the vault and characters and bring it to the character to dismantle in game. Locked items and loadout items are never flagged.
 - **Secure Bungie Login**: OAuth with a CSRF-protected `state`; the refresh token is kept in an `httpOnly` cookie and never exposed to client scripts.
 - **Manifest Caching**: Destiny manifest files are cached in the browser between visits and refreshed only when Bungie publishes a new version.
-- **Localization**: The Destiny data can be displayed in English, French, Spanish, German, Italian, Japanese, Russian, Polish or Korean.
+- **Localization**: The Destiny data can be displayed in English, French, Spanish, German, Italian, Japanese, Russian, Polish or Korean. The interface follows the same choice; it is translated in English and French so far (other languages show it in English), from the dictionaries in `src/lib/i18n`.
 - **Debug Mode**: Optional debug information, toggled from the settings.
 
 ---

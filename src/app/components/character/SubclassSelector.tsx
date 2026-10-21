@@ -8,6 +8,7 @@ import { useItemTooltipActions } from "@/lib/hooks/useItemTooltip";
 import { DamageType } from "@/lib/helpers/damage-type";
 import useEquipSubclass from "@/lib/hooks/useEquipSubclass";
 import { EquipmentItem } from "@/lib/types";
+import { useT } from "@/lib/i18n";
 
 interface SubclassSelectorProps {
   characterId: string;
@@ -134,6 +135,7 @@ const SubclassSelector = ({ characterId, equipped, others, onEdit }: SubclassSel
   const equipSubclass = useEquipSubclass(characterId);
   const { addNotification } = useNotifications();
   const { hideTooltip } = useItemTooltipActions();
+  const t = useT();
 
   const equippedElement = elementOf(equipped);
   const prismaticEquipped = equippedElement === undefined;
@@ -153,9 +155,9 @@ const SubclassSelector = ({ characterId, equipped, others, onEdit }: SubclassSel
     const icon = `https://www.bungie.net${subclass.item.displayProperties.icon}`;
     try {
       await equipSubclass(subclass.itemInstanceId);
-      addNotification(`Successfully Equipped ${subclass.item.displayProperties.name} !`, "", "success", icon, 5000);
+      addNotification(t.notifications.equippedNamed(subclass.item.displayProperties.name), "", "success", icon, 5000);
     } catch (err) {
-      addNotification(`Error while equipping ${subclass.item.displayProperties.name} !`, err instanceof Error ? err.message : "", "error", icon, 5000);
+      addNotification(t.notifications.equipFailed(subclass.item.displayProperties.name), err instanceof Error ? err.message : "", "error", icon, 5000);
     }
   };
 
@@ -172,7 +174,7 @@ const SubclassSelector = ({ characterId, equipped, others, onEdit }: SubclassSel
   const renderSubclass = (subclass: EquipmentItem, size: number, isEquipped = false) => (
     <div
       onClick={() => edit(subclass, !isEquipped)}
-      title={isEquipped ? "Click or right click to edit" : "Click or right click to edit, double click to equip"}
+      title={isEquipped ? t.subclass.editHint : t.subclass.editOrEquipHint}
     >
       <Item
         itemHash={subclass.hash}
@@ -281,7 +283,7 @@ const SubclassSelector = ({ characterId, equipped, others, onEdit }: SubclassSel
                 e.preventDefault();
                 edit(lastElemental, false);
               }}
-              title={`Switch back to ${lastElemental.item.displayProperties.name} (right click to edit)`}
+              title={t.subclass.switchBack(lastElemental.item.displayProperties.name)}
               className="flex opacity-70 transition-opacity hover:opacity-100"
             >
               <ElementsDiamond size={ELEMENTS_BUTTON_SIZE} />
@@ -295,7 +297,7 @@ const SubclassSelector = ({ characterId, equipped, others, onEdit }: SubclassSel
                 e.preventDefault();
                 edit(prismatic, false);
               }}
-              title={`Switch to ${prismatic.item.displayProperties.name} (right click to edit)`}
+              title={t.subclass.switchTo(prismatic.item.displayProperties.name)}
               className="flex transition-[filter] hover:brightness-125"
             >
               <PrismaticButton size={PRISMATIC_BUTTON_SIZE} classHash={characters[characterId]?.classHash} />

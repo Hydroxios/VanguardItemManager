@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Loader from "./Loader";
 import { getSettings, NOTIFICATION_DURATION_FACTORS } from "@/lib/hooks/useSettings";
+import { useT } from "@/lib/i18n";
 import React, { createContext, useContext, useState, useCallback, ReactNode, useRef } from "react";
 
 type Notification = {
@@ -28,6 +29,7 @@ export const NotificationsProvider: React.FC<{ children: ReactNode }> = ({ child
   const [notifications, setNotifications] = useState<Notification[]>([]);
   // Incrementing ids: Date.now() collides when two notifications are created in the same millisecond
   const nextId = useRef(1);
+  const t = useT();
 
   const addNotification = useCallback((message: string, description: string = "", type: "info" | "success" | "error" | "warning" = "info", icon: string = "", duration: number = 3000, loading: boolean = false) => {
     const id = nextId.current++;
@@ -74,7 +76,7 @@ export const NotificationsProvider: React.FC<{ children: ReactNode }> = ({ child
                   <Loader size={32} />
                 ) : (
                   notif.icon && (
-                    <Image src={notif.icon} height={32} width={32} alt="Notification icon" />
+                    <Image src={notif.icon} height={32} width={32} alt={t.notifications.iconAlt} />
                   )
                 )}
               </div>

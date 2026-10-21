@@ -5,6 +5,7 @@ import { equipItem } from "@/lib/bungie"
 import { useNotifications } from "@/app/components/NotificationsProvider"
 import { useProfile } from "@/lib/hooks/useProfile"
 import { ItemDefinition, EquipmentItem } from "@/lib/types";
+import { useT } from "@/lib/i18n";
 
 interface InventoryItemsProps {
     items: EquipmentItem[],
@@ -23,14 +24,15 @@ const InventoryItems = ({
     const { addNotification } = useNotifications()
 
     const { user, equipItemLocally } = useProfile()
+    const t = useT()
 
     const equip = async (item: ItemDefinition, itemInstanceId: string, state: number, hash: number, ornamentItem?: ItemDefinition) => {
         try {
             await equipItem(user.membershipType, characterId, itemInstanceId)
             equipItemLocally(characterId, itemInstanceId)
-            addNotification("Successfully Equipped " + item.displayProperties.name + " !", "", "success", "https://www.bungie.net" + (ornamentItem ? ornamentItem.displayProperties.icon : item.displayProperties.icon), 5000)
+            addNotification(t.notifications.equippedNamed(item.displayProperties.name), "", "success", "https://www.bungie.net" + (ornamentItem ? ornamentItem.displayProperties.icon : item.displayProperties.icon), 5000)
         } catch (err) {
-            addNotification("Error while equipping " + item.displayProperties.name + " !", err instanceof Error ? err.message : "", "error", "https://www.bungie.net" + (ornamentItem ? ornamentItem.displayProperties.icon : item.displayProperties.icon), 5000)
+            addNotification(t.notifications.equipFailed(item.displayProperties.name), err instanceof Error ? err.message : "", "error", "https://www.bungie.net" + (ornamentItem ? ornamentItem.displayProperties.icon : item.displayProperties.icon), 5000)
         }
     }
 

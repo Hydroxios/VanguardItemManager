@@ -3,6 +3,7 @@ import { getCurrentUser, getProfile } from "@/lib/bungie";
 import { BungieUser, Character, Currency, InstanceComponents, Item, ItemInstance, ItemComponents, ItemPlug, Loadout, PlugSets, ProfileData } from "@/lib/types";
 import { BUCKETS, ITEM_STATE } from "@/lib/constants";
 import { moveItemInState } from "@/lib/helpers/inventory";
+import { getDictionary } from "@/lib/i18n";
 
 // How long a loadout changed here wins over the fetched one: Bungie serves a cached profile for a while after a change
 const LOADOUT_OVERRIDE_MS = 60_000;
@@ -148,7 +149,7 @@ export const ProfileProvider = ({ children }: ProfileProviderProps) => {
         }).catch((error) => {
             console.error("Failed to fetch profile:", error)
             // Only block the UI on the first load; later refreshes keep the current data
-            if (!loadedRef.current) setLoadError(error instanceof Error ? error.message : "Could not load your profile.")
+            if (!loadedRef.current) setLoadError(error instanceof Error ? error.message : getDictionary().errors.profileFailed)
         }).finally(() => {
             fetchingRef.current = null;
         });

@@ -6,6 +6,7 @@ import { useProfile } from "@/lib/hooks/useProfile";
 import { useDefinitions } from "@/lib/hooks/useDefinitions";
 import useTransferItem from "@/lib/hooks/useTransferItem";
 import Image from "next/image";
+import { useT } from "@/lib/i18n";
 
 interface ItemContextMenuProps {
     itemHash: number;
@@ -26,6 +27,7 @@ const ItemContextMenu = ({
     const { characters } = useProfile();
     const { classDefinitions } = useDefinitions();
     const { transfer, locateItem } = useTransferItem();
+    const t = useT();
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -59,7 +61,7 @@ const ItemContextMenu = ({
             }}
         >
             <div className="bg-[#2a2a40] py-2 px-3 border-b border-[#7e57c2] font-medium text-sm text-white">
-                Fast Transfer
+                {t.item.fastTransfer}
             </div>
             <div className="py-1">
                 {Object.values(characters)
@@ -93,9 +95,9 @@ const ItemContextMenu = ({
                                 height={20}
                                 width={20}
                                 className="h-5 w-5 mr-2"
-                                alt="Vault"
+                                alt={t.item.vault}
                             />
-                            Vault
+                            {t.item.vault}
                         </button>
                     </>
                 )}

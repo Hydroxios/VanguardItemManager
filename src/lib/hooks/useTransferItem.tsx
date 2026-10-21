@@ -5,6 +5,7 @@ import { useNotifications } from "@/app/components/NotificationsProvider";
 import { useDefinitions } from "./useDefinitions";
 import { useProfile } from "./useProfile";
 import { Item } from "@/lib/types";
+import { useT } from "../i18n";
 
 export interface TransferRequest {
     itemHash: number
@@ -24,6 +25,7 @@ export interface TransferRequest {
 const useTransferItem = () => {
     const { itemDefinitions } = useDefinitions();
     const { addNotification, updateNotification } = useNotifications();
+    const t = useT();
     const { user, profileInventory, characterInventories, characterEquipment, moveItem, transferEquippedItem, equipItemLocally } = useProfile();
 
     /** Returns "vault", a character id, or undefined when the instance isn't found, with the profile entry of the item. */
@@ -91,19 +93,19 @@ const useTransferItem = () => {
         if (!sourceId || sourceId === request.toId) return false;
 
         const definition = itemDefinitions[request.itemHash];
-        const name = definition?.displayProperties?.name ?? "item";
+        const name = definition?.displayProperties?.name ?? t.notifications.item;
         const icon = definition?.displayProperties?.icon ? `https://www.bungie.net${definition.displayProperties.icon}` : "";
 
-        const notificationId = addNotification("Transferring item...", name, "info", icon, 5000, true);
+        const notificationId = addNotification(t.notifications.transferring, name, "info", icon, 5000, true);
 
         try {
             await move(request);
-            updateNotification(notificationId, request.toId === "vault" ? "Item transferred to vault" : "Item transferred", name, "success", icon, 5000, false);
+            updateNotification(notificationId, request.toId === "vault" ? t.notifications.transferredToVault : t.notifications.transferred, name, "success", icon, 5000, false);
             return true;
         } catch (error) {
             updateNotification(
                 notificationId,
-                `Error while transferring ${name}!`,
+                t.notifications.transferFailed(name),
                 error instanceof Error ? error.message : undefined,
                 "error",
                 icon,
@@ -120,18 +122,18 @@ const useTransferItem = () => {
         if (located.equipped && located.location === characterId) return false;
 
         const definition = itemDefinitions[itemHash];
-        const name = definition?.displayProperties?.name ?? "item";
+        const name = definition?.displayProperties?.name ?? t.notifications.item;
         const icon = definition?.displayProperties?.icon ? `https://www.bungie.net${definition.displayProperties.icon}` : "";
-        const notificationId = addNotification("Equipping item...", name, "info", icon, 5000, true);
+        const notificationId = addNotification(t.notifications.equipping, name, "info", icon, 5000, true);
 
         try {
             if (located.location !== characterId) await move({ itemHash, itemInstanceId, toId: characterId });
             await equipItem(user.membershipType, characterId, itemInstanceId);
             equipItemLocally(characterId, itemInstanceId);
-            updateNotification(notificationId, "Item equipped", name, "success", icon, 5000, false);
+            updateNotification(notificationId, t.notifications.equipped, name, "success", icon, 5000, false);
             return true;
         } catch (error) {
-            updateNotification(notificationId, `Error while equipping ${name}!`, error instanceof Error ? error.message : undefined, "error", icon, 5000, false);
+            updateNotification(notificationId, t.notifications.equipFailed(name), error instanceof Error ? error.message : undefined, "error", icon, 5000, false);
             return false;
         }
     };

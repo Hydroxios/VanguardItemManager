@@ -4,6 +4,7 @@ import Image from "next/image";
 import React, { useMemo } from "react";
 import { Item } from "@/lib/types";
 import { BUCKETS } from "@/lib/constants";
+import { useT } from "@/lib/i18n";
 
 const MAX_ENGRAMS = 10;
 
@@ -18,6 +19,7 @@ const Engrams: React.FC<EngramsProps> = ({
   const { itemDefinitions } = useDefinitions()
 
   const { characterInventories } = useProfile()
+  const t = useT();
 
   const engrams = useMemo(() => characterInventories[characterId].items.filter((item) => {
     const itemDefinition = itemDefinitions[item.itemHash];
@@ -114,7 +116,7 @@ const Engrams: React.FC<EngramsProps> = ({
           {itemDefinition?.displayProperties?.icon && (
             <Image
               src={`https://www.bungie.net${itemDefinition.displayProperties.icon}`}
-              alt={itemDefinition.displayProperties.name || "Engram"}
+              alt={itemDefinition.displayProperties.name || t.item.engram}
               height={24}
               width={24}
               className="w-10 h-10 object-contain shadow-xl"

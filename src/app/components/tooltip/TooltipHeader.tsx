@@ -4,17 +4,18 @@ import Image from "next/image";
 import { useMemo } from "react";
 import { ITEM_STATE, ITEM_TYPES, TIER_TYPES } from "@/lib/constants";
 import { ItemComponents, ItemConstantsDefinitions, ItemDefinition, ObjectiveDefinitions } from "@/lib/types";
+import { Dictionary, useT } from "@/lib/i18n";
 
 const numberFormat = new Intl.NumberFormat();
 
-const RARITY: Record<number, { background: string, name: string, dark?: boolean }> = {
-    [TIER_TYPES.EXOTIC]: { background: "#ceae33", name: "Exotic" },
-    [TIER_TYPES.LEGENDARY]: { background: "#522f65", name: "Legendary" },
-    [TIER_TYPES.RARE]: { background: "#5076a3", name: "Rare" },
-    [TIER_TYPES.COMMON]: { background: "#366f42", name: "Uncommon" },
-    [TIER_TYPES.BASIC]: { background: "#c3bcb4", name: "Common", dark: true },
+const RARITY: Record<number, { background: string, name: keyof Dictionary["tooltip"]["rarity"], dark?: boolean }> = {
+    [TIER_TYPES.EXOTIC]: { background: "#ceae33", name: "exotic" },
+    [TIER_TYPES.LEGENDARY]: { background: "#522f65", name: "legendary" },
+    [TIER_TYPES.RARE]: { background: "#5076a3", name: "rare" },
+    [TIER_TYPES.COMMON]: { background: "#366f42", name: "uncommon" },
+    [TIER_TYPES.BASIC]: { background: "#c3bcb4", name: "common", dark: true },
 };
-const DEFAULT_RARITY = { background: "#03cdff", name: "" };
+const DEFAULT_RARITY: { background: string, name?: keyof Dictionary["tooltip"]["rarity"], dark?: boolean } = { background: "#03cdff" };
 
 /** Light sweep and bottom shade over the rarity color, like the in-game item headers */
 const HEADER_SHEEN = "linear-gradient(100deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0.04) 38%, transparent 60%), linear-gradient(to bottom, transparent 55%, rgba(0,0,0,0.22))";
@@ -52,6 +53,7 @@ const TooltipHeader = ({
     onClose,
 }: TooltipHeaderProps) => {
     const { itemDefinitions } = useDefinitions();
+    const t = useT();
     const killCounter = useMemo(() => item.itemType === ITEM_TYPES.WEAPON
         ? getWeaponKillCounter(itemInstanceId, itemComponents, itemDefinitions, objectiveDefinitions)
         : undefined,
@@ -67,11 +69,11 @@ const TooltipHeader = ({
     const watermark = item.isFeaturedItem && item.iconWatermarkShelved ? item.iconWatermarkShelved : item.iconWatermark;
 
     const badges = [
-        (state & ITEM_STATE.LOCKED) !== 0 && <Badge key="locked" label="Locked" color="#e5e7eb" />,
-        (state & ITEM_STATE.CRAFTED) !== 0 && <Badge key="crafted" label="Crafted" color="#f87171" />,
-        masterworked && item.inventory?.tierType !== TIER_TYPES.EXOTIC && <Badge key="masterwork" label="Masterwork" color="#f2c94c" />,
-        enhanced && <Badge key="enhanced" label="Enhanced" color="#fcd34d" />,
-        instance?.isEquipped && <Badge key="equipped" label="Equipped" color="#7dd3fc" />,
+        (state & ITEM_STATE.LOCKED) !== 0 && <Badge key="locked" label={t.tooltip.locked} color="#e5e7eb" />,
+        (state & ITEM_STATE.CRAFTED) !== 0 && <Badge key="crafted" label={t.tooltip.crafted} color="#f87171" />,
+        masterworked && item.inventory?.tierType !== TIER_TYPES.EXOTIC && <Badge key="masterwork" label={t.tooltip.masterwork} color="#f2c94c" />,
+        enhanced && <Badge key="enhanced" label={t.tooltip.enhanced} color="#fcd34d" />,
+        instance?.isEquipped && <Badge key="equipped" label={t.tooltip.equipped} color="#7dd3fc" />,
     ].filter(Boolean);
 
     return (
@@ -90,7 +92,7 @@ const TooltipHeader = ({
                         <div className="relative size-12 shrink-0 border border-white/50 shadow-[0_2px_8px_rgba(0,0,0,0.4)]">
                             <Image src={`https://www.bungie.net${icon}`} fill sizes="48px" alt="" />
                             {watermark && <Image src={`https://www.bungie.net${watermark}`} fill sizes="48px" alt="" />}
-                            {gearTierOverlay && <Image src={`https://www.bungie.net${gearTierOverlay}`} fill sizes="48px" alt={`Tier ${instance?.gearTier}`} />}
+                            {gearTierOverlay && <Image src={`https://www.bungie.net${gearTierOverlay}`} fill sizes="48px" alt={t.tooltip.tierAlt(instance?.gearTier)} />}
                         </div>
                     )}
                     <div className="min-w-0 flex-1">
@@ -99,7 +101,7 @@ const TooltipHeader = ({
                         </div>
                         <div className="flex items-baseline gap-2 text-xs font-semibold uppercase tracking-widest opacity-75">
                             <span className="truncate">{item.itemTypeDisplayName}</span>
-                            {rarity.name && <span className="ml-auto shrink-0">{rarity.name}</span>}
+                            {rarity.name && <span className="ml-auto shrink-0">{t.tooltip.rarity[rarity.name]}</span>}
                         </div>
                     </div>
                     <div className="flex shrink-0 flex-col items-end gap-1 self-stretch">
@@ -107,8 +109,8 @@ const TooltipHeader = ({
                             <button
                                 onClick={onClose}
                                 className="rounded p-0.5 opacity-70 transition-opacity hover:opacity-100"
-                                title="Close"
-                                aria-label="Close"
+                                title={t.common.close}
+                                aria-label={t.common.close}
                             >
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden>
                                     <path d="M6 6l12 12M18 6L6 18" />

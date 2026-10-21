@@ -6,6 +6,7 @@ import { useNotifications } from "@/app/components/NotificationsProvider";
 import { ItemDefinition } from "@/lib/types";
 import { useProfile } from "./useProfile";
 import useTransferItem from "./useTransferItem";
+import { useT } from "../i18n";
 
 /**
  * Inserts plugs (perks...) in an item's sockets. Bungie only does it for free plugs, on items a character holds:
@@ -16,6 +17,7 @@ const useSocketPlug = (itemInstanceId?: string) => {
     const { addNotification } = useNotifications();
     const { locateItem } = useTransferItem();
     const [pendingSocket, setPendingSocket] = useState<number>();
+    const t = useT();
 
     const location = locateItem(itemInstanceId).location;
     const characterId = location && location !== "vault" ? location : undefined;
@@ -34,7 +36,7 @@ const useSocketPlug = (itemInstanceId?: string) => {
             setItemComponentsLocally(itemInstanceId, { ...changed, sockets });
         } catch (error) {
             const icon = plug.displayProperties.icon ? `https://www.bungie.net${plug.displayProperties.icon}` : "";
-            addNotification(`Could not select ${plug.displayProperties.name}`, error instanceof Error ? error.message : "", "error", icon, 5000, false);
+            addNotification(t.notifications.plugFailed(plug.displayProperties.name), error instanceof Error ? error.message : "", "error", icon, 5000, false);
         } finally {
             setPendingSocket(undefined);
         }

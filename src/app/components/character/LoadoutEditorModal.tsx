@@ -23,35 +23,38 @@ import { armorStatsWithPlugs, plugsStats, sumStats } from "@/lib/helpers/stats";
 import { ARMOR_SLOTS, BUCKETS, EQUIPMENT_SLOTS, SOCKET_CATEGORIES, UNSET_PLUG_HASH, WEAPON_SLOTS } from "@/lib/constants";
 import { Item } from "@/lib/types";
 import useModalKeys from "@/lib/hooks/useModalKeys";
+import { Dictionary, useT } from "@/lib/i18n";
 
 const EXOTIC_TIER = 6;
 const ANY_CLASS = 3;
 // Width of the global item tooltip, to open it on the side of a tile that has room
 
-const SLOT_GROUPS = [
-  { label: "Subclass", slots: [{ hash: EQUIPMENT_SLOTS.SUBCLASS, name: "Subclass" }] },
+type SlotKey = keyof Dictionary["editor"]["slots"];
+
+const SLOT_GROUPS: { id: keyof Dictionary["editor"]["groups"]; slots: { hash: number; key: SlotKey }[] }[] = [
+  { id: "subclass", slots: [{ hash: EQUIPMENT_SLOTS.SUBCLASS, key: "subclass" }] },
   {
-    label: "Weapons",
+    id: "weapons",
     slots: [
-      { hash: EQUIPMENT_SLOTS.PRIMARY, name: "Kinetic" },
-      { hash: EQUIPMENT_SLOTS.ENERGETIC, name: "Energy" },
-      { hash: EQUIPMENT_SLOTS.HEAVY, name: "Power" },
+      { hash: EQUIPMENT_SLOTS.PRIMARY, key: "kinetic" },
+      { hash: EQUIPMENT_SLOTS.ENERGETIC, key: "energy" },
+      { hash: EQUIPMENT_SLOTS.HEAVY, key: "power" },
     ],
   },
   {
-    label: "Armor",
+    id: "armor",
     slots: [
-      { hash: EQUIPMENT_SLOTS.HELMET, name: "Helmet" },
-      { hash: EQUIPMENT_SLOTS.ARMS, name: "Gauntlets" },
-      { hash: EQUIPMENT_SLOTS.CHEST, name: "Chest" },
-      { hash: EQUIPMENT_SLOTS.LEGS, name: "Legs" },
-      { hash: EQUIPMENT_SLOTS.CLASS_ITEM, name: "Class item" },
+      { hash: EQUIPMENT_SLOTS.HELMET, key: "helmet" },
+      { hash: EQUIPMENT_SLOTS.ARMS, key: "gauntlets" },
+      { hash: EQUIPMENT_SLOTS.CHEST, key: "chest" },
+      { hash: EQUIPMENT_SLOTS.LEGS, key: "legs" },
+      { hash: EQUIPMENT_SLOTS.CLASS_ITEM, key: "classItem" },
     ],
   },
-  { label: "Artifact", slots: [{ hash: EQUIPMENT_SLOTS.ARTIFACT, name: "Artifact" }] },
+  { id: "artifact", slots: [{ hash: EQUIPMENT_SLOTS.ARTIFACT, key: "artifact" }] },
 ];
 const LOADOUT_SLOTS = SLOT_GROUPS.flatMap((group) => group.slots.map((slot) => slot.hash));
-const SLOT_NAMES = Object.fromEntries(SLOT_GROUPS.flatMap((group) => group.slots.map((slot) => [slot.hash, slot.name])));
+const SLOT_KEYS: Record<number, SlotKey> = Object.fromEntries(SLOT_GROUPS.flatMap((group) => group.slots.map((slot) => [slot.hash, slot.key])));
 
 /** An instanced item and where it currently is ("vault" or a character id). */
 interface OwnedItem {
@@ -66,7 +69,6 @@ interface LoadoutEditorModalProps {
   onClose: () => void;
 }
 
-const plural = (count: number, word: string) => `${count} ${word}${count > 1 ? "s" : ""}`;
 
 // Item tiles open their own tooltip and context menu; inside the editor a click only selects
 const blockItemActions = {
@@ -105,6 +107,7 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
   const { move } = useTransferItem();
   const { addNotification } = useNotifications();
   const { showTooltip, hideTooltip, scheduleHide } = useItemTooltipActions();
+  const t = useT();
 
   const loadout = characterLoadouts[characterId]?.loadouts[loadoutIndex];
   // Same rule as the loadout grid: a slot without an icon is empty
@@ -258,7 +261,7 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
   };
   const colorPath = loadoutColorDefinitions[effective.colorHash]?.colorImagePath;
   const iconPath = loadoutIconDefinitions[effective.iconHash]?.iconImagePath;
-  const loadoutName = loadoutNameDefinitions[effective.nameHash]?.name ?? `Loadout ${loadoutIndex + 1}`;
+  const loadoutName = loadoutNameDefinitions[effective.nameHash]?.name ?? t.editor.defaultName(loadoutIndex + 1);
 
   const chosenIds = LOADOUT_SLOTS.map((slot) => selection[slot]).filter((id): id is string => !!id);
   const itemsChanged = isNew || LOADOUT_SLOTS.some((slot) => selection[slot] !== initialSelection[slot]);
@@ -312,8 +315,8 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
     && profileInventory.filter((item) => item.bucketHash === BUCKETS.GENERAL).length >= vaultCapacity;
 
   const sourceLabel = ({ location }: OwnedItem) => location === "vault"
-    ? "vault"
-    : classDefinitions[characters[location]?.classHash]?.displayProperties.name ?? "another character";
+    ? t.editor.vault
+    : classDefinitions[characters[location]?.classHash]?.displayProperties.name ?? t.editor.anotherCharacter;
 
   // Armor stats of the loadout (with its mods and fragments) next to what the character wears now
   const loadoutStats = sumStats([
@@ -334,14 +337,14 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
   const nameOf = (itemHash?: number) => itemDefinitions[itemHash ?? 0]?.displayProperties.name;
   // The first problem that blocks the save; each message is only built when its check fails
   const validationError = ([
-    [countExotics(WEAPON_SLOTS) > 1, () => "Only one exotic weapon can be equipped at a time."],
-    [countExotics(ARMOR_SLOTS) > 1, () => "Only one exotic armor piece can be equipped at a time."],
-    [!!overEnergyId, () => `Not enough energy for these mods on ${definitionOf(overEnergyId)?.displayProperties.name ?? "an armor piece"}.`],
-    [fragmentOverflow !== undefined, () => `Your aspects only allow ${fragmentOverflow} fragments.`],
-    [!!fullSlot, () => `Your ${SLOT_NAMES[fullSlot ?? 0]} inventory is full on this character: make room first.`],
-    [vaultFull, () => "Your vault is full: items from other characters have to go through it."],
-    [!!paidSwap, () => `${nameOf(paidSwap?.plugHash) ?? "A plug"} costs materials on ${nameOf(paidSwap?.item.itemHash) ?? "an item"}: apply it in game first.`],
-    [!effective.colorHash || !effective.iconHash || !effective.nameHash, () => "Loadout names, colors and icons are still loading."],
+    [countExotics(WEAPON_SLOTS) > 1, () => t.editor.oneExoticWeapon],
+    [countExotics(ARMOR_SLOTS) > 1, () => t.editor.oneExoticArmor],
+    [!!overEnergyId, () => t.editor.notEnoughEnergy(definitionOf(overEnergyId)?.displayProperties.name)],
+    [fragmentOverflow !== undefined, () => t.editor.tooManyFragments(fragmentOverflow ?? 0)],
+    [!!fullSlot, () => t.editor.slotFull(t.editor.slots[SLOT_KEYS[fullSlot ?? 0]])],
+    [vaultFull, () => t.editor.vaultFull],
+    [!!paidSwap, () => t.editor.paidPlug(nameOf(paidSwap?.plugHash) ?? t.editor.aPlug, nameOf(paidSwap?.item.itemHash) ?? t.editor.anItem)],
+    [!effective.colorHash || !effective.iconHash || !effective.nameHash, () => t.editor.stillLoading],
   ] as const).find(([failed]) => failed)?.[1]();
 
   const saving = savingStep !== null;
@@ -367,12 +370,12 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
   const tabs: { id: typeof panel; label: string }[] = !activeOwned
     ? []
     : activeSlot === EQUIPMENT_SLOTS.SUBCLASS
-      ? [{ id: "items", label: "Subclasses" }, { id: "config", label: "Abilities" }]
+      ? [{ id: "items", label: t.editor.tabs.subclasses }, { id: "config", label: t.editor.tabs.abilities }]
       : activeSlot === EQUIPMENT_SLOTS.ARTIFACT
-      ? [{ id: "items", label: "Artifacts" }, { id: "config", label: "Perks" }]
+      ? [{ id: "items", label: t.editor.tabs.artifacts }, { id: "config", label: t.editor.tabs.perks }]
       : WEAPON_SLOTS.includes(activeSlot ?? 0)
-        ? [{ id: "items", label: "Items" }, { id: "perks", label: "Perks" }, { id: "config", label: "Mods" }, { id: "cosmetics", label: "Cosmetics" }]
-        : [{ id: "items", label: "Items" }, { id: "config", label: "Mods" }, { id: "cosmetics", label: "Cosmetics" }];
+        ? [{ id: "items", label: t.editor.tabs.items }, { id: "perks", label: t.editor.tabs.perks }, { id: "config", label: t.editor.tabs.mods }, { id: "cosmetics", label: t.editor.tabs.cosmetics }]
+        : [{ id: "items", label: t.editor.tabs.items }, { id: "config", label: t.editor.tabs.mods }, { id: "cosmetics", label: t.editor.tabs.cosmetics }];
   const shownPanel = tabs.some((tab) => tab.id === panel) ? panel : "items";
 
   const candidates = useMemo(() => {
@@ -420,8 +423,8 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
     const results = await equipItems(user.membershipType, characterId, ordered);
     const failed = results.filter((result) => result.equipStatus !== 1);
     if (failed.length > 0) {
-      const failedNames = failed.map((result) => definitionOf(result.itemInstanceId)?.displayProperties.name ?? "an item");
-      throw new Error(`Could not equip ${failedNames.join(", ")}.`);
+      const failedNames = failed.map((result) => definitionOf(result.itemInstanceId)?.displayProperties.name ?? t.editor.anItem);
+      throw new Error(t.editor.couldNotEquip(failedNames.join(", ")));
     }
   };
 
@@ -430,9 +433,9 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
       try {
         await insertSocketPlugFree(user.membershipType, characterId, item.itemInstanceId, socketIndex, plugHash);
       } catch (modError) {
-        const modName = itemDefinitions[plugHash]?.displayProperties.name ?? "a mod";
-        const itemName = itemDefinitions[item.itemHash]?.displayProperties.name ?? "an item";
-        throw new Error(`Could not apply ${modName} on ${itemName}: ${modError instanceof Error ? modError.message : "unknown error"}`);
+        const modName = itemDefinitions[plugHash]?.displayProperties.name ?? t.editor.aMod;
+        const itemName = itemDefinitions[item.itemHash]?.displayProperties.name ?? t.editor.anItem;
+        throw new Error(t.editor.couldNotApply(modName, itemName, modError instanceof Error ? modError.message : t.editor.unknownError));
       }
     }
   };
@@ -445,7 +448,7 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
 
     try {
       if (!gearChanged) {
-        setSavingStep("Saving loadout...");
+        setSavingStep(t.editor.saving);
         await updateLoadoutIdentifiers(user.membershipType, characterId, loadoutIndex, effective);
         updateLoadoutLocally(characterId, loadoutIndex, { ...loadout, ...effective });
       } else {
@@ -457,23 +460,23 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
           .map((item) => item.itemInstanceId);
 
         // Bungie can only save what the character has equipped: equip the selection, snapshot it, then put the gear back
-        setSavingStep("Moving items to your character...");
+        setSavingStep(t.editor.movingItems);
         for (const { item, location } of chosen) {
           if (location !== characterId) {
             await move({ itemHash: item.itemHash, itemInstanceId: item.itemInstanceId, toId: characterId });
           }
         }
 
-        setSavingStep("Equipping items...");
+        setSavingStep(t.editor.equippingItems);
         await equipAll(chosen.map(({ item }) => item.itemInstanceId));
 
         // Puts the loadout's mods and subclass setup (recorded or picked here) on the items, so the snapshot keeps them
-        setSavingStep("Applying perks, mods and subclass setup...");
+        setSavingStep(t.editor.applyingPlugs);
         for (const { item } of chosen) {
           await applyPlugs(item);
         }
 
-        setSavingStep("Saving loadout...");
+        setSavingStep(t.editor.saving);
         await snapshotLoadout(user.membershipType, characterId, loadoutIndex, effective);
         updateLoadoutLocally(characterId, loadoutIndex, {
           ...effective,
@@ -481,12 +484,12 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
         });
 
         if (restoreGear) {
-          setSavingStep("Re-equipping your gear...");
+          setSavingStep(t.editor.reequipping);
           try {
             await equipAll(previouslyEquipped);
           } catch (restoreError) {
             addNotification(
-              "Loadout saved, but your previous gear could not be re-equipped",
+              t.editor.restoreFailed,
               restoreError instanceof Error ? restoreError.message : "",
               "error",
               "",
@@ -499,11 +502,11 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
         await refresh();
       }
 
-      addNotification("Loadout saved", loadoutName, "success", iconPath ? `https://www.bungie.net${iconPath}` : "", 5000);
+      addNotification(t.editor.saved, loadoutName, "success", iconPath ? `https://www.bungie.net${iconPath}` : "", 5000);
       setSavingStep(null);
       onClose();
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : "Failed to save the loadout.");
+      setError(saveError instanceof Error ? saveError.message : t.editor.saveFailed);
       setSavingStep(null);
       // Some steps may have gone through before the failure
       refresh();
@@ -542,15 +545,16 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
             {iconPath && <Image src={`https://www.bungie.net${iconPath}`} alt="" fill sizes="40px" />}
           </div>
           <div className="flex flex-col min-w-0">
-            <span className="text-xl text-white font-semibold truncate">{isNew ? "New loadout" : "Edit loadout"}</span>
-            <span className="text-sm text-gray-500 truncate">{loadoutName} · Slot {loadoutIndex + 1}</span>
+            <span className="text-xl text-white font-semibold truncate">{isNew ? t.editor.newLoadout : t.editor.editLoadout}</span>
+            <span className="text-sm text-gray-500 truncate">{loadoutName} · {t.editor.slot(loadoutIndex + 1)}</span>
           </div>
         </div>
         <button
           onClick={onClose}
           disabled={saving}
           className="p-2 text-gray-500 hover:text-white transition-colors rounded-full hover:bg-white/10 disabled:opacity-40"
-          title="Close (Esc)"
+          title={t.common.closeEsc}
+          aria-label={t.common.close}
         >
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18" /><path d="M6 6l12 12" /></svg>
         </button>
@@ -560,7 +564,7 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
       <div className={`flex-1 min-h-0 grid grid-cols-1 grid-rows-[auto_minmax(0,1fr)] lg:grid-rows-1 lg:grid-cols-[minmax(0,480px)_1fr] ${saving ? "pointer-events-none opacity-60" : ""}`}>
         <div className="flex flex-col gap-6 p-6 overflow-y-auto custom-scrollbar lg:border-r border-white/10">
           <label className="flex flex-col gap-2">
-            <span className={sectionLabel}>Name</span>
+            <span className={sectionLabel}>{t.editor.name}</span>
             <select
               value={effective.nameHash}
               onChange={(e) => setIdentifiers((prev) => ({ ...prev, nameHash: Number(e.target.value) }))}
@@ -573,14 +577,14 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
           </label>
 
           <div className="flex flex-col gap-2">
-            <span className={sectionLabel}>Color</span>
+            <span className={sectionLabel}>{t.editor.color}</span>
             <div className="flex flex-wrap gap-1.5">
               {colors.map((color) => (
                 <button
                   key={color.hash}
                   onClick={() => setIdentifiers((prev) => ({ ...prev, colorHash: color.hash }))}
                   className={`relative size-9 border-2 transition-transform hover:scale-110 ${effective.colorHash === color.hash ? "border-white" : "border-transparent"}`}
-                  title={`Color ${color.index + 1}`}
+                  title={t.editor.colorNumber(color.index + 1)}
                 >
                   <Image src={`https://www.bungie.net${color.colorImagePath}`} alt="" fill sizes="36px" />
                 </button>
@@ -589,14 +593,14 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
           </div>
 
           <div className="flex flex-col gap-2">
-            <span className={sectionLabel}>Icon</span>
+            <span className={sectionLabel}>{t.editor.icon}</span>
             <div className="flex flex-wrap gap-1.5">
               {icons.map((icon) => (
                 <button
                   key={icon.hash}
                   onClick={() => setIdentifiers((prev) => ({ ...prev, iconHash: icon.hash }))}
                   className={`relative size-9 border-2 transition-transform hover:scale-110 ${effective.iconHash === icon.hash ? "border-white" : "border-transparent"}`}
-                  title={`Icon ${icon.index + 1}`}
+                  title={t.editor.iconNumber(icon.index + 1)}
                 >
                   {colorPath && <Image src={`https://www.bungie.net${colorPath}`} alt="" fill sizes="36px" />}
                   <Image src={`https://www.bungie.net${icon.iconImagePath}`} alt="" fill sizes="36px" />
@@ -607,8 +611,8 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
 
           <div className="flex flex-wrap gap-x-6 gap-y-4">
             {SLOT_GROUPS.map((group) => (
-              <div key={group.label} className="flex flex-col gap-2">
-                <span className={sectionLabel}>{group.label}</span>
+              <div key={group.id} className="flex flex-col gap-2">
+                <span className={sectionLabel}>{t.editor.groups[group.id]}</span>
                 <div className="flex gap-2">
                   {group.slots.map((slot) => {
                     const owned = selection[slot.hash] ? ownedItems.get(selection[slot.hash]) : undefined;
@@ -623,14 +627,14 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
                         }}
                         onMouseEnter={(e) => owned && openTooltip(owned, e.currentTarget)}
                         onMouseLeave={scheduleHide}
-                        title={owned ? undefined : slot.name}
+                        title={owned ? undefined : t.editor.slots[slot.key]}
                         className={`relative size-14 ring-offset-2 ring-offset-[#141414] transition-shadow ${isActive ? "ring-2 ring-[#7e57c2]" : "hover:ring-2 hover:ring-white/30"}`}
                       >
                         {owned ? renderItem(owned, 56) : (
-                          <span className="flex size-14 items-center justify-center border-2 border-dashed border-white/20 text-[10px] text-gray-500">{slot.name}</span>
+                          <span className="flex size-14 items-center justify-center border-2 border-dashed border-white/20 text-[10px] text-gray-500">{t.editor.slots[slot.key]}</span>
                         )}
                         {(selection[slot.hash] !== initialSelection[slot.hash] || hasPlugChanges(selection[slot.hash])) && (
-                          <span className="absolute -top-1 -right-1 size-2.5 rounded-full bg-[#7e57c2]" title="Changed" />
+                          <span className="absolute -top-1 -right-1 size-2.5 rounded-full bg-[#7e57c2]" title={t.editor.changed} />
                         )}
                       </button>
                     );
@@ -647,7 +651,7 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
         <div className="flex flex-col min-h-0 p-6 gap-4 border-t lg:border-t-0 border-white/10">
           {activeSlot !== null && (
             <div className="flex items-center gap-4 shrink-0">
-              <span className="text-lg font-medium text-white">{SLOT_NAMES[activeSlot]}</span>
+              <span className="text-lg font-medium text-white">{t.editor.slots[SLOT_KEYS[activeSlot]]}</span>
               {tabs.length > 0 && (
                 <div className="flex rounded-md bg-white/5 p-0.5">
                   {tabs.map((tab) => (
@@ -666,7 +670,7 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
 
           {activeSlot === null ? (
             <div className="flex flex-1 items-center justify-center text-sm text-gray-500 text-center">
-              Select a slot to choose its item, perks, mods or subclass setup.
+              {t.editor.selectSlot}
             </div>
           ) : shownPanel === "perks" && activeOwned ? (
             <PerkEditor
@@ -720,13 +724,13 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
                   autoFocus
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search by name..."
+                  placeholder={t.editor.searchPlaceholder}
                   className="grow max-w-md bg-[#2a2a2a] border border-white/10 rounded-md px-3 py-1.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[#7e57c2]"
                 />
-                <span className="ml-auto text-xs text-gray-500 shrink-0">{candidates.length} items</span>
+                <span className="ml-auto text-xs text-gray-500 shrink-0">{t.editor.itemCount(candidates.length)}</span>
               </div>
               {candidates.length === 0 ? (
-                <div className="flex flex-1 items-center justify-center text-sm text-gray-500">No item available for this slot.</div>
+                <div className="flex flex-1 items-center justify-center text-sm text-gray-500">{t.editor.noItem}</div>
               ) : (
                 <div className="grid grid-cols-[repeat(auto-fill,minmax(64px,1fr))] content-start gap-2 flex-1 min-h-0 overflow-y-auto custom-scrollbar p-1">
                   {candidates.map((owned) => {
@@ -759,19 +763,21 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
             <>
               {/* Bungie only saves equipped gear, so the save equips the loadout first */}
               <div className="flex flex-col gap-1 text-xs text-gray-400">
-                <span className="uppercase tracking-wider text-gray-500">On save</span>
+                <span className="uppercase tracking-wider text-gray-500">{t.editor.onSave}</span>
                 <ul className="list-disc pl-4 space-y-0.5">
                   {incoming.length > 0 && (
                     <li>
-                      Move {plural(incoming.length, "item")} to this character:{" "}
-                      {incoming.map((owned) => `${itemDefinitions[owned.item.itemHash]?.displayProperties.name ?? "item"} (${sourceLabel(owned)})`).join(", ")}
+                      {t.editor.moveItems(
+                        incoming.length,
+                        incoming.map((owned) => `${itemDefinitions[owned.item.itemHash]?.displayProperties.name ?? t.notifications.item} (${sourceLabel(owned)})`).join(", ")
+                      )}
                     </li>
                   )}
-                  {toEquip.length > 0 && <li>Equip {plural(toEquip.length, "item")}</li>}
+                  {toEquip.length > 0 && <li>{t.editor.equipItems(toEquip.length)}</li>}
                   {plannedSwaps.length > 0 && (
-                    <li>Apply {plural(plannedSwaps.length, "perk, mod, cosmetic, artifact or subclass change")}: they stay on the items</li>
+                    <li>{t.editor.applyChanges(plannedSwaps.length)}</li>
                   )}
-                  <li>Record the loadout{restoreGear && toEquip.length > 0 ? ", then re-equip your current gear" : ""}</li>
+                  <li>{restoreGear && toEquip.length > 0 ? t.editor.recordLoadoutAndRestore : t.editor.recordLoadout}</li>
                 </ul>
               </div>
               {toEquip.length > 0 && (
@@ -783,7 +789,7 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
                     disabled={saving}
                     className="accent-[#7e57c2]"
                   />
-                  Re-equip my current gear afterwards
+                  {t.editor.restoreGear}
                 </label>
               )}
             </>
@@ -803,16 +809,16 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
             onClick={handleReset}
             disabled={saving || !hasEdits}
             className="px-4 py-2 bg-gray-700 text-white rounded hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed"
-            title="Undo every change made in the editor"
+            title={t.editor.resetTitle}
           >
-            Reset
+            {t.common.reset}
           </button>
           <button
             onClick={handleSave}
             disabled={!canSave}
             className="px-5 py-2 bg-[#7e57c2] text-white rounded hover:bg-[#6a46ad] disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            Save
+            {t.common.save}
           </button>
         </div>
       </footer>

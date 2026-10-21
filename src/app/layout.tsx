@@ -6,6 +6,7 @@ import { NotificationsProvider } from "./components/NotificationsProvider";
 import { DebugProvider } from "@/app/components/debug/DebugProvider";
 import { AuthProvider } from "@/lib/hooks/useAuth";
 import MotionPreference from "./components/MotionPreference";
+import DocumentLanguage from "./components/DocumentLanguage";
 
 
 import { Analytics } from "@vercel/analytics/next"
@@ -33,6 +34,7 @@ export default function RootLayout({
         role="main"
       >
         <MotionPreference />
+        <DocumentLanguage />
         <NotificationsProvider>
           <AuthProvider>
             <DebugProvider>

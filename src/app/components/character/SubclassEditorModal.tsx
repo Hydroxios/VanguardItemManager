@@ -15,6 +15,7 @@ import { insertSocketPlugFree } from "@/lib/bungie";
 import { countFragments, getEditableSubclassSockets, getFragmentCapacity, planSubclassChanges } from "@/lib/helpers/subclass";
 import { ARMOR_STAT_HASHES, statsWithSubclassChange, StatTotals } from "@/lib/helpers/stats";
 import { ITEM_TYPES } from "@/lib/constants";
+import { useT } from "@/lib/i18n";
 
 interface SubclassEditorModalProps {
   itemHash: number;
@@ -29,6 +30,7 @@ const SubclassEditorModal = ({ itemHash, itemInstanceId, characterId, onClose }:
   const { itemDefinitions } = useDefinitions();
   const { hideTooltip } = useItemTooltipActions();
   const { addNotification } = useNotifications();
+  const t = useT();
   const equipSubclass = useEquipSubclass(characterId);
 
   // Plugs picked in the editor, by socket index; the others keep what the subclass has now
@@ -108,8 +110,8 @@ const SubclassEditorModal = ({ itemHash, itemInstanceId, characterId, onClose }:
           setItemComponentsLocally(itemInstanceId, changed);
           appliedPlugs[socketIndex] = plugHash;
         } catch (plugError) {
-          const plugName = itemDefinitions[plugHash]?.displayProperties.name ?? "a plug";
-          throw new Error(`Could not apply ${plugName}: ${plugError instanceof Error ? plugError.message : "unknown error"}`);
+          const plugName = itemDefinitions[plugHash]?.displayProperties.name ?? t.subclassEditor.aPlug;
+          throw new Error(t.subclassEditor.couldNotApply(plugName, plugError instanceof Error ? plugError.message : t.editor.unknownError));
         }
       }
       if (andEquip) {
@@ -117,15 +119,15 @@ const SubclassEditorModal = ({ itemHash, itemInstanceId, characterId, onClose }:
           // Its stats come from the plugs just applied, which the profile doesn't have yet
           await equipSubclass(itemInstanceId, appliedPlugs);
         } catch (equipError) {
-          throw new Error(`Could not equip ${definition?.displayProperties.name ?? "the subclass"}: ${equipError instanceof Error ? equipError.message : "unknown error"}`);
+          throw new Error(t.subclassEditor.couldNotEquip(definition?.displayProperties.name ?? t.subclassEditor.theSubclass, equipError instanceof Error ? equipError.message : t.editor.unknownError));
         }
       }
       const icon = definition ? `https://www.bungie.net${definition.displayProperties.icon}` : "";
-      addNotification(andEquip ? "Subclass equipped" : "Subclass updated", definition?.displayProperties.name ?? "", "success", icon, 5000);
+      addNotification(andEquip ? t.subclassEditor.equipped : t.subclassEditor.updated, definition?.displayProperties.name ?? "", "success", icon, 5000);
       // No refresh: Bungie serves a cached profile for a while after a change, which would undo the local update
       onClose();
     } catch (applyError) {
-      setError(applyError instanceof Error ? applyError.message : "Failed to update the subclass.");
+      setError(applyError instanceof Error ? applyError.message : t.subclassEditor.failed);
       // The plugs that went in before the failure are already applied locally: the remaining changes are dropped
       setChanges({});
     } finally {
@@ -148,7 +150,7 @@ const SubclassEditorModal = ({ itemHash, itemInstanceId, characterId, onClose }:
             <Image src={`https://www.bungie.net${definition.displayProperties.icon}`} alt="" fill sizes="40px" />
           </div>
           <div className="flex flex-col min-w-0">
-            <span className="text-xl text-white font-semibold truncate">Edit subclass</span>
+            <span className="text-xl text-white font-semibold truncate">{t.subclassEditor.title}</span>
             <span className="text-sm text-gray-500 truncate">{definition.displayProperties.name}</span>
           </div>
         </div>
@@ -156,7 +158,8 @@ const SubclassEditorModal = ({ itemHash, itemInstanceId, characterId, onClose }:
           onClick={onClose}
           disabled={saving}
           className="p-2 text-gray-500 hover:text-white transition-colors rounded-full hover:bg-white/10 disabled:opacity-40"
-          title="Close (Esc)"
+          title={t.common.closeEsc}
+          aria-label={t.common.close}
         >
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18" /><path d="M6 6l12 12" /></svg>
         </button>
@@ -174,7 +177,7 @@ const SubclassEditorModal = ({ itemHash, itemInstanceId, characterId, onClose }:
         </div>
         {statsNow && statsAfter && (
           <aside className="shrink-0 lg:w-80 border-t lg:border-t-0 lg:border-l border-white/10 pt-4 lg:pt-0 lg:pl-6">
-            <LoadoutStats stats={statsAfter} compareTo={statsNow} compareLabel={isEquipped ? "vs now" : "if equipped, vs now"} />
+            <LoadoutStats stats={statsAfter} compareTo={statsNow} compareLabel={isEquipped ? t.plugs.vsNow : t.plugs.ifEquippedVsNow} />
           </aside>
         )}
       </div>
@@ -183,9 +186,9 @@ const SubclassEditorModal = ({ itemHash, itemInstanceId, characterId, onClose }:
         {error ? (
           <span className="mr-auto text-sm text-red-400">{error}</span>
         ) : fragmentOverflow ? (
-          <span className="mr-auto text-sm text-red-400">Your aspects only open {fragmentCapacity} fragment sockets.</span>
+          <span className="mr-auto text-sm text-red-400">{t.subclassEditor.fragmentOverflow(fragmentCapacity ?? 0)}</span>
         ) : saving ? (
-          <span className="mr-auto text-sm text-gray-400">Applying...</span>
+          <span className="mr-auto text-sm text-gray-400">{t.subclassEditor.applying}</span>
         ) : null}
         <button
           onClick={() => {
@@ -195,7 +198,7 @@ const SubclassEditorModal = ({ itemHash, itemInstanceId, characterId, onClose }:
           disabled={saving || Object.keys(changes).length === 0}
           className="px-4 py-2 text-sm text-gray-300 rounded-md hover:bg-white/10 transition-colors disabled:opacity-40 disabled:hover:bg-transparent"
         >
-          Reset
+          {t.common.reset}
         </button>
         <button
           onClick={() => handleApply(false)}
@@ -204,16 +207,16 @@ const SubclassEditorModal = ({ itemHash, itemInstanceId, characterId, onClose }:
             ? "text-white bg-[#7e57c2] hover:bg-[#8e67d2] disabled:hover:bg-[#7e57c2]"
             : "text-gray-200 bg-white/10 hover:bg-white/20 disabled:hover:bg-white/10"}`}
         >
-          Apply
+          {t.subclassEditor.apply}
         </button>
         {!isEquipped && (
           <button
             onClick={() => handleApply(true)}
             disabled={!canApplyAndEquip}
-            title={steps.length > 0 ? "Apply the changes, then equip this subclass" : "Equip this subclass"}
+            title={steps.length > 0 ? t.subclassEditor.applyAndEquipTitle : t.subclassEditor.equipTitle}
             className="px-4 py-2 text-sm text-white rounded-md bg-[#7e57c2] hover:bg-[#8e67d2] transition-colors disabled:opacity-40 disabled:hover:bg-[#7e57c2]"
           >
-            {steps.length > 0 ? "Apply & equip" : "Equip"}
+            {steps.length > 0 ? t.subclassEditor.applyAndEquip : t.subclassEditor.equip}
           </button>
         )}
       </footer>

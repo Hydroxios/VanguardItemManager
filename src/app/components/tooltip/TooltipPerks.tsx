@@ -6,6 +6,7 @@ import PlugTooltip, { plugTooltipContent, PlugTooltipContent, usePlugTooltip } f
 import { ArmorSockets, isEnhancedPerk, WeaponSockets } from "@/lib/helpers/item-sockets";
 import { EquipableItemSetDefinition, ItemDefinition, PerksDefinitions } from "@/lib/types";
 import DestinyText from "@/app/components/destiny-ui/DestinyText";
+import { useT } from "@/lib/i18n";
 
 type TooltipHandlers = ReturnType<typeof usePlugTooltip>["handlers"];
 
@@ -48,6 +49,7 @@ interface WeaponPerksProps {
 
 export const WeaponPerks = ({ sockets, perksDefinitions, canSelect, onSelect, pendingSocket }: WeaponPerksProps) => {
     const { tooltip, handlers, hideTooltip } = usePlugTooltip();
+    const t = useT();
     const { intrinsic, columns, masterwork, mods } = sockets;
     if (!intrinsic && columns.length === 0 && !masterwork && mods.length === 0) return null;
 
@@ -69,7 +71,7 @@ export const WeaponPerks = ({ sockets, perksDefinitions, canSelect, onSelect, pe
                                 const base = plugTooltipContent(option, perksDefinitions);
                                 const content: PlugTooltipContent = active ? base : {
                                     ...base,
-                                    typeName: [base.typeName, selectable ? "Click to select" : "Also on this roll"].filter(Boolean).join(" · "),
+                                    typeName: [base.typeName, selectable ? t.tooltip.clickToSelect : t.tooltip.alsoOnRoll].filter(Boolean).join(" · "),
                                 };
                                 // Every perk sits in a white bubble, like in game; the selected one is filled with blue
                                 const className = `relative rounded-full border-2 p-0.5 ${active ? "border-white bg-[#4887ba]" : "border-white/70 opacity-50"}`;
@@ -79,7 +81,7 @@ export const WeaponPerks = ({ sockets, perksDefinitions, canSelect, onSelect, pe
                                             <Image src={`https://www.bungie.net${option.displayProperties.icon}`} width={36} height={36} alt={option.displayProperties.name} />
                                         </span>
                                         {isEnhancedPerk(option) && (
-                                            <span className="absolute -right-0.5 -top-0.5 flex size-3.5 items-center justify-center rounded-full bg-[#f2c94c] text-[9px] font-bold leading-none text-black" title="Enhanced">▲</span>
+                                            <span className="absolute -right-0.5 -top-0.5 flex size-3.5 items-center justify-center rounded-full bg-[#f2c94c] text-[9px] font-bold leading-none text-black" title={t.tooltip.enhanced}>▲</span>
                                         )}
                                     </>
                                 );
@@ -95,7 +97,7 @@ export const WeaponPerks = ({ sockets, perksDefinitions, canSelect, onSelect, pe
                                         }}
                                         // aria-disabled rather than disabled: a disabled button gets no hover events, so no tooltip
                                         aria-disabled={pendingSocket !== undefined}
-                                        aria-label={`Select ${option.displayProperties.name}`}
+                                        aria-label={t.tooltip.selectPerk(option.displayProperties.name)}
                                         className={`${className} cursor-pointer transition hover:border-white hover:opacity-100 aria-disabled:cursor-wait`}
                                     >
                                         {icon}
@@ -130,6 +132,7 @@ interface ArmorPerksProps {
 
 export const ArmorPerks = ({ sockets, perksDefinitions, itemSet, equippedSetCount }: ArmorPerksProps) => {
     const { tooltip, handlers } = usePlugTooltip();
+    const t = useT();
     const setPerks = (itemSet?.setPerks ?? []).filter((perk) => perksDefinitions[perk.sandboxPerkHash]);
     if (sockets.perks.length === 0 && sockets.mods.length === 0 && setPerks.length === 0) return null;
 
@@ -141,7 +144,7 @@ export const ArmorPerks = ({ sockets, perksDefinitions, itemSet, equippedSetCoun
             {setPerks.length > 0 && (
                 <div className="flex flex-col gap-1.5 text-left">
                     <span className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-                        {itemSet?.displayProperties?.name || "Set bonus"}
+                        {itemSet?.displayProperties?.name || t.tooltip.setBonus}
                     </span>
                     {setPerks.map((perk) => {
                         const definition = perksDefinitions[perk.sandboxPerkHash];

@@ -9,6 +9,7 @@ import { getDamageTypeIcon } from "@/lib/helpers/damage-type";
 import Image from "next/image";
 import { Item as ProfileItem, ItemDefinition, ItemPerks, ItemStats } from "@/lib/types";
 import { findDupes, isEmptySearch, matchesSearch, parseSearch, SearchableItem } from "@/lib/search";
+import { useT } from "@/lib/i18n";
 
 interface SearchResult {
   item: ItemDefinition;
@@ -37,6 +38,7 @@ const SearchBar = ({ currentCharacterId, open, onClose }: { currentCharacterId?:
   } = useProfile();
 
   const { transfer } = useTransferItem();
+  const t = useT();
 
   // Recomputed as you type and whenever items move, only while the search is shown
   const results = useMemo<SearchResult[]>(() => {
@@ -58,7 +60,7 @@ const SearchBar = ({ currentCharacterId, open, onClose }: { currentCharacterId?:
     Object.keys(characterInventories).forEach((char) => {
       add(characterInventories[char].items, classDefinitions[characters[char].classHash].displayProperties.name, char);
     });
-    add(profileInventory, "Vault", "");
+    add(profileInventory, t.item.vault, "");
 
     const context = { itemComponents, perksDefinitions, dupes: findDupes(allItems) };
     return allItems.filter((searchable) => matchesSearch(parsed, searchable, context)).map(({ item, definition, location, characterId }) => ({
@@ -71,7 +73,7 @@ const SearchBar = ({ currentCharacterId, open, onClose }: { currentCharacterId?:
       perks: itemComponents.perks[item.itemInstanceId],
       stats: itemComponents.stats[item.itemInstanceId],
     }));
-  }, [open, search, characters, characterEquipment, characterInventories, profileInventory, itemComponents, itemDefinitions, classDefinitions, perksDefinitions]);
+  }, [open, search, characters, characterEquipment, characterInventories, profileInventory, itemComponents, itemDefinitions, classDefinitions, perksDefinitions, t]);
 
   // Clear search input and results
   const handleClearSearch = () => {
@@ -110,7 +112,7 @@ const SearchBar = ({ currentCharacterId, open, onClose }: { currentCharacterId?:
           </div>
           <input
             type="text"
-            placeholder="Search for items, perks, tiers..."
+            placeholder={t.search.placeholder}
             className="flex-grow p-2 bg-transparent text-white text-xl placeholder-gray-500 focus:outline-none font-medium"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -122,7 +124,8 @@ const SearchBar = ({ currentCharacterId, open, onClose }: { currentCharacterId?:
             <button
               onClick={handleClearSearch}
               className="p-2 text-gray-500 hover:text-white transition-colors rounded-full hover:bg-white/10 mr-1"
-              title="Clear search"
+              title={t.search.clear}
+              aria-label={t.search.clear}
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -132,7 +135,7 @@ const SearchBar = ({ currentCharacterId, open, onClose }: { currentCharacterId?:
           )}
 
           <div className="relative group">
-            <button className="p-2 text-gray-500 hover:text-white transition-colors rounded-full hover:bg-white/10">
+            <button className="p-2 text-gray-500 hover:text-white transition-colors rounded-full hover:bg-white/10" aria-label={t.search.help}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="10"></circle>
                 <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
@@ -140,35 +143,35 @@ const SearchBar = ({ currentCharacterId, open, onClose }: { currentCharacterId?:
               </svg>
             </button>
             <div className="absolute right-0 top-full mt-2 w-64 p-4 bg-[#1a1a1a] border border-white/10 rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 text-sm text-gray-300 text-left">
-              <h4 className="text-white font-semibold mb-2">Search Filters</h4>
+              <h4 className="text-white font-semibold mb-2">{t.search.filters}</h4>
               <ul className="space-y-2">
                 <li>
                   <code className="text-purple-400 bg-purple-400/10 px-1 rounded">perk:name</code>
-                  <span className="block text-xs mt-0.5">Filter by perk name</span>
+                  <span className="block text-xs mt-0.5">{t.search.perkHint}</span>
                 </li>
                 <li>
                   <code className="text-blue-400 bg-blue-400/10 px-1 rounded">tier:number</code>
-                  <span className="block text-xs mt-0.5">Filter by gear tier</span>
+                  <span className="block text-xs mt-0.5">{t.search.tierHint}</span>
                 </li>
                 <li>
                   <code className="text-orange-400 bg-orange-400/10 px-1 rounded">&gt;=number</code>
-                  <span className="block text-xs mt-0.5">Filter by power level</span>
+                  <span className="block text-xs mt-0.5">{t.search.powerHint}</span>
                 </li>
                 <li>
                   <code className="text-green-400 bg-green-400/10 px-1 rounded">is:type</code>
-                  <span className="block text-xs mt-0.5">weapon, armor, exotic, locked, dupe, crafted...</span>
+                  <span className="block text-xs mt-0.5">{t.search.isHint}</span>
                 </li>
                 <li>
                   <code className="text-pink-400 bg-pink-400/10 px-1 rounded">slot:name</code>
-                  <span className="block text-xs mt-0.5">kinetic, energy, power, helmet, arms...</span>
+                  <span className="block text-xs mt-0.5">{t.search.slotHint}</span>
                 </li>
                 <li>
                   <code className="text-yellow-400 bg-yellow-400/10 px-1 rounded">element:name</code>
-                  <span className="block text-xs mt-0.5">solar, arc, void, stasis, strand, kinetic</span>
+                  <span className="block text-xs mt-0.5">{t.search.elementHint}</span>
                 </li>
                 <li>
                   <code className="text-cyan-400 bg-cyan-400/10 px-1 rounded">stat:name&gt;=number</code>
-                  <span className="block text-xs mt-0.5">Armor stat, or total</span>
+                  <span className="block text-xs mt-0.5">{t.search.statHint}</span>
                 </li>
               </ul>
               <a
@@ -177,7 +180,7 @@ const SearchBar = ({ currentCharacterId, open, onClose }: { currentCharacterId?:
                 rel="noopener noreferrer"
                 className="mt-4 block border-t border-white/10 pt-3 text-right text-xs font-semibold text-purple-300 transition-colors hover:text-white"
               >
-                View more
+                {t.search.viewMore}
               </a>
             </div>
           </div>
@@ -188,8 +191,8 @@ const SearchBar = ({ currentCharacterId, open, onClose }: { currentCharacterId?:
         <div className="w-full overflow-hidden flex flex-col">
           {(isFocused || search.length > 0) && results.length > 0 && (
             <div className="flex items-center justify-between px-6 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider bg-black/20">
-              <span>Results</span>
-              <span>{results.length} items found</span>
+              <span>{t.search.results}</span>
+              <span>{t.search.found(results.length)}</span>
             </div>
           )}
 
@@ -223,7 +226,7 @@ const SearchBar = ({ currentCharacterId, open, onClose }: { currentCharacterId?:
                           {result.item.defaultDamageType ? (
                             <Image
                               src={getDamageTypeIcon(result.item.defaultDamageType)}
-                              alt="Damage type"
+                              alt={t.tooltip.damageType}
                               className="w-6 h-6"
                               height={24}
                               width={24}
@@ -234,7 +237,7 @@ const SearchBar = ({ currentCharacterId, open, onClose }: { currentCharacterId?:
                           </h3>
                         </div>
                         <span className="text-xs text-gray-500 bg-black/40 px-2 py-1 rounded-full border border-white/5">
-                          {result.location ?? "Unknown"}
+                          {result.location ?? t.search.unknown}
                         </span>
                       </div>
                       <div className="flex items-center gap-2 mt-1">
@@ -242,7 +245,7 @@ const SearchBar = ({ currentCharacterId, open, onClose }: { currentCharacterId?:
                           {result.item.itemTypeDisplayName}
                         </span>
                         {result.item.inventory?.tierType === 6 && (
-                          <span className="text-[10px] text-yellow-500 border border-yellow-500/30 px-1.5 rounded bg-yellow-500/10">Exotic</span>
+                          <span className="text-[10px] text-yellow-500 border border-yellow-500/30 px-1.5 rounded bg-yellow-500/10">{t.search.exotic}</span>
                         )}
                       </div>
                     </div>
@@ -255,7 +258,7 @@ const SearchBar = ({ currentCharacterId, open, onClose }: { currentCharacterId?:
                 <svg className="w-12 h-12 mb-3 opacity-20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                 </svg>
-                <p>No items found matching &quot;{search}&quot;</p>
+                <p>{t.search.noResults(search)}</p>
               </div>
             )
           )}

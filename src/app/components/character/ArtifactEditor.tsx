@@ -9,6 +9,7 @@ import { getEditableArtifactSockets } from "@/lib/helpers/artifact";
 import { isEmptyPlug } from "@/lib/helpers/subclass";
 import { ItemDefinition } from "@/lib/types";
 import DestinyText from "@/app/components/destiny-ui/DestinyText";
+import { useT } from "@/lib/i18n";
 
 interface ArtifactEditorProps {
   itemHash: number;
@@ -23,6 +24,7 @@ interface ArtifactEditorProps {
 const ArtifactEditor = ({ itemHash, itemInstanceId, characterId, plugs, onChange }: ArtifactEditorProps) => {
   const { itemComponents, plugSets } = useProfile();
   const { itemDefinitions, perksDefinitions } = useDefinitions();
+  const t = useT();
   const { tooltip, handlers: tooltipHandlers } = usePlugTooltip();
 
   const definition = itemDefinitions[itemHash];
@@ -47,7 +49,7 @@ const ArtifactEditor = ({ itemHash, itemInstanceId, characterId, plugs, onChange
   }, [activeSocket, search, optionsBySocket, lockedBySocket, itemDefinitions]);
 
   if (!definition || tiers.length === 0) {
-    return <div className="flex flex-1 items-center justify-center text-sm text-gray-500">This artifact has no perks to pick.</div>;
+    return <div className="flex flex-1 items-center justify-center text-sm text-gray-500">{t.plugs.noArtifactPerks}</div>;
   }
 
   const activePlug = activeSocket !== undefined ? itemDefinitions[plugs[activeSocket]] : undefined;
@@ -63,7 +65,7 @@ const ArtifactEditor = ({ itemHash, itemInstanceId, characterId, plugs, onChange
       <div className="flex flex-wrap gap-x-6 gap-y-3 shrink-0">
         {tiers.map((tier, tierIndex) => (
           <div key={tier.categoryHash} className="flex flex-col gap-2">
-            <span className="text-xs uppercase tracking-wider text-gray-400">Tier {tierIndex + 1}</span>
+            <span className="text-xs uppercase tracking-wider text-gray-400">{t.plugs.tier(tierIndex + 1)}</span>
             <div className="flex gap-1.5">
               {tier.socketIndexes.map((socketIndex) => {
                 const plug = itemDefinitions[plugs[socketIndex]];
@@ -103,11 +105,11 @@ const ArtifactEditor = ({ itemHash, itemInstanceId, characterId, plugs, onChange
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search..."
+          placeholder={t.plugs.search}
           className="grow max-w-md bg-[#2a2a2a] border border-white/10 rounded-md px-3 py-1.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[#7e57c2]"
         />
         <span className="ml-auto text-xs text-gray-500 shrink-0">
-          {options.length} perks{lockedOptions.length > 0 && ` · ${lockedOptions.length} locked`}
+          {t.plugs.perkCount(options.length)}{lockedOptions.length > 0 && t.plugs.lockedCount(lockedOptions.length)}
         </span>
       </div>
 
@@ -121,7 +123,7 @@ const ArtifactEditor = ({ itemHash, itemInstanceId, characterId, plugs, onChange
               // aria-disabled rather than disabled: a disabled button gets no hover events, so no tooltip
               aria-disabled={!available}
               onClick={() => available && activeSocket !== undefined && onChange(activeSocket, plug.hash)}
-              {...tooltipHandlers(plugTooltipContent(plug, perksDefinitions, available ? undefined : "Already slotted"))}
+              {...tooltipHandlers(plugTooltipContent(plug, perksDefinitions, available ? undefined : t.plugs.alreadySlotted))}
               className={`rounded p-0.5 transition-colors aria-disabled:opacity-30 aria-disabled:cursor-not-allowed ${isSelected ? "bg-[#7e57c2]/30 ring-1 ring-[#7e57c2]" : "hover:bg-white/10"}`}
             >
               <PlugIcon plug={plug} size={48} showCost={false} artifact={activeSocket === undefined || !isEmptyPlug(definition, activeSocket, plug.hash)} />
@@ -132,7 +134,7 @@ const ArtifactEditor = ({ itemHash, itemInstanceId, characterId, plugs, onChange
           <button
             key={plug.hash}
             aria-disabled
-            {...tooltipHandlers(plugTooltipContent(plug, perksDefinitions, "Not unlocked yet"))}
+            {...tooltipHandlers(plugTooltipContent(plug, perksDefinitions, t.plugs.notUnlocked))}
             className="relative rounded p-0.5 cursor-not-allowed"
           >
             <span className="block opacity-30 grayscale">

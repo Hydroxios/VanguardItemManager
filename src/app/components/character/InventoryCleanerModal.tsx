@@ -13,6 +13,7 @@ import { useNotifications } from "@/app/components/NotificationsProvider";
 import { ClearOptions, collectGear, findClearableItems, findJunk, JunkOptions, JunkReason, OwnedItem, planGather } from "@/lib/helpers/inventory-cleaner";
 import { ARMOR_SLOTS, WEAPON_SLOTS } from "@/lib/constants";
 import { Item } from "@/lib/types";
+import { useT } from "@/lib/i18n";
 
 interface InventoryCleanerModalProps {
     characterId: string;
@@ -24,16 +25,7 @@ type CleanerMode = "clear" | "junk";
 const DEFAULT_CLEAR: ClearOptions = { weapons: true, armor: true, keepLocked: false };
 const DEFAULT_JUNK: JunkOptions = { dupes: true, minArmorTotal: 60, minGearTier: 0 };
 
-const REASON_LABELS: Record<JunkReason, string> = {
-    dupe: "Worse duplicate",
-    lowStats: "Low stats",
-    lowTier: "Low tier",
-};
-
-const MODES: { id: CleanerMode, label: string }[] = [
-    { id: "clear", label: "Clear inventory" },
-    { id: "junk", label: "Find junk" },
-];
+const MODES: CleanerMode[] = ["clear", "junk"];
 
 const sectionLabel = "text-xs uppercase tracking-wider text-gray-400";
 
@@ -60,9 +52,10 @@ const InventoryCleanerModal = ({ characterId, onClose }: InventoryCleanerModalPr
     const { move } = useTransferItem();
     const { hideTooltip } = useItemTooltipActions();
     const { addNotification } = useNotifications();
+    const t = useT();
 
     const { mode } = options;
-    const className = classDefinitions[characters[characterId]?.classHash]?.displayProperties.name ?? "Character";
+    const className = classDefinitions[characters[characterId]?.classHash]?.displayProperties.name ?? t.cleaner.character;
 
     useEffect(() => {
         try {
@@ -125,8 +118,8 @@ const InventoryCleanerModal = ({ characterId, onClose }: InventoryCleanerModalPr
         }
         const moved = items.length - failed;
         addNotification(
-            failed === 0 ? `${moved} items moved` : `${moved} items moved, ${failed} failed`,
-            failed === 0 ? (toId === "vault" ? "Sent to the vault" : `Brought to your ${className}`) : "The vault or the character may be full",
+            failed === 0 ? t.cleaner.moved(moved) : t.cleaner.movedWithFailures(moved, failed),
+            failed === 0 ? (toId === "vault" ? t.cleaner.sentToVault : t.cleaner.broughtTo(className)) : t.cleaner.maybeFull,
             failed === 0 ? "success" : "warning",
             "",
             5000
@@ -136,8 +129,8 @@ const InventoryCleanerModal = ({ characterId, onClose }: InventoryCleanerModalPr
     };
 
     const ownerName = (ownerId: string) => ownerId === "vault"
-        ? "Vault"
-        : classDefinitions[characters[ownerId]?.classHash]?.displayProperties.name ?? "Character";
+        ? t.item.vault
+        : classDefinitions[characters[ownerId]?.classHash]?.displayProperties.name ?? t.cleaner.character;
 
     const renderItem = (item: Item) => (
         <ItemComponent
@@ -156,8 +149,8 @@ const InventoryCleanerModal = ({ characterId, onClose }: InventoryCleanerModalPr
     const renderGroups = <T extends OwnedItem>(items: T[], renderTile: (owned: T) => React.ReactNode) => {
         const slotOf = ({ item }: OwnedItem) => itemDefinitions[item.itemHash]?.equippingBlock?.equipmentSlotTypeHash ?? 0;
         const groups = [
-            { label: "Weapons", items: items.filter((owned) => WEAPON_SLOTS.includes(slotOf(owned))) },
-            { label: "Armor", items: items.filter((owned) => ARMOR_SLOTS.includes(slotOf(owned))) },
+            { label: t.vault.tabs.weapons, items: items.filter((owned) => WEAPON_SLOTS.includes(slotOf(owned))) },
+            { label: t.vault.tabs.armor, items: items.filter((owned) => ARMOR_SLOTS.includes(slotOf(owned))) },
         ].filter((group) => group.items.length > 0);
         return groups.map((group) => (
             <section key={group.label} className="flex flex-col gap-3">
@@ -188,7 +181,7 @@ const InventoryCleanerModal = ({ characterId, onClose }: InventoryCleanerModalPr
 
     // Portaled to <body>, above the header (1001) and below the item tooltip (1005)
     return createPortal(
-        <div className="fixed inset-0 z-[1003] flex flex-col bg-[#141414]/95 backdrop-blur-md text-left animate-fade-in" role="dialog" aria-label="Inventory cleaner">
+        <div className="fixed inset-0 z-[1003] flex flex-col bg-[#141414]/95 backdrop-blur-md text-left animate-fade-in" role="dialog" aria-label={t.cleaner.title}>
             <header className="flex items-center justify-between gap-4 px-6 py-4 border-b border-white/10 shrink-0">
                 <div className="flex items-center gap-4 min-w-0">
                     <div className="flex size-10 shrink-0 items-center justify-center border-2 border-white text-white">
@@ -200,15 +193,16 @@ const InventoryCleanerModal = ({ characterId, onClose }: InventoryCleanerModalPr
                         </svg>
                     </div>
                     <div className="flex flex-col min-w-0">
-                        <span className="text-xl text-white font-semibold truncate">Inventory cleaner</span>
-                        <span className="text-sm text-gray-500 truncate">{className} · {mode === "clear" ? "Send unequipped gear to the vault" : "Gear worth dismantling, across the vault and characters"}</span>
+                        <span className="text-xl text-white font-semibold truncate">{t.cleaner.title}</span>
+                        <span className="text-sm text-gray-500 truncate">{className} · {mode === "clear" ? t.cleaner.clearSubtitle : t.cleaner.junkSubtitle}</span>
                     </div>
                 </div>
                 <button
                     onClick={onClose}
                     disabled={running}
                     className="p-2 text-gray-500 hover:text-white transition-colors rounded-full hover:bg-white/10 disabled:opacity-40"
-                    title="Close (Esc)"
+                    title={t.common.closeEsc}
+                    aria-label={t.common.close}
                 >
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18" /><path d="M6 6l12 12" /></svg>
                 </button>
@@ -218,13 +212,13 @@ const InventoryCleanerModal = ({ characterId, onClose }: InventoryCleanerModalPr
             <div className={`flex-1 min-h-0 grid grid-cols-1 grid-rows-[auto_minmax(0,1fr)] lg:grid-rows-1 lg:grid-cols-[minmax(0,360px)_1fr] ${running ? "pointer-events-none opacity-60" : ""}`}>
                 <div className="flex flex-col gap-6 p-6 overflow-y-auto custom-scrollbar lg:border-r border-white/10">
                     <div className="flex rounded-md bg-white/5 p-0.5 self-start">
-                        {MODES.map(({ id, label }) => (
+                        {MODES.map((id) => (
                             <button
                                 key={id}
                                 onClick={() => setMode(id)}
                                 className={`px-3 py-1 text-sm rounded transition-colors ${id === mode ? "bg-[#7e57c2] text-white" : "text-gray-400 hover:text-white"}`}
                             >
-                                {label}
+                                {t.cleaner.modes[id]}
                             </button>
                         ))}
                     </div>
@@ -232,34 +226,29 @@ const InventoryCleanerModal = ({ characterId, onClose }: InventoryCleanerModalPr
                     {mode === "clear" ? (
                         <>
                             <div className="flex flex-col gap-3 items-start">
-                                <span className={sectionLabel}>Send</span>
-                                <DestinyCheckBox checked={options.clear.weapons} label="Weapons" onClick={() => setClear({ weapons: !options.clear.weapons })} />
-                                <DestinyCheckBox checked={options.clear.armor} label="Armor" onClick={() => setClear({ armor: !options.clear.armor })} />
+                                <span className={sectionLabel}>{t.cleaner.send}</span>
+                                <DestinyCheckBox checked={options.clear.weapons} label={t.vault.tabs.weapons} onClick={() => setClear({ weapons: !options.clear.weapons })} />
+                                <DestinyCheckBox checked={options.clear.armor} label={t.vault.tabs.armor} onClick={() => setClear({ armor: !options.clear.armor })} />
                             </div>
                             <div className="flex flex-col gap-3 items-start">
-                                <span className={sectionLabel}>Keep</span>
-                                <DestinyCheckBox checked={options.clear.keepLocked} label="Locked items" onClick={() => setClear({ keepLocked: !options.clear.keepLocked })} />
+                                <span className={sectionLabel}>{t.cleaner.keep}</span>
+                                <DestinyCheckBox checked={options.clear.keepLocked} label={t.cleaner.lockedItems} onClick={() => setClear({ keepLocked: !options.clear.keepLocked })} />
                             </div>
-                            <p className="text-sm text-gray-500">Equipped items and the postmaster stay where they are.</p>
+                            <p className="text-sm text-gray-500">{t.cleaner.clearNote}</p>
                         </>
                     ) : (
                         <>
                             <div className="flex flex-col gap-4">
-                                <span className={sectionLabel}>Rules</span>
+                                <span className={sectionLabel}>{t.cleaner.rules}</span>
                                 <div className="flex items-center justify-between gap-4">
-                                    <DestinyCheckBox checked={options.junk.dupes} label="Worse duplicates" onClick={() => setJunk({ dupes: !options.junk.dupes })} />
+                                    <DestinyCheckBox checked={options.junk.dupes} label={t.cleaner.worseDuplicates} onClick={() => setJunk({ dupes: !options.junk.dupes })} />
                                     <span className="text-sm text-gray-500">{reasonCounts.dupe}</span>
                                 </div>
-                                {numberField("Armor stat total under", `0 turns it off · ${reasonCounts.lowStats} found`, options.junk.minArmorTotal, 200, (minArmorTotal) => setJunk({ minArmorTotal }))}
-                                {numberField("Gear tier under", `0 turns it off · ${reasonCounts.lowTier} found`, options.junk.minGearTier, 5, (minGearTier) => setJunk({ minGearTier }))}
+                                {numberField(t.cleaner.armorTotalUnder, t.cleaner.ruleHint(reasonCounts.lowStats), options.junk.minArmorTotal, 200, (minArmorTotal) => setJunk({ minArmorTotal }))}
+                                {numberField(t.cleaner.gearTierUnder, t.cleaner.ruleHint(reasonCounts.lowTier), options.junk.minGearTier, 5, (minGearTier) => setJunk({ minGearTier }))}
                             </div>
-                            <p className="text-sm text-gray-500">
-                                Locked items and items in a loadout are never flagged. Among duplicates, the copy kept is the locked,
-                                crafted or masterworked one, then the highest tier, power and stats.
-                            </p>
-                            <p className="text-sm text-gray-500">
-                                Bungie doesn&apos;t allow dismantling from here: bring the junk to your {className} and dismantle it in game.
-                            </p>
+                            <p className="text-sm text-gray-500">{t.cleaner.junkNote}</p>
+                            <p className="text-sm text-gray-500">{t.cleaner.dismantleNote(className)}</p>
                         </>
                     )}
                 </div>
@@ -267,14 +256,14 @@ const InventoryCleanerModal = ({ characterId, onClose }: InventoryCleanerModalPr
                 <div className="flex flex-col min-h-0 gap-6 p-6 overflow-y-auto custom-scrollbar border-t lg:border-t-0 border-white/10">
                     {shownCount === 0 ? (
                         <div className="flex flex-1 items-center justify-center text-sm text-gray-500 text-center">
-                            {mode === "clear" ? "Nothing to send to the vault." : "No junk found with these rules."}
+                            {mode === "clear" ? t.cleaner.nothingToSend : t.cleaner.noJunk}
                         </div>
                     ) : mode === "clear" ? (
                         renderGroups(clearable, ({ item }) => <div key={item.itemInstanceId}>{renderItem(item)}</div>)
                     ) : (
                         renderGroups(junk, ({ item, ownerId, reasons }) => {
                             const isExcluded = excluded.has(item.itemInstanceId);
-                            const reasonText = reasons.map((r) => REASON_LABELS[r]).join(", ");
+                            const reasonText = reasons.map((r) => t.cleaner.reasons[r]).join(", ");
                             return (
                                 <div key={item.itemInstanceId} className="flex flex-col items-center gap-1 w-[76px]">
                                     <div className={`relative transition-opacity ${isExcluded ? "opacity-30" : ""}`}>
@@ -283,8 +272,8 @@ const InventoryCleanerModal = ({ characterId, onClose }: InventoryCleanerModalPr
                                             onClick={() => toggleExcluded(item.itemInstanceId)}
                                             role="checkbox"
                                             aria-checked={!isExcluded}
-                                            aria-label={`Include ${itemDefinitions[item.itemHash]?.displayProperties?.name ?? "item"}`}
-                                            title={isExcluded ? "Include" : "Leave out"}
+                                            aria-label={t.cleaner.includeItem(itemDefinitions[item.itemHash]?.displayProperties?.name ?? t.notifications.item)}
+                                            title={isExcluded ? t.cleaner.include : t.cleaner.leaveOut}
                                             className={`absolute -top-1.5 -right-1.5 z-[2] flex size-5 items-center justify-center rounded-full border transition-colors ${isExcluded ? "bg-[#2a2a2a] border-white/30 text-transparent hover:text-gray-400" : "bg-[#7e57c2] border-[#7e57c2] text-white hover:bg-[#8e67d2]"}`}
                                         >
                                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12l5 5L20 7" /></svg>
@@ -301,10 +290,10 @@ const InventoryCleanerModal = ({ characterId, onClose }: InventoryCleanerModalPr
 
             <footer className="flex items-center justify-end gap-3 px-6 py-4 border-t border-white/10 shrink-0">
                 {progress ? (
-                    <span className="mr-auto text-sm text-gray-400">Moving {progress.done + 1}/{progress.total}...</span>
+                    <span className="mr-auto text-sm text-gray-400">{t.cleaner.moving(progress.done + 1, progress.total)}</span>
                 ) : mode === "junk" && gatherPlan.skipped.length > 0 ? (
                     <span className="mr-auto text-sm text-amber-400">
-                        {gatherPlan.skipped.length} items won&apos;t fit on your {className} and will stay where they are.
+                        {t.cleaner.wontFit(gatherPlan.skipped.length, className)}
                     </span>
                 ) : null}
                 {mode === "clear" ? (
@@ -313,7 +302,7 @@ const InventoryCleanerModal = ({ characterId, onClose }: InventoryCleanerModalPr
                         disabled={running || clearable.length === 0}
                         className="px-4 py-2 text-sm text-white rounded-md bg-[#7e57c2] hover:bg-[#8e67d2] transition-colors disabled:opacity-40 disabled:hover:bg-[#7e57c2]"
                     >
-                        Send {clearable.length} items to the vault
+                        {t.cleaner.sendToVault(clearable.length)}
                     </button>
                 ) : (
                     <>
@@ -322,14 +311,14 @@ const InventoryCleanerModal = ({ characterId, onClose }: InventoryCleanerModalPr
                             disabled={running || excluded.size === 0}
                             className="px-4 py-2 text-sm text-gray-300 rounded-md hover:bg-white/10 transition-colors disabled:opacity-40 disabled:hover:bg-transparent"
                         >
-                            Reset
+                            {t.common.reset}
                         </button>
                         <button
                             onClick={() => runMoves(gatherPlan.moves, characterId)}
                             disabled={running || gatherPlan.moves.length === 0}
                             className="px-4 py-2 text-sm text-white rounded-md bg-[#7e57c2] hover:bg-[#8e67d2] transition-colors disabled:opacity-40 disabled:hover:bg-[#7e57c2]"
                         >
-                            Bring {gatherPlan.moves.length} items to your {className}
+                            {t.cleaner.bringTo(gatherPlan.moves.length, className)}
                         </button>
                     </>
                 )}

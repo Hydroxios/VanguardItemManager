@@ -5,17 +5,20 @@ import Image from "next/image";
 import Link from "next/link";
 import LoginButton from "../components/LoginButton";
 import Loader from "../components/Loader";
+import { getDictionary, useT } from "@/lib/i18n";
 
 /** Explains why /api/token refused the authorization code. */
 const loginErrorMessage = (status: number, data: { error?: string, error_description?: string }) => {
-  if (data.error === "invalid_state") return "This login expired or wasn't started from this page. Please log in again.";
-  if (data.error === "invalid_grant") return "Bungie refused the login code, it may have expired. Please log in again.";
-  if (status >= 500) return "Could not reach Bungie, it may be down for maintenance. Try again later.";
-  return data.error_description ?? data.error ?? "The login failed. Please try again.";
+  const t = getDictionary();
+  if (data.error === "invalid_state") return t.login.invalidState;
+  if (data.error === "invalid_grant") return t.login.invalidGrant;
+  if (status >= 500) return t.login.bungieDown;
+  return data.error_description ?? data.error ?? t.login.failed;
 }
 
 const Login = () => {
   const [error, setError] = useState<string>();
+  const t = useT();
   // An authorization code only works once: never send it twice (React runs effects twice in development)
   const exchanged = useRef(false);
 
@@ -51,24 +54,24 @@ const Login = () => {
       })
       .catch((error) => {
         console.error("Error fetching access token:", error);
-        setError("Could not reach the server. Check your connection and try again.");
+        setError(getDictionary().login.serverUnreachable);
       });
   }, []);
 
   return (
     <div className="flex items-center justify-center text-center min-h-screen p-8">
       <div className="flex flex-col justify-center items-center gap-5">
-        <Image src="/vanguard.svg" height={128} width={128} alt="Vanguard Item Manager logo" loading="eager" />
+        <Image src="/vanguard.svg" height={128} width={128} alt={t.common.logoAlt} loading="eager" />
         {error ? (
           <>
             <p className="max-w-md text-red-400">{error}</p>
-            <LoginButton label="Log in again" />
-            <Link href="/" className="text-sm text-gray-400 hover:text-white transition-colors">Back to home</Link>
+            <LoginButton label={t.login.logInAgain} />
+            <Link href="/" className="text-sm text-gray-400 hover:text-white transition-colors">{t.login.backToHome}</Link>
           </>
         ) : (
           <div className="flex items-center gap-3 text-gray-200">
             <Loader size={40} />
-            Logging in...
+            {t.login.loggingIn}
           </div>
         )}
       </div>

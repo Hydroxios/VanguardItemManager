@@ -1,9 +1,12 @@
+"use client";
+
 import Image from "next/image";
 import TooltipStatRow from "./TooltipStatRow";
 import { getDamageTypeIcon } from "@/lib/helpers/damage-type";
 import { StatRow } from "@/lib/helpers/item-stats";
 import { AMMO_TYPES } from "@/lib/constants";
 import { ItemDefinition, ItemInstance, StatsDefinitions } from "@/lib/types";
+import { Dictionary, useT } from "@/lib/i18n";
 
 interface TooltipStatsProps {
     item: ItemDefinition;
@@ -15,24 +18,25 @@ interface TooltipStatsProps {
     comparing: boolean;
 }
 
-const AMMO: Record<number, { icon: string, name: string }> = {
-    [AMMO_TYPES.PRIMARY]: { icon: "./primary.svg", name: "Primary" },
-    [AMMO_TYPES.SPECIAL]: { icon: "./special.svg", name: "Special" },
-    [AMMO_TYPES.HEAVY]: { icon: "./heavy.svg", name: "Heavy" },
+const AMMO: Record<number, { icon: string, name: keyof Dictionary["tooltip"]["ammo"] }> = {
+    [AMMO_TYPES.PRIMARY]: { icon: "./primary.svg", name: "primary" },
+    [AMMO_TYPES.SPECIAL]: { icon: "./special.svg", name: "special" },
+    [AMMO_TYPES.HEAVY]: { icon: "./heavy.svg", name: "heavy" },
 };
 
 const TooltipStats = ({ item, instance, armor, rows, statsDefinitions, comparing }: TooltipStatsProps) => {
+    const t = useT();
     const ammo = AMMO[item.equippingBlock?.ammoType ?? 0];
     // The instance knows the weapon's current element, which can differ from its default one
     const damageType = instance?.damageType || item.defaultDamageType;
     const total = armor ? rows.reduce((sum, row) => sum + row.value, 0) : 0;
-    const name = (row: StatRow) => statsDefinitions[row.statHash]?.displayProperties?.name || "Stat";
+    const name = (row: StatRow) => statsDefinitions[row.statHash]?.displayProperties?.name || t.plugs.stat;
 
     return (
         <div className="flex w-full flex-col">
             <div className="flex flex-row items-center gap-2 px-4 py-2">
                 {!armor && damageType > 0 && (
-                    <Image src={getDamageTypeIcon(damageType)} height={40} width={40} alt="Damage type" />
+                    <Image src={getDamageTypeIcon(damageType)} height={40} width={40} alt={t.tooltip.damageType} />
                 )}
                 <div className="text-4xl font-semibold tracking-tight text-white">{instance?.primaryStat?.value}</div>
                 {!armor && ammo && (
@@ -40,13 +44,13 @@ const TooltipStats = ({ item, instance, armor, rows, statsDefinitions, comparing
                         <div className="mx-2 h-8 border-l border-white/15" />
                         <div className="flex flex-row items-center gap-2">
                             <Image src={ammo.icon} height={40} width={40} alt="" />
-                            <div className="text-sm font-bold uppercase tracking-widest text-gray-200">{ammo.name}</div>
+                            <div className="text-sm font-bold uppercase tracking-widest text-gray-200">{t.tooltip.ammo[ammo.name]}</div>
                         </div>
                     </>
                 )}
                 {armor && rows.length > 0 && (
                     <div className="ml-auto flex flex-col items-end leading-tight">
-                        <span className="text-xs uppercase tracking-wide text-gray-400">Total</span>
+                        <span className="text-xs uppercase tracking-wide text-gray-400">{t.plugs.total}</span>
                         <span className="text-2xl font-bold tabular-nums">{total}</span>
                     </div>
                 )}

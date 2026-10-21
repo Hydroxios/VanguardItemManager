@@ -6,6 +6,7 @@ import Image from "next/image";
 import { Item } from "@/lib/types";
 import { BUCKETS } from "@/lib/constants";
 import { useItemTooltipActions, useItemTooltipTrigger } from "@/lib/hooks/useItemTooltip";
+import { useT } from "@/lib/i18n";
 
 
 /** A postmaster tile: its tooltip offers to pull it, as does a double click */
@@ -85,6 +86,7 @@ const Postmaster: React.FC<PostmasterProps> = ({
   const [isCollectingAll, setIsCollectingAll] = useState(false);
 
   const { characterInventories } = useProfile()
+  const t = useT();
 
   // Filter for postmaster items from the current character's inventory
   const postmasterItems = characterInventories[characterId]?.items.filter(
@@ -160,10 +162,10 @@ const Postmaster: React.FC<PostmasterProps> = ({
         onClick={toggleCollapse}
       >
         <div className="flex items-center justify-center gap-2">
-          <Image alt="postmaster" src={"/postmaster.png"} height={40} width={40} />
+          <Image alt={t.postmaster.title} src={"/postmaster.png"} height={40} width={40} />
           {!isCollapsed && (
             <h3 className="text-white text-xs uppercase tracking-wider flex items-center">
-              Postmaster
+              {t.postmaster.title}
             </h3>
           )}
         </div>
@@ -174,7 +176,7 @@ const Postmaster: React.FC<PostmasterProps> = ({
               onClick={e => { e.stopPropagation(); collectAllItems(); }}
               disabled={isCollectingAll}
             >
-              {isCollectingAll ? 'Collecting...' : 'Collect All'}
+              {isCollectingAll ? t.postmaster.collecting : t.postmaster.collectAll}
             </button>
           )}
           <span className="text-white text-xs mr-2">

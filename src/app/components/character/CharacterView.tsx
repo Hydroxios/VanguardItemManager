@@ -21,6 +21,7 @@ import { useItemTooltipActions } from "@/lib/hooks/useItemTooltip";
 import CharacterHeader from "./header/CharacterHeader";
 import { EquipmentItem, EquipmentSection, Item as ProfileItem } from "@/lib/types";
 import { CURRENCIES, EQUIPMENT_SLOTS } from "@/lib/constants";
+import { useT } from "@/lib/i18n";
 
 // The flyout section of each equipment slot type
 const SECTION_BY_SLOT: Record<number, string> = {
@@ -70,6 +71,7 @@ const CharacterView: React.FC<CharacterViewProps> = ({
   } = useProfile();
 
   const { hideTooltip } = useItemTooltipActions();
+  const t = useT();
 
   // Toggle equipment section open/closed
   const toggleEquipmentSection = useCallback(
@@ -369,14 +371,14 @@ const CharacterView: React.FC<CharacterViewProps> = ({
             onClick={() => setIsVaultOpen(!isVaultOpen)}
           >
             <DestinyIcon icon="" />
-            Vault
+            {t.character.vault}
           </button>
           <button
             className="flex flex-row items-center gap-2 p-2 hover:shadow-lg hover:bg-gray-300/10 transition-all duration-300"
             onClick={() => setSearchOpen(!searchOpen)}
           >
             <DestinyIcon icon="" />
-            Search
+            {t.character.search}
           </button>
           <button
             className="flex flex-row items-center gap-2 p-2 hover:shadow-lg hover:bg-gray-300/10 transition-all duration-300"
@@ -386,14 +388,14 @@ const CharacterView: React.FC<CharacterViewProps> = ({
             }}
           >
             <DestinyIcon icon="" />
-            Clean
+            {t.character.clean}
           </button>
           <button
             className="flex flex-row items-center gap-2 p-2 hover:shadow-lg hover:bg-gray-300/10 transition-all duration-300"
             onClick={() => changeCharacter(undefined)}
           >
             <DestinyIcon icon="" />
-            Back
+            {t.character.back}
           </button>
         </div>
       </footer>

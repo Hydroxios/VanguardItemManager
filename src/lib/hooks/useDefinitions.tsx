@@ -1,5 +1,6 @@
 import { createContext, ReactNode, useContext, useEffect, useState, useMemo } from "react";
 import { DestinyDefinitionTableName, getDefinitions, getDefinitionTable } from "../bungie";
+import { getDictionary, getLocale } from "../i18n";
 import { BucketDefinitions, ClassDefinitions, ItemConstantsDefinitions, ItemDefinitions, LoadoutColorDefinitions, LoadoutIconDefinitions, LoadoutNameDefinitions, MaterialRequirementSetDefinitions, ObjectiveDefinitions, PerksDefinitions, RaceDefinitions, RecordsDefinitions, SeasonDefinitions, SocketCategoryDefinitions, StatsDefinitions, StatGroupDefinitions, EquipableItemSetDefinitions } from "@/lib/types";
 
 interface DefinitionsAggregate {
@@ -93,7 +94,7 @@ export const DefinitionsProvider = ({ children }: { children: ReactNode }) => {
     const [equipableItemSetDefinitions, setEquipableItemSetDefinitions] = useState<EquipableItemSetDefinitions>({})
     useEffect(() => {
         let active = true;
-        const locale = localStorage.getItem("locale") ?? "en";
+        const locale = getLocale();
 
         const markLoaded = (tableName: DestinyDefinitionTableName) => {
             setDefinitionsLoaded((prev) => ({ ...prev, [tableName]: true }));
@@ -164,7 +165,7 @@ export const DefinitionsProvider = ({ children }: { children: ReactNode }) => {
                     setLoading(false);
                 } catch (fallbackError) {
                     console.error("Failed to load aggregate manifest", fallbackError);
-                    if (active) setLoadError("Could not load the Destiny databases. Bungie may be down for maintenance.");
+                    if (active) setLoadError(getDictionary().errors.databasesFailed);
                 }
             }
         }

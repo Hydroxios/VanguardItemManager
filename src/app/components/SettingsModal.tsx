@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import DestinyCheckBox from "./destiny-ui/DestinyCheckbox";
 import { DEFAULT_SETTINGS, Settings, updateSettings, useSettings } from "@/lib/hooks/useSettings";
 import useModalKeys from "@/lib/hooks/useModalKeys";
+import { Dictionary, getLocale, hasInterfaceTranslation, Locale, LOCALE_STORAGE_KEY, useT } from "@/lib/i18n";
 
 interface SettingsModalProps {
   open: boolean;
@@ -13,7 +14,7 @@ interface SettingsModalProps {
   setKeepOpen: (b: boolean) => void;
 }
 
-const LANGUAGES = [
+const LANGUAGES: { code: Locale; label: string; icon: string }[] = [
   { code: "en", label: "English", icon: "us" },
   { code: "fr", label: "Français", icon: "fr" },
   { code: "es", label: "Español", icon: "es" },
@@ -25,44 +26,41 @@ const LANGUAGES = [
   { code: "ko", label: "한국어", icon: "kr" },
 ];
 
-const SECTIONS = [
-  { id: "general", label: "General" },
-  { id: "interface", label: "Interface" },
-  { id: "vault", label: "Vault" },
-  { id: "debug", label: "Debug" },
-] as const;
+const SECTIONS = ["general", "interface", "vault", "debug"] as const;
 
-type SectionId = typeof SECTIONS[number]["id"];
+type SectionId = typeof SECTIONS[number];
 
-const REFRESH_OPTIONS: { value: Settings["refreshInterval"]; label: string }[] = [
-  { value: 0, label: "Off" },
-  { value: 1, label: "1 min" },
-  { value: 3, label: "3 min" },
-  { value: 5, label: "5 min" },
+type Options<T> = { value: T; label: string }[];
+
+const refreshOptions = (t: Dictionary): Options<Settings["refreshInterval"]> => [
+  { value: 0, label: t.settings.off },
+  { value: 1, label: t.settings.minutes(1) },
+  { value: 3, label: t.settings.minutes(3) },
+  { value: 5, label: t.settings.minutes(5) },
 ];
 
-const TOOLTIP_SPEED_OPTIONS: { value: Settings["tooltipSpeed"]; label: string }[] = [
-  { value: "fast", label: "Fast" },
-  { value: "normal", label: "Normal" },
-  { value: "slow", label: "Slow" },
+const tooltipSpeedOptions = (t: Dictionary): Options<Settings["tooltipSpeed"]> => [
+  { value: "fast", label: t.settings.fast },
+  { value: "normal", label: t.settings.normal },
+  { value: "slow", label: t.settings.slow },
 ];
 
-const MOTION_OPTIONS: { value: Settings["motion"]; label: string }[] = [
-  { value: "system", label: "System" },
-  { value: "full", label: "On" },
-  { value: "reduced", label: "Reduced" },
+const motionOptions = (t: Dictionary): Options<Settings["motion"]> => [
+  { value: "system", label: t.settings.system },
+  { value: "full", label: t.settings.on },
+  { value: "reduced", label: t.settings.reduced },
 ];
 
-const NOTIFICATION_OPTIONS: { value: Settings["notificationDuration"]; label: string }[] = [
-  { value: "short", label: "Short" },
-  { value: "normal", label: "Normal" },
-  { value: "long", label: "Long" },
+const notificationOptions = (t: Dictionary): Options<Settings["notificationDuration"]> => [
+  { value: "short", label: t.settings.short },
+  { value: "normal", label: t.settings.normal },
+  { value: "long", label: t.settings.long },
 ];
 
-const VAULT_ITEM_SIZE_OPTIONS: { value: Settings["vaultItemSize"]; label: string }[] = [
-  { value: "small", label: "Small" },
-  { value: "medium", label: "Medium" },
-  { value: "large", label: "Large" },
+const vaultItemSizeOptions = (t: Dictionary): Options<Settings["vaultItemSize"]> => [
+  { value: "small", label: t.settings.small },
+  { value: "medium", label: t.settings.medium },
+  { value: "large", label: t.settings.large },
 ];
 
 /** A setting: what it is on the left, its control on the right */
@@ -100,9 +98,9 @@ const Segmented = <T extends string | number>({ label, value, options, onChange 
 );
 
 const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose, debugMode, handleDebugModeChange, keepOpen, setKeepOpen }) => {
-  const [selectedLocale, setSelectedLocale] = useState(() => {
-    return (typeof window !== 'undefined' && localStorage.getItem("locale")) || "en";
-  });
+  const t = useT();
+  // Unknown stored locales fall back to English
+  const [selectedLocale, setSelectedLocale] = useState(getLocale);
   const [section, setSection] = useState<SectionId>("general");
   const { settings, setSetting } = useSettings();
 
@@ -111,7 +109,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose, debugMode,
 
   if (!open) return null;
 
-  // Unknown stored locales fall back to English
   const currentLanguage = LANGUAGES.find(l => l.code === selectedLocale) ?? LANGUAGES[0];
 
   const handleLogout = async () => {
@@ -119,11 +116,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose, debugMode,
     window.location.reload();
   };
 
-  const handleLanguageChange = (locale: string) => {
-    // Definitions are loaded per locale, so only reload when it actually changes
+  const handleLanguageChange = (locale: Locale) => {
+    // Definitions and interface texts are loaded per locale, so only reload when it actually changes
     if (locale === currentLanguage.code) return;
     setSelectedLocale(locale);
-    localStorage.setItem("locale", locale);
+    localStorage.setItem(LOCALE_STORAGE_KEY, locale);
     setTimeout(() => {
       window.location.reload();
     }, 120); // delay for smoother UI
@@ -157,16 +154,16 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose, debugMode,
             </svg>
           </div>
           <div className="flex flex-col min-w-0">
-            <h2 id="settings-title" className="text-xl text-white font-semibold truncate">Settings</h2>
-            <span className="text-sm text-gray-500 truncate">Saved on this browser</span>
+            <h2 id="settings-title" className="text-xl text-white font-semibold truncate">{t.settings.title}</h2>
+            <span className="text-sm text-gray-500 truncate">{t.settings.subtitle}</span>
           </div>
         </div>
         <button
           type="button"
           onClick={onClose}
           className="p-2 text-gray-500 hover:text-white transition-colors rounded-full hover:bg-white/10"
-          title="Close (Esc)"
-          aria-label="Close"
+          title={t.common.closeEsc}
+          aria-label={t.common.close}
         >
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18" /><path d="M6 6l12 12" /></svg>
         </button>
@@ -174,16 +171,16 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose, debugMode,
 
       {/* Body: sections on the left (on top on small screens), their settings on the right */}
       <div className="flex-1 min-h-0 grid grid-cols-1 grid-rows-[auto_minmax(0,1fr)] lg:grid-rows-1 lg:grid-cols-[220px_1fr]">
-        <nav className="flex lg:flex-col gap-1 p-4 lg:p-6 overflow-x-auto border-b lg:border-b-0 lg:border-r border-white/10" aria-label="Settings sections">
+        <nav className="flex lg:flex-col gap-1 p-4 lg:p-6 overflow-x-auto border-b lg:border-b-0 lg:border-r border-white/10" aria-label={t.settings.sectionsLabel}>
           {SECTIONS.map((s) => (
             <button
-              key={s.id}
+              key={s}
               type="button"
-              onClick={() => setSection(s.id)}
-              aria-current={s.id === section ? "page" : undefined}
-              className={`shrink-0 px-3 py-2 text-sm text-left rounded-md transition-colors ${s.id === section ? "bg-[#7e57c2] text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}
+              onClick={() => setSection(s)}
+              aria-current={s === section ? "page" : undefined}
+              className={`shrink-0 px-3 py-2 text-sm text-left rounded-md transition-colors ${s === section ? "bg-[#7e57c2] text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}
             >
-              {s.label}
+              {t.settings.sections[s]}
             </button>
           ))}
         </nav>
@@ -193,9 +190,12 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose, debugMode,
             {section === "general" && (
               <>
                 <div className="flex flex-col gap-3">
-                  <span className={sectionLabel}>Language</span>
-                  <span className="text-sm text-gray-500">Item names and descriptions. Changing it reloads the page.</span>
-                  <div role="radiogroup" aria-label="Language" className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  <span className={sectionLabel}>{t.settings.language}</span>
+                  <span className="text-sm text-gray-500">{t.settings.languageDescription}</span>
+                  {!hasInterfaceTranslation(currentLanguage.code) && (
+                    <span className="text-sm text-gray-500">{t.settings.languageNoTranslation}</span>
+                  )}
+                  <div role="radiogroup" aria-label={t.settings.language} className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                     {LANGUAGES.map(lang => (
                       <button
                         key={lang.code}
@@ -215,9 +215,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose, debugMode,
                 </div>
 
                 <div className="flex flex-col">
-                  <span className={sectionLabel}>Profile</span>
-                  <SettingRow label="Automatic refresh" description="How often your inventory is synced with the game.">
-                    <Segmented label="Automatic refresh" value={settings.refreshInterval} options={REFRESH_OPTIONS} onChange={(v) => setSetting("refreshInterval", v)} />
+                  <span className={sectionLabel}>{t.settings.profile}</span>
+                  <SettingRow label={t.settings.refresh} description={t.settings.refreshDescription}>
+                    <Segmented label={t.settings.refresh} value={settings.refreshInterval} options={refreshOptions(t)} onChange={(v) => setSetting("refreshInterval", v)} />
                   </SettingRow>
                 </div>
               </>
@@ -226,22 +226,22 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose, debugMode,
             {section === "interface" && (
               <>
                 <div className="flex flex-col">
-                  <span className={sectionLabel}>Tooltips</span>
-                  <SettingRow label="Opening speed" description="How quickly an item's tooltip opens when the mouse rests on it.">
-                    <Segmented label="Opening speed" value={settings.tooltipSpeed} options={TOOLTIP_SPEED_OPTIONS} onChange={(v) => setSetting("tooltipSpeed", v)} />
+                  <span className={sectionLabel}>{t.settings.tooltips}</span>
+                  <SettingRow label={t.settings.tooltipSpeed} description={t.settings.tooltipSpeedDescription}>
+                    <Segmented label={t.settings.tooltipSpeed} value={settings.tooltipSpeed} options={tooltipSpeedOptions(t)} onChange={(v) => setSetting("tooltipSpeed", v)} />
                   </SettingRow>
-                  <SettingRow label="Keep tooltip open" description="Tooltips stay open after the mouse leaves the item.">
-                    <DestinyCheckBox checked={keepOpen} onClick={() => setKeepOpen(!keepOpen)} ariaLabel="Keep tooltip open" />
+                  <SettingRow label={t.settings.keepTooltipOpen} description={t.settings.keepTooltipOpenDescription}>
+                    <DestinyCheckBox checked={keepOpen} onClick={() => setKeepOpen(!keepOpen)} ariaLabel={t.settings.keepTooltipOpen} />
                   </SettingRow>
                 </div>
 
                 <div className="flex flex-col">
-                  <span className={sectionLabel}>Display</span>
-                  <SettingRow label="Animations" description="System follows your device's reduced motion setting.">
-                    <Segmented label="Animations" value={settings.motion} options={MOTION_OPTIONS} onChange={(v) => setSetting("motion", v)} />
+                  <span className={sectionLabel}>{t.settings.display}</span>
+                  <SettingRow label={t.settings.animations} description={t.settings.animationsDescription}>
+                    <Segmented label={t.settings.animations} value={settings.motion} options={motionOptions(t)} onChange={(v) => setSetting("motion", v)} />
                   </SettingRow>
-                  <SettingRow label="Notification duration" description="How long notifications stay on screen.">
-                    <Segmented label="Notification duration" value={settings.notificationDuration} options={NOTIFICATION_OPTIONS} onChange={(v) => setSetting("notificationDuration", v)} />
+                  <SettingRow label={t.settings.notificationDuration} description={t.settings.notificationDurationDescription}>
+                    <Segmented label={t.settings.notificationDuration} value={settings.notificationDuration} options={notificationOptions(t)} onChange={(v) => setSetting("notificationDuration", v)} />
                   </SettingRow>
                 </div>
               </>
@@ -249,21 +249,21 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose, debugMode,
 
             {section === "vault" && (
               <div className="flex flex-col">
-                <span className={sectionLabel}>Vault</span>
-                <SettingRow label="Remember filters" description="The vault reopens on the tab and filters you left, even after a reload.">
-                  <DestinyCheckBox checked={settings.rememberVaultFilters} onClick={() => setSetting("rememberVaultFilters", !settings.rememberVaultFilters)} ariaLabel="Remember filters" />
+                <span className={sectionLabel}>{t.settings.vault}</span>
+                <SettingRow label={t.settings.rememberFilters} description={t.settings.rememberFiltersDescription}>
+                  <DestinyCheckBox checked={settings.rememberVaultFilters} onClick={() => setSetting("rememberVaultFilters", !settings.rememberVaultFilters)} ariaLabel={t.settings.rememberFilters} />
                 </SettingRow>
-                <SettingRow label="Item size" description="Size of the items in the vault grid.">
-                  <Segmented label="Item size" value={settings.vaultItemSize} options={VAULT_ITEM_SIZE_OPTIONS} onChange={(v) => setSetting("vaultItemSize", v)} />
+                <SettingRow label={t.settings.itemSize} description={t.settings.itemSizeDescription}>
+                  <Segmented label={t.settings.itemSize} value={settings.vaultItemSize} options={vaultItemSizeOptions(t)} onChange={(v) => setSetting("vaultItemSize", v)} />
                 </SettingRow>
               </div>
             )}
 
             {section === "debug" && (
               <div className="flex flex-col">
-                <span className={sectionLabel}>Debug</span>
-                <SettingRow label="Debug mode" description="Shows the raw API data of items in their tooltip.">
-                  <DestinyCheckBox checked={debugMode} onClick={() => handleDebugModeChange(!debugMode)} ariaLabel="Debug mode" />
+                <span className={sectionLabel}>{t.settings.debug}</span>
+                <SettingRow label={t.settings.debugMode} description={t.settings.debugModeDescription}>
+                  <DestinyCheckBox checked={debugMode} onClick={() => handleDebugModeChange(!debugMode)} ariaLabel={t.settings.debugMode} />
                 </SettingRow>
               </div>
             )}
@@ -277,22 +277,22 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose, debugMode,
           onClick={handleLogout}
           className="mr-auto px-4 py-2 text-sm text-red-400 rounded-md hover:text-red-300 hover:bg-red-500/10 transition-colors"
         >
-          Logout
+          {t.settings.logout}
         </button>
         <button
           type="button"
           onClick={handleReset}
-          title="Back to the default settings (the language stays)"
+          title={t.settings.resetTitle}
           className="px-4 py-2 text-sm text-gray-300 rounded-md hover:bg-white/10 transition-colors"
         >
-          Reset
+          {t.common.reset}
         </button>
         <button
           type="button"
           onClick={onClose}
           className="px-4 py-2 text-sm text-white rounded-md bg-[#7e57c2] hover:bg-[#8e67d2] transition-colors"
         >
-          Done
+          {t.common.done}
         </button>
       </footer>
     </div>,

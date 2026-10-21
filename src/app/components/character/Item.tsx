@@ -8,6 +8,7 @@ import ItemContextMenu from "./ItemContextMenu";
 import Image from "next/image";
 import { ItemDefinition, ItemPerks, ItemStats } from "@/lib/types";
 import { ITEM_TYPES } from "@/lib/constants";
+import { useT } from "@/lib/i18n";
 
 interface ItemProps {
   itemHash: number;
@@ -40,6 +41,7 @@ const Item = ({
 
   const { closeTooltip } = useItemTooltipActions();
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+  const t = useT();
 
   const { itemComponents } = useProfile()
   const { itemDefinitions, itemConstantsDefinitions } = useDefinitions()
@@ -125,7 +127,7 @@ const Item = ({
                 style={{
                   border,
                 }}
-                alt={ornamentItem.displayProperties.name || "Item"}
+                alt={ornamentItem.displayProperties.name || t.item.item}
               />
               {state & 4 && !(state & 8) ? (
                 <svg className="mw-border-svg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden>
@@ -143,7 +145,7 @@ const Item = ({
                 style={{
                   border,
                 }}
-                alt={itemDefinitions[itemHash].displayProperties.name || "Item"}
+                alt={itemDefinitions[itemHash].displayProperties.name || t.item.item}
               />
               {state & 4 && !(state & 8) ? (
                 <svg className="mw-border-svg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden>
@@ -160,7 +162,7 @@ const Item = ({
                 width={size} // Use size prop
                 style={{ position: "absolute", top: -1, left: -1, width: size, height: size, zIndex: 1 }} // Ensure watermark scales with size
                 draggable={false}
-                alt="Watermark"
+                alt={t.item.watermark}
               />
               {itemComponents.instances[itemInstanceId] && itemComponents.instances[itemInstanceId].gearTier && itemConstantsDefinitions["1"] ? (
                 <Image
@@ -169,7 +171,7 @@ const Item = ({
                   width={size * 0.875} // Scale overlay relative to size
                   style={{ position: "absolute", top: size * 0.046875, left: size * 0, zIndex: 1 }} // Scale position relative to size (3/64 = 0.046875)
                   draggable={false}
-                  alt="Gear Tier"
+                  alt={t.item.gearTier}
                 />
               ) : ""}
             </>

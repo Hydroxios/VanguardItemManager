@@ -9,6 +9,7 @@ import { useProfile } from "@/lib/hooks/useProfile";
 import { ItemKind } from "@/lib/helpers/item-sockets";
 import { BUCKETS } from "@/lib/constants";
 import { Character, ClassDefinitions, ItemDefinition } from "@/lib/types";
+import { useT } from "@/lib/i18n";
 
 interface TooltipActionsProps {
     item: ItemDefinition;
@@ -43,6 +44,7 @@ const TooltipActions = ({ item, itemInstanceId, kind, characterId, characters, c
     const pull = usePullFromPostmaster();
     const { characterInventories } = useProfile();
     const [busy, setBusy] = useState(false);
+    const t = useT();
 
     const gear = kind === "weapon" || kind === "armor";
     const located = locateItem(itemInstanceId);
@@ -63,7 +65,7 @@ const TooltipActions = ({ item, itemInstanceId, kind, characterId, characters, c
         }
     };
 
-    const className = (character: Character) => classDefinitions[character.classHash]?.displayProperties?.name ?? "character";
+    const className = (character: Character) => classDefinitions[character.classHash]?.displayProperties?.name ?? t.tooltip.character;
     const classAllowed = (character: Character) => item.classType === undefined || item.classType === ANY_CLASS || item.classType === character.classType;
     const allCharacters = Object.values(characters);
     const equipTargets = gear && itemInstanceId
@@ -83,25 +85,25 @@ const TooltipActions = ({ item, itemInstanceId, kind, characterId, characters, c
         <div className="flex w-full flex-col gap-2 border-t border-white/10 bg-black/20 p-2">
             {postmasterItem ? (
                 <div className="flex flex-row items-center gap-2">
-                    <ActionLabel>Postmaster</ActionLabel>
+                    <ActionLabel>{t.tooltip.postmaster}</ActionLabel>
                     <button
                         className="border border-white/30 px-3 py-1 text-xs font-semibold uppercase tracking-wide transition-colors hover:bg-white/10 disabled:cursor-wait disabled:opacity-40"
                         disabled={busy}
                         onClick={() => run(() => pull(postmasterItem, location))}
                     >
-                        Pull to {characters[location] ? className(characters[location]) : "inventory"}
+                        {t.tooltip.pullTo(characters[location] ? className(characters[location]) : t.tooltip.inventory)}
                     </button>
                 </div>
             ) : (
                 <>
                     {equipTargets.length > 0 && (
                         <div className="flex flex-row items-center gap-2">
-                            <ActionLabel>Equip</ActionLabel>
+                            <ActionLabel>{t.tooltip.equip}</ActionLabel>
                             {equipTargets.map((c) => (
                                 <CharacterButton
                                     key={c.characterId}
                                     character={c}
-                                    label={`Equip on ${className(c)}`}
+                                    label={t.tooltip.equipOn(className(c))}
                                     disabled={busy}
                                     onClick={() => run(() => equip({ itemHash: item.hash, itemInstanceId: itemInstanceId!, characterId: c.characterId }))}
                                 />
@@ -109,12 +111,12 @@ const TooltipActions = ({ item, itemInstanceId, kind, characterId, characters, c
                         </div>
                     )}
                     <div className="flex flex-row items-center gap-2">
-                        <ActionLabel>Transfer</ActionLabel>
+                        <ActionLabel>{t.tooltip.transfer}</ActionLabel>
                         {transferTargets.map((c) => (
                             <CharacterButton
                                 key={c.characterId}
                                 character={c}
-                                label={`Transfer to ${className(c)}`}
+                                label={t.tooltip.transferTo(className(c))}
                                 disabled={busy}
                                 onClick={() => run(() => transfer({ itemHash: item.hash, itemInstanceId, toId: c.characterId, fromId: location }))}
                             />
@@ -124,8 +126,8 @@ const TooltipActions = ({ item, itemInstanceId, kind, characterId, characters, c
                                 className="transition-opacity hover:opacity-80 disabled:cursor-wait disabled:opacity-40"
                                 disabled={busy}
                                 onClick={() => run(() => transfer({ itemHash: item.hash, itemInstanceId, toId: "vault", fromId: location }))}
-                                title="Transfer to the vault"
-                                aria-label="Transfer to the vault"
+                                title={t.tooltip.transferToVault}
+                                aria-label={t.tooltip.transferToVault}
                             >
                                 <Image src="vault2.svg" height={32} width={32} alt="" />
                             </button>
@@ -135,8 +137,8 @@ const TooltipActions = ({ item, itemInstanceId, kind, characterId, characters, c
                                 className={`ml-auto flex h-8 w-8 items-center justify-center rounded-lg transition-opacity hover:opacity-80 disabled:opacity-50 ${locked ? "text-white" : "text-gray-400"}`}
                                 onClick={toggleLock}
                                 disabled={lockPending}
-                                title={locked ? "Unlock" : "Lock"}
-                                aria-label={locked ? "Unlock" : "Lock"}
+                                title={locked ? t.tooltip.unlock : t.tooltip.lock}
+                                aria-label={locked ? t.tooltip.unlock : t.tooltip.lock}
                             >
                                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                                     <rect x="4" y="11" width="16" height="10" rx="2" fill={locked ? "currentColor" : "none"} />

@@ -9,6 +9,7 @@ import GlobalItemTooltip from "./components/GlobalItemTooltip";
 import { ProfileProvider } from "@/lib/hooks/useProfile";
 import ErrorBoundary from "./components/ErrorBoundary";
 import LoginButton from "./components/LoginButton";
+import { useT } from "@/lib/i18n";
 
 // A crashing tooltip only hides itself and comes back on the next hovered item
 const SafeGlobalItemTooltip = () => {
@@ -22,6 +23,7 @@ const SafeGlobalItemTooltip = () => {
 
 export default function Home() {
   const { token, isTokenLoading, sessionError } = useAuth();
+  const t = useT();
 
   // Avoid flashing the login screen while the session is restored from the cookie
   if (isTokenLoading) return null;
@@ -30,9 +32,9 @@ export default function Home() {
     <div className="flex items-center justify-center text-center min-h-screen p-8 ">
       {!token ? (
         <div className="flex flex-col justify-center items-center gap-5">
-          <Image src="./vanguard.svg" height={256} width={256} alt="Vanguard Item Manager logo" loading="eager" />
+          <Image src="./vanguard.svg" height={256} width={256} alt={t.common.logoAlt} loading="eager" />
           <h1 className="text-3xl sm:text-4xl">Vanguard Item Manager</h1>
-          <p>A Custom Destiny Item Manager !</p>
+          <p>{t.home.tagline}</p>
           {/* The session may still be valid: say why it couldn't be restored instead of just asking to log in */}
           {sessionError && (
             <div className="flex flex-col items-center gap-2">
@@ -41,7 +43,7 @@ export default function Home() {
                 className="px-4 py-1 bg-gray-300/10 hover:bg-gray-300/20 transition-all duration-300"
                 onClick={() => window.location.reload()}
               >
-                Retry
+                {t.common.retry}
               </button>
             </div>
           )}

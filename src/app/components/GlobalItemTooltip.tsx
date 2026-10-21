@@ -18,6 +18,7 @@ import { placeTooltip } from "@/lib/helpers/tooltip-position";
 import { isFreePlug } from "@/lib/helpers/mods";
 import useSocketPlug from "@/lib/hooks/useSocketPlug";
 import DestinyText from "@/app/components/destiny-ui/DestinyText";
+import { useT } from "@/lib/i18n";
 
 const TOOLTIP_WIDTH = "min(400px, calc(100vw - 20px))";
 
@@ -74,6 +75,7 @@ const GlobalItemTooltip = () => {
   } = useDefinitions();
   const { itemComponents, characters, characterEquipment } = useProfile();
   const { locateItem } = useTransferItem();
+  const t = useT();
   const { canChange: canChangePerks, pendingSocket, insertPlug } = useSocketPlug(itemInstanceId);
 
   const kind = item ? getItemKind(item) : "generic";
@@ -278,8 +280,8 @@ const GlobalItemTooltip = () => {
       {gear && !sheet && (
         <div className="w-full border-t border-white/10 bg-black/30 px-3 py-1 text-left text-[11px] text-gray-500">
           {compared
-            ? `Compared with ${itemDefinitions[compared.itemHash].displayProperties.name}`
-            : shift ? "Nothing equipped to compare with" : "Hold Shift to compare with the equipped item"}
+            ? t.tooltip.comparedWith(itemDefinitions[compared.itemHash].displayProperties.name)
+            : shift ? t.tooltip.nothingToCompare : t.tooltip.holdShift}
         </div>
       )}
 
