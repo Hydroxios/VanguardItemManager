@@ -89,13 +89,21 @@ export const statsWithSubclassChange = (
     newPlugHashes: (number | undefined)[],
     itemDefinitions: ItemDefinitions,
     classType: number | undefined
-): Record<string, number> => {
-    const removed = plugsStats(oldPlugHashes, itemDefinitions, classType);
-    const added = plugsStats(newPlugHashes, itemDefinitions, classType);
+): Record<string, number> => statsWithChange(
+    stats,
+    plugsStats(oldPlugHashes, itemDefinitions, classType),
+    plugsStats(newPlugHashes, itemDefinitions, classType)
+);
+
+/**
+ * A character's stats once part of them goes from `before` to `after` (armor mods, fragments...). Values stay in
+ * the game's 0-200 range; stats that aren't armor stats are kept.
+ */
+export const statsWithChange = (stats: Record<string, number>, before: StatTotals, after: StatTotals): Record<string, number> => {
     const updated = { ...stats };
     ARMOR_STAT_HASHES.forEach((statHash) => {
         if (updated[statHash] === undefined) return;
-        const value = updated[statHash] - removed[statHash] + added[statHash];
+        const value = updated[statHash] - (before[statHash] ?? 0) + (after[statHash] ?? 0);
         updated[statHash] = Math.min(MAX_CHARACTER_STAT, Math.max(0, value));
     });
     return updated;

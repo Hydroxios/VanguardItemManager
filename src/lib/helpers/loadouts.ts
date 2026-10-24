@@ -2,6 +2,35 @@ import { LoadoutIdentifiers } from "@/lib/bungie";
 import { ARMOR_SLOTS, EQUIPMENT_SLOTS, UNSET_PLUG_HASH } from "@/lib/constants";
 import { InstanceComponents, Item, ItemComponents, ItemDefinitions, LoadoutColorDefinitions, LoadoutIconDefinitions, LoadoutItem, LoadoutNameDefinitions } from "@/lib/types";
 import { armorStatsWithPlugs, plugsStats, sumStats } from "./stats";
+import type { Dictionary } from "@/lib/i18n/en";
+
+export type SlotKey = keyof Dictionary["editor"]["slots"];
+
+/** The slots of a loadout (and of the equipped gear), grouped as the editors show them. */
+export const SLOT_GROUPS: { id: keyof Dictionary["editor"]["groups"]; slots: { hash: number; key: SlotKey }[] }[] = [
+    { id: "subclass", slots: [{ hash: EQUIPMENT_SLOTS.SUBCLASS, key: "subclass" }] },
+    {
+        id: "weapons",
+        slots: [
+            { hash: EQUIPMENT_SLOTS.PRIMARY, key: "kinetic" },
+            { hash: EQUIPMENT_SLOTS.ENERGETIC, key: "energy" },
+            { hash: EQUIPMENT_SLOTS.HEAVY, key: "power" },
+        ],
+    },
+    {
+        id: "armor",
+        slots: [
+            { hash: EQUIPMENT_SLOTS.HELMET, key: "helmet" },
+            { hash: EQUIPMENT_SLOTS.ARMS, key: "gauntlets" },
+            { hash: EQUIPMENT_SLOTS.CHEST, key: "chest" },
+            { hash: EQUIPMENT_SLOTS.LEGS, key: "legs" },
+            { hash: EQUIPMENT_SLOTS.CLASS_ITEM, key: "classItem" },
+        ],
+    },
+    { id: "artifact", slots: [{ hash: EQUIPMENT_SLOTS.ARTIFACT, key: "artifact" }] },
+];
+export const LOADOUT_SLOTS = SLOT_GROUPS.flatMap((group) => group.slots.map((slot) => slot.hash));
+export const SLOT_KEYS: Record<number, SlotKey> = Object.fromEntries(SLOT_GROUPS.flatMap((group) => group.slots.map((slot) => [slot.hash, slot.key])));
 
 const sortByIndex = <T extends { index: number }>(definitions: Record<string, T>) =>
     Object.values(definitions).sort((a, b) => a.index - b.index);

@@ -11,50 +11,23 @@ import { useItemTooltipActions } from "@/lib/hooks/useItemTooltip";
 import useTransferItem from "@/lib/hooks/useTransferItem";
 import { useNotifications } from "@/app/components/NotificationsProvider";
 import { equipItems, insertSocketPlugFree, LoadoutIdentifiers, snapshotLoadout, updateLoadoutIdentifiers } from "@/lib/bungie";
-import { getCosmeticSockets, getEnergyCapacity, getEnergyCost, getModSockets, getPerkSockets, isFreePlug } from "@/lib/helpers/mods";
+import { getCosmeticSockets, getEnergyCapacity, getEnergyCost, getModSockets, getPerkSockets, isFreePlug, planModChanges } from "@/lib/helpers/mods";
 import PerkEditor from "./PerkEditor";
 import { countFragments, getEditableSubclassSockets, getFragmentCapacity, planSubclassChanges } from "@/lib/helpers/subclass";
 import SubclassEditor from "./SubclassEditor";
 import ArtifactEditor from "./ArtifactEditor";
 import { getEditableArtifactSockets, planArtifactChanges } from "@/lib/helpers/artifact";
 import LoadoutStats from "./LoadoutStats";
-import { getLoadoutChoices } from "@/lib/helpers/loadouts";
+import { getLoadoutChoices, LOADOUT_SLOTS, SLOT_GROUPS, SLOT_KEYS } from "@/lib/helpers/loadouts";
 import { armorStatsWithPlugs, plugsStats, sumStats } from "@/lib/helpers/stats";
 import { ARMOR_SLOTS, BUCKETS, EQUIPMENT_SLOTS, SOCKET_CATEGORIES, UNSET_PLUG_HASH, WEAPON_SLOTS } from "@/lib/constants";
 import { Item } from "@/lib/types";
 import useModalKeys from "@/lib/hooks/useModalKeys";
-import { Dictionary, useT } from "@/lib/i18n";
+import { useT } from "@/lib/i18n";
 
 const EXOTIC_TIER = 6;
 const ANY_CLASS = 3;
 // Width of the global item tooltip, to open it on the side of a tile that has room
-
-type SlotKey = keyof Dictionary["editor"]["slots"];
-
-const SLOT_GROUPS: { id: keyof Dictionary["editor"]["groups"]; slots: { hash: number; key: SlotKey }[] }[] = [
-  { id: "subclass", slots: [{ hash: EQUIPMENT_SLOTS.SUBCLASS, key: "subclass" }] },
-  {
-    id: "weapons",
-    slots: [
-      { hash: EQUIPMENT_SLOTS.PRIMARY, key: "kinetic" },
-      { hash: EQUIPMENT_SLOTS.ENERGETIC, key: "energy" },
-      { hash: EQUIPMENT_SLOTS.HEAVY, key: "power" },
-    ],
-  },
-  {
-    id: "armor",
-    slots: [
-      { hash: EQUIPMENT_SLOTS.HELMET, key: "helmet" },
-      { hash: EQUIPMENT_SLOTS.ARMS, key: "gauntlets" },
-      { hash: EQUIPMENT_SLOTS.CHEST, key: "chest" },
-      { hash: EQUIPMENT_SLOTS.LEGS, key: "legs" },
-      { hash: EQUIPMENT_SLOTS.CLASS_ITEM, key: "classItem" },
-    ],
-  },
-  { id: "artifact", slots: [{ hash: EQUIPMENT_SLOTS.ARTIFACT, key: "artifact" }] },
-];
-const LOADOUT_SLOTS = SLOT_GROUPS.flatMap((group) => group.slots.map((slot) => slot.hash));
-const SLOT_KEYS: Record<number, SlotKey> = Object.fromEntries(SLOT_GROUPS.flatMap((group) => group.slots.map((slot) => [slot.hash, slot.key])));
 
 /** An instanced item and where it currently is ("vault" or a character id). */
 interface OwnedItem {
@@ -238,12 +211,7 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
       return planArtifactChanges(definition, artifactSocketsOf(item), current.map((socket) => socket.plugHash), desired);
     }
 
-    const costOf = (plugHash?: number) => getEnergyCost(plugHash ? itemDefinitions[plugHash] : undefined);
-    return Object.entries(desired)
-      .map(([socketIndex, plugHash]) => ({ socketIndex: Number(socketIndex), plugHash }))
-      .filter(({ socketIndex, plugHash }) => current[socketIndex]?.plugHash !== plugHash)
-      // Swaps that free energy go first, so the costly ones always have room
-      .sort((a, b) => (costOf(a.plugHash) - costOf(current[a.socketIndex]?.plugHash)) - (costOf(b.plugHash) - costOf(current[b.socketIndex]?.plugHash)));
+    return planModChanges(current.map((socket) => socket.plugHash), desired, itemDefinitions);
   };
 
   const armorEnergyUsed = (instanceId: string) => {
