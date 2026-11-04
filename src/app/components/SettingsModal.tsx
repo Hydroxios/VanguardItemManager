@@ -4,6 +4,7 @@ import DestinyCheckBox from "./destiny-ui/DestinyCheckbox";
 import { DEFAULT_SETTINGS, Settings, updateSettings, useSettings } from "@/lib/hooks/useSettings";
 import useModalKeys from "@/lib/hooks/useModalKeys";
 import { Dictionary, getLocale, hasInterfaceTranslation, Locale, LOCALE_STORAGE_KEY, useT } from "@/lib/i18n";
+import { CURRENT_VERSION } from "@/lib/changelog";
 
 interface SettingsModalProps {
   open: boolean;
@@ -26,7 +27,7 @@ const LANGUAGES: { code: Locale; label: string; icon: string }[] = [
   { code: "ko", label: "한국어", icon: "kr" },
 ];
 
-const SECTIONS = ["general", "interface", "vault", "debug"] as const;
+const SECTIONS = ["general", "interface", "vault", "debug", "about"] as const;
 
 type SectionId = typeof SECTIONS[number];
 
@@ -269,6 +270,25 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose, debugMode,
                 <span className={sectionLabel}>{t.settings.debug}</span>
                 <SettingRow label={t.settings.debugMode} description={t.settings.debugModeDescription}>
                   <DestinyCheckBox checked={debugMode} onClick={() => handleDebugModeChange(!debugMode)} ariaLabel={t.settings.debugMode} />
+                </SettingRow>
+              </div>
+            )}
+
+            {section === "about" && (
+              <div className="flex flex-col">
+                <span className={sectionLabel}>{t.settings.about}</span>
+                <SettingRow label={t.settings.version} description={t.settings.versionDescription(CURRENT_VERSION)}>
+                  <span className="text-sm text-gray-300">{CURRENT_VERSION}</span>
+                </SettingRow>
+                <SettingRow label={t.settings.changelog} description={t.settings.changelogDescription}>
+                  <a
+                    href="/changelog"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex px-3 py-1 text-sm text-white rounded-md bg-white/5 hover:bg-white/10 transition-colors"
+                  >
+                    {t.settings.openChangelog}
+                  </a>
                 </SettingRow>
               </div>
             )}
