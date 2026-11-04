@@ -28,6 +28,20 @@
   font-family: "Destiny Keys";
 }
 
+/* Glyphs the game puts in its texts (elements, weapon types...), from DIM */
+@font-face {
+  font-family: 'Destiny Symbols';
+  src: url('/fonts/DestinySymbols.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+.destiny-symbols {
+  font-family: "Destiny Symbols";
+  font-style: normal;
+}
+
 
 body {
   color: var(--foreground);
@@ -222,6 +236,21 @@ footer {
   }
 }
 
+/* The item tooltip only scrolls on short screens: keep its scrollbar out of the way */
+.item-tooltip::-webkit-scrollbar {
+  width: 4px;
+  background: transparent;
+}
+.item-tooltip::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.25);
+  border: none;
+  box-shadow: none;
+}
+.item-tooltip {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+}
+
 .masterwork-shine-bar {
   position: relative;
   width: 100%;
@@ -262,5 +291,95 @@ footer {
 @layer base {
   button:not(:disabled) {
     cursor: pointer;
+  }
+}
+/* Loader: a light sweeps around the diamond while its core turns a quarter and pulses.
+   Only transform and opacity animate, so it keeps running on the compositor while the main thread is busy */
+.loader {
+  --loader-color: #f2b632;
+  position: relative;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+/* The diamond outline: a square turned 45deg, hollowed by a mask so only a thin ring shows */
+.loader-ring {
+  position: absolute;
+  inset: 15%;
+  transform: rotate(45deg);
+  overflow: hidden;
+  padding: max(2px, 8%);
+  background: rgba(255, 255, 255, 0.15);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+}
+
+.loader-sweep {
+  position: absolute;
+  inset: -50%;
+  background: conic-gradient(from 0deg, transparent 0 65%, var(--loader-color) 100%);
+  will-change: transform;
+  animation: loader-sweep 1.4s linear infinite;
+}
+
+.loader-core {
+  position: absolute;
+  inset: 34%;
+  background: var(--loader-color);
+  box-shadow: 0 0 6px rgba(242, 182, 50, 0.6);
+  will-change: transform, opacity;
+  animation: loader-core 1.4s ease-in-out infinite;
+}
+
+@keyframes loader-sweep {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes loader-core {
+  0%   { transform: rotate(45deg) scale(0.55); opacity: 0.45; }
+  50%  { transform: rotate(135deg) scale(1); opacity: 1; }
+  100% { transform: rotate(225deg) scale(0.55); opacity: 0.45; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loader-sweep { animation-duration: 3s; }
+  .loader-core { animation: none; transform: rotate(45deg) scale(0.8); opacity: 0.8; }
+}
+
+/* ===== Prismatic switch button: the lines around it turn slowly ===== */
+.prismatic-lines {
+  transform-origin: 50px 50px;
+  transform-box: view-box;
+  animation: prismatic-turn 24s linear infinite reverse;
+}
+
+@keyframes prismatic-turn {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .prismatic-lines { animation: none; }
+}
+
+/* ===== Reduced motion: set in the settings, or following the system when left on "system" ===== */
+/* The loader keeps moving, so loading still shows */
+html[data-motion="reduced"] *:not(.loader-sweep),
+html[data-motion="reduced"] *::before,
+html[data-motion="reduced"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html:not([data-motion]) *:not(.loader-sweep),
+  html:not([data-motion]) *::before,
+  html:not([data-motion]) *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

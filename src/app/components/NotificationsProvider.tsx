@@ -1,6 +1,9 @@
 "use client"
 
 import Image from "next/image";
+import Loader from "./Loader";
+import { getSettings, NOTIFICATION_DURATION_FACTORS } from "@/lib/hooks/useSettings";
+import { useT } from "@/lib/i18n";
 import React, { createContext, useContext, useState, useCallback, ReactNode, useRef } from "react";
 
 type Notification = {
@@ -19,10 +22,14 @@ type NotificationsContextType = {
 
 const NotificationsContext = createContext<NotificationsContextType | undefined>(undefined);
 
+// Notifications stay up longer or shorter than asked, as set
+const displayDuration = (duration: number) => duration * NOTIFICATION_DURATION_FACTORS[getSettings().notificationDuration];
+
 export const NotificationsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   // Incrementing ids: Date.now() collides when two notifications are created in the same millisecond
   const nextId = useRef(1);
+  const t = useT();
 
   const addNotification = useCallback((message: string, description: string = "", type: "info" | "success" | "error" | "warning" = "info", icon: string = "", duration: number = 3000, loading: boolean = false) => {
     const id = nextId.current++;
@@ -31,7 +38,7 @@ export const NotificationsProvider: React.FC<{ children: ReactNode }> = ({ child
     if (!loading) {
       setTimeout(() => {
         setNotifications((prev) => prev.filter((notif) => notif.id !== id));
-      }, duration);
+      }, displayDuration(duration));
     }
     return id;
   }, []);
@@ -47,7 +54,7 @@ export const NotificationsProvider: React.FC<{ children: ReactNode }> = ({ child
     if (!loading) {
       setTimeout(() => {
         setNotifications((prev) => prev.filter((notif) => notif.id !== id));
-      }, duration);
+      }, displayDuration(duration));
     }
   }, []);
 
@@ -66,10 +73,10 @@ export const NotificationsProvider: React.FC<{ children: ReactNode }> = ({ child
             <div className="flex flex-row gap-2 items-center">
               <div>
                 {notif.loading ? (
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white p-4"></div>
+                  <Loader size={32} />
                 ) : (
                   notif.icon && (
-                    <Image src={notif.icon} height={32} width={32} alt="Notification icon" />
+                    <Image src={notif.icon} height={32} width={32} alt={t.notifications.iconAlt} />
                   )
                 )}
               </div>

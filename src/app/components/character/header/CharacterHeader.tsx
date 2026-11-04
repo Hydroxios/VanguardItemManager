@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import HeaderButton from "./HeaderButton";
 import EmblemSelector from "./EmblemSelector";
 import Image from "next/image";
+import { useT } from "@/lib/i18n";
 
 interface CharacterHeaderProps {
   characterId: string;
@@ -24,6 +25,7 @@ const CharacterHeader = ({
 
   const [isEmblemSelectorOpen, setIsEmblemSelectorOpen] = useState(false);
   const headerRef = useRef<HTMLDivElement>(null);
+  const t = useT();
 
   const currentSeasonNumber = seasonDefinitions[profile.currentSeasonHash]?.seasonNumber ?? 0;
 
@@ -63,7 +65,7 @@ const CharacterHeader = ({
           height={50}
           width={50}
           src={emblemOverlay}
-          alt="Emblem"
+          alt={t.character.emblemAlt}
           className="absolute left-[150px] top-[25px] w-20 h-20 cursor-pointer hover:scale-105 transition-all duration-500"
           onClick={() => setIsEmblemSelectorOpen((prev) => !prev)}
         />
@@ -84,7 +86,7 @@ const CharacterHeader = ({
           </span>
           <div className="flex flex-row items-center justify-center gap-2">
             <span className="text-white text-sm">
-              Season {currentSeasonNumber}
+              {t.character.season(currentSeasonNumber)}
             </span>
             <span className="text-yellow-400 text-sm">
               ✧ {characters[characterId].light}
@@ -107,7 +109,7 @@ const CharacterHeader = ({
             >
               <Image
                 src={`${characters[c].classHash}.svg`}
-                alt="Emblem"
+                alt={t.character.emblemAlt}
                 className="w-6 h-6"
                 height={24}
                 width={24}
@@ -119,6 +121,7 @@ const CharacterHeader = ({
         <HeaderButton
           onClick={toggleSearch}
           width={50}
+          title={t.character.search}
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -150,6 +153,7 @@ const CharacterHeader = ({
             refresh();
           }}
           width={50}
+          title={t.character.refresh}
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -169,6 +173,7 @@ const CharacterHeader = ({
         <HeaderButton
           onClick={onOpenSettings}
           width={50}
+          title={t.character.settings}
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"

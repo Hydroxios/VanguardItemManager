@@ -1,4 +1,5 @@
 import { ItemDefinitions, ObjectiveDefinitions, ItemComponents, ItemObjective } from "@/lib/types";
+import { getDictionary } from "../i18n";
 
 // Kill tracker plugs (crucible, vanguard, ...) all live in this plug category, whatever the locale
 const KILL_TRACKER_PLUG_CATEGORY = "trackers";
@@ -29,6 +30,6 @@ export const getWeaponKillCounter = (
     const definition = objectiveDefinitions[objective.objectiveHash];
     return {
         objective,
-        label: definition?.progressDescription || definition?.displayProperties?.name || itemDefinitions[trackerPlugHash]?.displayProperties?.name || "Kills",
+        label: definition?.progressDescription || definition?.displayProperties?.name || itemDefinitions[trackerPlugHash]?.displayProperties?.name || getDictionary().tooltip.kills,
     };
 };

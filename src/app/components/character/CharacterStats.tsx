@@ -4,6 +4,7 @@ import { useDefinitions } from "@/lib/hooks/useDefinitions"
 import Image from "next/image"
 import { useEffect, useRef, useState } from "react"
 import { ARMOR_STATS } from "@/lib/constants";
+import { useT } from "@/lib/i18n";
 
 // In the game's order: Health, Melee, Grenade, Super, Class, Weapons
 const STAT_ORDER = [
@@ -61,11 +62,12 @@ interface CharacterStatsProps {
 const CharacterStats = ({ stats }: CharacterStatsProps) => {
 	const { statsDefinitions } = useDefinitions()
 	const statIconsReady = STAT_ORDER.every((statHash) => statsDefinitions[statHash])
+	const t = useT()
 
 	return (
 		<div className="flex flex-col gap-2 stats">
 			{!statIconsReady && (
-				<div className="text-xs text-gray-400">Loading stats...</div>
+				<div className="text-xs text-gray-400">{t.loading.stats}</div>
 			)}
 			{STAT_ORDER.map((statHash) => (
 				<StatRow key={statHash} statHash={statHash} value={stats[statHash] ?? 0} />

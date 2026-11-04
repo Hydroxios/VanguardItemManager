@@ -1,9 +1,16 @@
 import { createContext, ReactNode, useCallback, useContext, useEffect, useState, useMemo, useRef } from "react";
 import { getCurrentUser, getProfile } from "@/lib/bungie";
-import { BungieUser, Character, Currency, Item, ItemInstance, ItemComponents, ItemPlug, Loadout, PlugSets, ProfileData } from "@/lib/types";
-import { BUCKETS } from "@/lib/constants";
+import { BungieUser, Character, Currency, InstanceComponents, Item, ItemInstance, ItemComponents, ItemPlug, Loadout, PlugSets, ProfileData } from "@/lib/types";
+import { BUCKETS, ITEM_STATE } from "@/lib/constants";
 import { moveItemInState } from "@/lib/helpers/inventory";
-import { ITEM_STATE } from "@/lib/search";
+import { getDictionary } from "@/lib/i18n";
+
+// How long a loadout changed here wins over the fetched one: Bungie serves a cached profile for a while after a change
+const LOADOUT_OVERRIDE_MS = 60_000;
+
+const sameLoadout = (a?: Loadout, b?: Loadout) => !!a && !!b
+    && a.colorHash === b.colorHash && a.iconHash === b.iconHash && a.nameHash === b.nameHash
+    && a.items.map(i => i.itemInstanceId).join() === b.items.map(i => i.itemInstanceId).join();
 
 
 export interface Profile {
@@ -26,12 +33,13 @@ export interface Profile {
     setCharacterInventory: (characterId: string, items: Item[]) => void;
     setProfileInventory: (items: Item[]) => void;
     moveItem: (itemHash: number, itemInstanceId: string | undefined, fromId: string, toId: string, quantity: number, updates?: Partial<Item>, sourceBucketHash?: number) => void;
-    changeEmblem: (characterId: string, emblemHash: number) => void;
+    setCharacterStatsLocally: (characterId: string, stats: Record<string, number>) => void;
     equipItemLocally: (characterId: string, itemInstanceId: string) => void;
     transferEquippedItem: (itemHash: number, itemInstanceId: string, fromId: string, toId: string, replacementItemInstanceId: string) => void;
     equipLoadoutLocally: (characterId: string, loadoutItems: Item[]) => void;
     updateLoadoutLocally: (characterId: string, loadoutIndex: number, loadout: Loadout) => void;
     setItemLockedLocally: (itemInstanceId: string, locked: boolean) => void;
+    setItemComponentsLocally: (itemInstanceId: string, components: InstanceComponents) => void;
 }
 
 const ProfileContext = createContext<Profile | undefined>(undefined)
@@ -77,6 +85,27 @@ export const ProfileProvider = ({ children }: ProfileProviderProps) => {
     const userRef = useRef<BungieUser | undefined>(undefined);
     const loadedRef = useRef(false);
     const fetchingRef = useRef<Promise<void> | null>(null);
+    // Loadouts changed here, by "characterId:index", kept over fetched data that doesn't show the change yet
+    const loadoutOverridesRef = useRef(new Map<string, { loadout: Loadout, at: number }>());
+
+    /** The fetched loadouts, with the ones changed here recently in place of stale copies. */
+    const applyLoadoutOverrides = (fetched: Record<string, { loadouts: Loadout[] }>) => {
+        const overrides = loadoutOverridesRef.current;
+        if (overrides.size === 0) return fetched;
+        const result = Object.fromEntries(Object.entries(fetched).map(([id, { loadouts }]) => [id, { loadouts: [...loadouts] }]));
+        overrides.forEach(({ loadout, at }, key) => {
+            const [characterId, index] = key.split(":");
+            const loadouts = result[characterId]?.loadouts;
+            const fetchedLoadout = loadouts?.[Number(index)];
+            // The game caught up, or the change is old enough that the fetched data is the truth
+            if (!loadouts || sameLoadout(fetchedLoadout, loadout) || Date.now() - at > LOADOUT_OVERRIDE_MS) {
+                overrides.delete(key);
+            } else {
+                loadouts[Number(index)] = loadout;
+            }
+        });
+        return result;
+    };
 
     /** Loads the profile into the state. A fetch already running serves every caller; errors only block the UI on the first load. */
     const fetchProfile = useCallback(() => {
@@ -90,7 +119,7 @@ export const ProfileProvider = ({ children }: ProfileProviderProps) => {
 
             setCharacterEquipementState(profile.characterEquipment.data)
             setCharacterInventoriesState(profile.characterInventories.data)
-            setCharacterLoadouts(profile.characterLoadouts.data)
+            setCharacterLoadouts(applyLoadoutOverrides(profile.characterLoadouts.data))
             setCharacters(profile.characters.data)
 
             const itemcomps: ItemComponents = {
@@ -120,7 +149,7 @@ export const ProfileProvider = ({ children }: ProfileProviderProps) => {
         }).catch((error) => {
             console.error("Failed to fetch profile:", error)
             // Only block the UI on the first load; later refreshes keep the current data
-            if (!loadedRef.current) setLoadError(error instanceof Error ? error.message : "Could not load your profile.")
+            if (!loadedRef.current) setLoadError(error instanceof Error ? error.message : getDictionary().errors.profileFailed)
         }).finally(() => {
             fetchingRef.current = null;
         });
@@ -146,6 +175,13 @@ export const ProfileProvider = ({ children }: ProfileProviderProps) => {
         const newState = { ...characterEquipmentRef.current, [characterId]: { items } };
         characterEquipmentRef.current = newState;
         setCharacterEquipementState(newState);
+        // The header shows the character's emblemHash; keep it on the equipped emblem, whatever equipped it
+        const emblem = items.find(i => i.bucketHash === BUCKETS.EMBLEM);
+        if (emblem) {
+            setCharacters(prev => prev[characterId] && prev[characterId].emblemHash !== emblem.itemHash
+                ? { ...prev, [characterId]: { ...prev[characterId], emblemHash: emblem.itemHash } }
+                : prev);
+        }
     }, []);
     const setCharacterInventory = useCallback((characterId: string, items: Item[]) => {
         const newState = { ...characterInventoriesRef.current, [characterId]: { items } };
@@ -211,54 +247,43 @@ export const ProfileProvider = ({ children }: ProfileProviderProps) => {
         }
     }, [setCharacterEquipment, setCharacterInventory, setProfileInventory]);
 
-    const changeEmblem = useCallback((characterId: string, emblemHash: number) => {
-        setCharacters(prev => ({
+    /** Replaces an item's sockets, stats or perks, e.g. with the ones Bungie sends back after a change */
+    const setItemComponentsLocally = useCallback((itemInstanceId: string, { sockets, stats, perks }: InstanceComponents) => {
+        setItemComponents(prev => ({
             ...prev,
-            [characterId]: {
-                ...prev[characterId],
-                emblemHash
-            }
+            sockets: sockets ? { ...prev.sockets, [itemInstanceId]: sockets } : prev.sockets,
+            stats: stats ? { ...prev.stats, [itemInstanceId]: stats } : prev.stats,
+            perks: perks ? { ...prev.perks, [itemInstanceId]: perks } : prev.perks,
         }));
+    }, []);
 
-        const currentEquipment = characterEquipmentRef.current[characterId]?.items || [];
-        const currentInventory = characterInventoriesRef.current[characterId]?.items || [];
-
-        const newEmblemIndex = currentInventory.findIndex(i => i.itemHash === emblemHash);
-
-        if (newEmblemIndex !== -1) {
-            const newEmblemItem = currentInventory[newEmblemIndex];
-            const oldEmblemIndex = currentEquipment.findIndex(i => i.bucketHash === BUCKETS.EMBLEM);
-
-            if (oldEmblemIndex !== -1) {
-                const oldEmblemItem = currentEquipment[oldEmblemIndex];
-                const updatedInventory = [...currentInventory];
-                updatedInventory.splice(newEmblemIndex, 1);
-                updatedInventory.push(oldEmblemItem);
-
-                const updatedEquipment = [...currentEquipment];
-                updatedEquipment.splice(oldEmblemIndex, 1);
-                updatedEquipment.push(newEmblemItem);
-
-                setCharacterInventory(characterId, updatedInventory);
-                setCharacterEquipment(characterId, updatedEquipment);
-            }
-        }
-    }, [setCharacterEquipment, setCharacterInventory]);
+    const setCharacterStatsLocally = useCallback((characterId: string, stats: Record<string, number>) => {
+        setCharacters(prev => prev[characterId] ? { ...prev, [characterId]: { ...prev[characterId], stats } } : prev);
+    }, []);
 
     const equipItemLocally = useCallback((characterId: string, itemInstanceId: string) => {
         const inventory = characterInventoriesRef.current[characterId];
         const equipment = characterEquipmentRef.current[characterId];
 
-        if (!inventory || !equipment) return;
+        if (!inventory || !equipment) {
+            console.warn("Could not equip locally: no inventory or equipment for character", characterId);
+            return;
+        }
 
         const itemToEquipIndex = inventory.items.findIndex(i => i.itemInstanceId === itemInstanceId);
-        if (itemToEquipIndex === -1) return;
+        if (itemToEquipIndex === -1) {
+            console.warn("Could not equip locally: item not in the character's inventory", itemInstanceId);
+            return;
+        }
 
         const itemToEquip = inventory.items[itemToEquipIndex];
         const bucketHash = itemToEquip.bucketHash;
 
         const currentlyEquippedIndex = equipment.items.findIndex(i => i.bucketHash === bucketHash);
-        if (currentlyEquippedIndex === -1) return;
+        if (currentlyEquippedIndex === -1) {
+            console.warn("Could not equip locally: nothing equipped in bucket", bucketHash);
+            return;
+        }
 
         const currentlyEquipped = equipment.items[currentlyEquippedIndex];
 
@@ -341,18 +366,19 @@ export const ProfileProvider = ({ children }: ProfileProviderProps) => {
         const newEquipmentItems = [...equipment.items];
         const updatedInstances: Record<string, ItemInstance> = {};
 
-        loadoutItems.forEach(itemToEquip => {
+        loadoutItems.forEach(loadoutItem => {
             // Check if already equipped
-            const isAlreadyEquipped = newEquipmentItems.some(i => i.itemInstanceId === itemToEquip.itemInstanceId);
+            const isAlreadyEquipped = newEquipmentItems.some(i => i.itemInstanceId === loadoutItem.itemInstanceId);
             if (isAlreadyEquipped) return;
 
             // Find item in inventory
-            const itemIndex = newInventoryItems.findIndex(i => i.itemInstanceId === itemToEquip.itemInstanceId);
+            const itemIndex = newInventoryItems.findIndex(i => i.itemInstanceId === loadoutItem.itemInstanceId);
             if (itemIndex === -1) {
-                // Item might have been just transferred and is in the ref but maybe we missed it?
-                // Or it's not on the character yet (shouldn't happen if we called moveItem correctly before)
+                console.warn("Could not equip loadout item locally: not in the character's inventory", loadoutItem.itemInstanceId);
                 return;
             }
+            // The inventory's copy, not the caller's: an item brought from the vault has its slot's bucket only there
+            const itemToEquip = newInventoryItems[itemIndex];
 
             // Find what to unequip
             const bucketHash = itemToEquip.bucketHash;
@@ -392,6 +418,7 @@ export const ProfileProvider = ({ children }: ProfileProviderProps) => {
     }, [setCharacterEquipment, setCharacterInventory]);
 
     const updateLoadoutLocally = useCallback((characterId: string, loadoutIndex: number, loadout: Loadout) => {
+        loadoutOverridesRef.current.set(`${characterId}:${loadoutIndex}`, { loadout, at: Date.now() });
         setCharacterLoadouts(prev => {
             const loadouts = [...(prev[characterId]?.loadouts ?? [])];
             loadouts[loadoutIndex] = loadout;
@@ -419,14 +446,15 @@ export const ProfileProvider = ({ children }: ProfileProviderProps) => {
         setCharacterInventory,
         setProfileInventory,
         moveItem,
-        changeEmblem,
+        setCharacterStatsLocally,
         equipItemLocally,
         transferEquippedItem,
         equipLoadoutLocally,
         updateLoadoutLocally,
-        setItemLockedLocally
+        setItemLockedLocally,
+        setItemComponentsLocally
     }), [loading, loadError, user, refreshing, refresh, characterEquipment, characterInventories, characterLoadouts, characters, itemComponents, plugSets, profileData, profileCurrencies, profileInventory, lastRefresh,
-        setCharacterEquipment, setCharacterInventory, setProfileInventory, moveItem, changeEmblem, equipItemLocally, transferEquippedItem, equipLoadoutLocally, updateLoadoutLocally, setItemLockedLocally]);
+        setCharacterEquipment, setCharacterInventory, setProfileInventory, moveItem, setCharacterStatsLocally, equipItemLocally, transferEquippedItem, equipLoadoutLocally, updateLoadoutLocally, setItemLockedLocally, setItemComponentsLocally]);
 
     return (
         <ProfileContext.Provider value={contextValue}>

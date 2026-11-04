@@ -74,3 +74,37 @@ export const sumStats = (parts: StatTotals[]): StatTotals => {
     parts.forEach((part) => ARMOR_STAT_HASHES.forEach((statHash) => { totals[statHash] += part[statHash] ?? 0; }));
     return totals;
 };
+
+// Armor stats on a character go from 0 to 200
+const MAX_CHARACTER_STAT = 200;
+
+/**
+ * A character's stats once its subclass plugs change (other fragments, or another subclass equipped): what the old
+ * plugs gave is taken out and what the new ones give is added. Lets the stats follow a change right away, as Bungie
+ * keeps serving the old profile for a while. Values stay in the game's 0-200 range; stats that aren't armor stats are kept.
+ */
+export const statsWithSubclassChange = (
+    stats: Record<string, number>,
+    oldPlugHashes: (number | undefined)[],
+    newPlugHashes: (number | undefined)[],
+    itemDefinitions: ItemDefinitions,
+    classType: number | undefined
+): Record<string, number> => statsWithChange(
+    stats,
+    plugsStats(oldPlugHashes, itemDefinitions, classType),
+    plugsStats(newPlugHashes, itemDefinitions, classType)
+);
+
+/**
+ * A character's stats once part of them goes from `before` to `after` (armor mods, fragments...). Values stay in
+ * the game's 0-200 range; stats that aren't armor stats are kept.
+ */
+export const statsWithChange = (stats: Record<string, number>, before: StatTotals, after: StatTotals): Record<string, number> => {
+    const updated = { ...stats };
+    ARMOR_STAT_HASHES.forEach((statHash) => {
+        if (updated[statHash] === undefined) return;
+        const value = updated[statHash] - (before[statHash] ?? 0) + (after[statHash] ?? 0);
+        updated[statHash] = Math.min(MAX_CHARACTER_STAT, Math.max(0, value));
+    });
+    return updated;
+};

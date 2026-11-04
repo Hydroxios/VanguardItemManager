@@ -1,15 +1,17 @@
 import Image from "next/image";
 import { ItemDefinition } from "@/lib/types";
+import { useT } from "@/lib/i18n";
 
 interface CurrenciesProps {
   currencies: { item: ItemDefinition, quantity: number }[];
 }
 
 const Currencies = ({ currencies }: CurrenciesProps) => {
+  const t = useT();
   return (
     <div className="w-fit hover:backdrop-blur-sm hover:bg-gray-300/10 px-2 py-1 transition-all duration-300">
       <div className="flex justify-end items-center border-b border-gray-400 pb-1 mb-1">
-        <h3 className="text-white text-xs uppercase tracking-wider">Currencies</h3>
+        <h3 className="text-white text-xs uppercase tracking-wider">{t.character.currencies}</h3>
       </div>
       <div className="flex gap-2 justify-center">
         {currencies.map((c) => (

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ARMOR_STATS } from "@/lib/constants";
 import { components, definition, definitions } from "@/test/fixtures";
-import { armorStatsWithPlugs, plugStatBonus, plugsStats, subclassPlugStats, sumStats } from "./stats";
+import { armorStatsWithPlugs, plugStatBonus, plugsStats, statsWithChange, statsWithSubclassChange, subclassPlugStats, sumStats } from "./stats";
 
 const { MOBILITY, RESILIENCE, RECOVERY, DISCIPLINE } = ARMOR_STATS;
 const TITAN = 0, HUNTER = 1;
@@ -79,5 +79,37 @@ describe("plugsStats and sumStats", () => {
         const fromPlugs = plugsStats([1, 2, 1, undefined], defs, TITAN);
         expect(fromPlugs[DISCIPLINE]).toBe(10);
         expect(sumStats([fromPlugs, { [DISCIPLINE]: 5, [MOBILITY]: 2 }])[DISCIPLINE]).toBe(15);
+    });
+});
+
+describe("statsWithSubclassChange", () => {
+    const POWER = 1935470627;
+    const defs = definitions(
+        statMod(1, DISCIPLINE, 10, true),
+        statMod(2, RESILIENCE, -10, true),
+        statMod(3, MOBILITY, 20),
+    );
+
+    it("swaps what the old plugs gave for what the new ones give", () => {
+        const stats = { [DISCIPLINE]: 60, [RESILIENCE]: 40, [MOBILITY]: 30 };
+        expect(statsWithSubclassChange(stats, [1, 2], [3], defs, TITAN)).toEqual({ [DISCIPLINE]: 50, [RESILIENCE]: 50, [MOBILITY]: 50 });
+    });
+
+    it("keeps the stats in the 0-200 range", () => {
+        const stats = { [DISCIPLINE]: 5, [MOBILITY]: 190 };
+        expect(statsWithSubclassChange(stats, [1], [3], defs, TITAN)).toEqual({ [DISCIPLINE]: 0, [MOBILITY]: 200 });
+    });
+
+    it("leaves the other stats alone, and doesn't add armor stats the character didn't have", () => {
+        const stats = { [POWER]: 2010, [DISCIPLINE]: 60 };
+        expect(statsWithSubclassChange(stats, [], [3], defs, TITAN)).toEqual({ [POWER]: 2010, [DISCIPLINE]: 60 });
+    });
+});
+
+describe("statsWithChange", () => {
+    it("swaps the old part of the stats for the new one, within 0-200, and keeps other stats", () => {
+        const stats = { [MOBILITY]: 100, [RESILIENCE]: 195, [RECOVERY]: 5, 42: 7 };
+        const updated = statsWithChange(stats, { [MOBILITY]: 10, [RECOVERY]: 10 }, { [MOBILITY]: 30, [RESILIENCE]: 20 });
+        expect(updated).toEqual({ [MOBILITY]: 120, [RESILIENCE]: 200, [RECOVERY]: 0, 42: 7 });
     });
 });

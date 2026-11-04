@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useContext, createContext, ReactNode, useRef } from 'react';
 import { AccessToken, InvalidRefreshTokenError, refreshToken, setTokenSource } from '../bungie';
+import { getDictionary } from '../i18n';
 
 // Renew the access token this long before it expires, so no request leaves with a token about to expire
 const EXPIRY_MARGIN = 5 * 60 * 1000;
@@ -50,7 +51,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setSessionError(undefined);
       } else {
         console.error("Failed to refresh token:", error);
-        setSessionError(error instanceof Error ? error.message : "Could not restore your session.");
+        setSessionError(error instanceof Error ? error.message : getDictionary().home.sessionRestoreFailed);
       }
       return null;
     } finally {

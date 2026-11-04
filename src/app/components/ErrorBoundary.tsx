@@ -1,6 +1,7 @@
 "use client";
 
 import { Component, ErrorInfo, ReactNode } from "react";
+import { useT } from "@/lib/i18n";
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -12,6 +13,22 @@ interface ErrorBoundaryProps {
 interface ErrorBoundaryState {
   hasError: boolean;
 }
+
+// Class components can't use hooks, so the default fallback is its own component
+const DefaultFallback = () => {
+  const t = useT();
+  return (
+    <div className="flex flex-col items-center gap-3 p-10">
+      <span className="text-xl font-bold">{t.common.somethingWentWrong}</span>
+      <button
+        className="px-4 py-2 bg-gray-300/10 hover:bg-gray-300/20 transition-all duration-300"
+        onClick={() => window.location.reload()}
+      >
+        {t.common.reload}
+      </button>
+    </div>
+  );
+};
 
 class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   state: ErrorBoundaryState = { hasError: false };
@@ -35,17 +52,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
 
   render() {
     if (this.state.hasError) {
-      return this.props.fallback ?? (
-        <div className="flex flex-col items-center gap-3 p-10">
-          <span className="text-xl font-bold">Something went wrong.</span>
-          <button
-            className="px-4 py-2 bg-gray-300/10 hover:bg-gray-300/20 transition-all duration-300"
-            onClick={() => window.location.reload()}
-          >
-            Reload
-          </button>
-        </div>
-      );
+      return this.props.fallback ?? <DefaultFallback />;
     }
     return this.props.children;
   }

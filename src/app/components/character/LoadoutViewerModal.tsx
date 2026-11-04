@@ -2,7 +2,9 @@ import React, { useMemo } from "react";
 import { useProfile } from "@/lib/hooks/useProfile";
 import { useDefinitions } from "@/lib/hooks/useDefinitions";
 import ItemComponent from "./Item";
+import useModalKeys from "@/lib/hooks/useModalKeys";
 import { Item, Loadout } from "@/lib/types";
+import { useT } from "@/lib/i18n";
 
 interface LoadoutViewerModalProps {
     open: boolean;
@@ -19,6 +21,7 @@ const LoadoutViewerModal: React.FC<LoadoutViewerModalProps> = ({
 }) => {
     const { characterInventories, characterEquipment, profileInventory, itemComponents } = useProfile();
     const { itemDefinitions } = useDefinitions();
+    const t = useT();
 
     const loadoutItems = useMemo(() => {
         if (!loadout) return [];
@@ -39,6 +42,8 @@ const LoadoutViewerModal: React.FC<LoadoutViewerModalProps> = ({
             .filter((item): item is Item => item !== undefined);
     }, [loadout, characterInventories, characterEquipment, profileInventory]);
 
+    useModalKeys(onClose, { enabled: open && !!loadout });
+
     if (!open || !loadout) return null;
 
     return (
@@ -55,12 +60,13 @@ const LoadoutViewerModal: React.FC<LoadoutViewerModalProps> = ({
             >
                 <div className="flex items-center w-full justify-between p-4 border-b border-white/5">
                     <span className="text-xl text-white font-semibold pl-2">
-                        Loadout Viewer
+                        {t.plugs.viewer}
                     </span>
                     <button
                         onClick={onClose}
                         className="p-2 text-gray-500 hover:text-white transition-colors rounded-full hover:bg-white/10"
-                        title="Close"
+                        title={t.common.close}
+                        aria-label={t.common.close}
                     >
                         <svg
                             width="22"
@@ -81,7 +87,7 @@ const LoadoutViewerModal: React.FC<LoadoutViewerModalProps> = ({
                 <div className="w-full p-6 overflow-y-auto max-h-[70vh] custom-scrollbar">
                     {loadoutItems.length === 0 ? (
                         <div className="text-gray-400 text-center py-10">
-                            No items found for this loadout.
+                            {t.plugs.viewerEmpty}
                         </div>
                     ) : (
                         <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-4 justify-items-center">
@@ -98,7 +104,6 @@ const LoadoutViewerModal: React.FC<LoadoutViewerModalProps> = ({
                                         itemInstanceId={item.itemInstanceId}
                                         state={item.state}
                                         characterId={characterId}
-                                        armor={def.itemType === 2} // Simple check, might need refinement
                                         ornamentItem={ornamentDef}
                                         perks={itemComponents.perks[item.itemInstanceId]} // Not strictly needed for basic view
                                         stats={itemComponents.stats[item.itemInstanceId]} // Not strictly needed for basic view

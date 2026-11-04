@@ -1,12 +1,15 @@
 "use client"
 
-import React, { useState, useRef, useEffect } from "react";
-import { useItemTooltipActions } from "@/lib/hooks/useItemTooltip";
+import React, { useState } from "react";
+import { useItemTooltipActions, useItemTooltipTrigger } from "@/lib/hooks/useItemTooltip";
 import { useDefinitions } from "@/lib/hooks/useDefinitions";
 import { useProfile } from "@/lib/hooks/useProfile";
 import ItemContextMenu from "./ItemContextMenu";
+import ModEditorModal from "./ModEditorModal";
 import Image from "next/image";
 import { ItemDefinition, ItemPerks, ItemStats } from "@/lib/types";
+import { ITEM_TYPES } from "@/lib/constants";
+import { useT } from "@/lib/i18n";
 
 interface ItemProps {
   itemHash: number;
@@ -16,11 +19,12 @@ interface ItemProps {
   perks?: ItemPerks;
   stats?: ItemStats;
   characterId: string;
-  armor: boolean
   onDoubleClick?: () => void;
   quantity?: number;
   size?: number; // Add size prop
   tooltipDisabled?: boolean;
+  /** Replaces the fast transfer menu on right click */
+  onContextMenu?: () => void;
 }
 
 const Item = ({
@@ -29,56 +33,34 @@ const Item = ({
   ornamentItem,
   state,
   characterId,
-  armor,
   onDoubleClick,
   quantity = 1,
   size = 64, // Default size to 64
-  tooltipDisabled = false
+  tooltipDisabled = false,
+  onContextMenu
 }: ItemProps) => {
 
-  const { showTooltip, hideTooltip } = useItemTooltipActions();
-  const [tooltipVisible, setTooltipVisible] = useState(false);
-  const itemRef = useRef<HTMLDivElement>(null);
+  const { closeTooltip } = useItemTooltipActions();
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+  const [editingMods, setEditingMods] = useState(false);
+  const t = useT();
 
   const { itemComponents } = useProfile()
   const { itemDefinitions, itemConstantsDefinitions } = useDefinitions()
 
-  // Handle mouse movement globally to detect if we should keep tooltip open
-  useEffect(() => {
-    if (!tooltipVisible) return;
+  // Subclass icons are diamonds: no square frame around them
+  const isSubclass = itemDefinitions[itemHash]?.itemType === ITEM_TYPES.SUBCLASS;
+  const itemType = itemDefinitions[itemHash]?.itemType;
+  const canEditMods = !!itemInstanceId && (itemType === ITEM_TYPES.WEAPON || itemType === ITEM_TYPES.ARMOR);
+  const border = isSubclass ? "none" : "2px solid " + (state & 4 && !(state & 8) ? "#FFBB00" : state & 8 ? "red" : "white");
 
-    const handleMouseMove = (e: MouseEvent) => {
-      // Get tooltip element bounds
-      const tooltipElement = document.querySelector('.item-tooltip') as HTMLElement;
-      if (!tooltipElement || !itemRef.current) return;
-
-      const tooltipRect = tooltipElement.getBoundingClientRect();
-      const itemRect = itemRef.current.getBoundingClientRect();
-
-      // Check if mouse is over item or tooltip
-      const isOverTooltip = e.clientX >= tooltipRect.left &&
-        e.clientX <= tooltipRect.right &&
-        e.clientY >= tooltipRect.top &&
-        e.clientY <= tooltipRect.bottom;
-
-      const isOverItem = e.clientX >= itemRect.left &&
-        e.clientX <= itemRect.right &&
-        e.clientY >= itemRect.top &&
-        e.clientY <= itemRect.bottom;
-
-      // Only hide tooltip if mouse is not over the item or the tooltip
-      if (!isOverTooltip && !isOverItem) {
-        hideTooltip();
-        setTooltipVisible(false);
-      }
-    };
-
-    document.addEventListener('mousemove', handleMouseMove);
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-    };
-  }, [tooltipVisible, hideTooltip]);
+  const tooltipTrigger = useItemTooltipTrigger(() => ({
+    item: itemDefinitions[itemHash],
+    itemInstanceId,
+    characterId,
+    state,
+    drawTransfert: true,
+  }), tooltipDisabled);
 
   const handleDragStart = (event: React.DragEvent<HTMLDivElement>) => {
     event.dataTransfer.setData(
@@ -90,53 +72,16 @@ const Item = ({
       (itemDefinitions[itemHash]?.equippingBlock?.equipmentSlotTypeHash ?? "")
     );
     event.dataTransfer.effectAllowed = "move";
-  };
-
-  const toggleTooltip = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (tooltipDisabled) return;
-    // Get viewport dimensions
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
-
-    // Calculate initial tooltip position with better defaults
-    // Position to the right of the cursor by default, with a small offset
-    let tooltipX = e.clientX + 10;
-
-    // If we're in the right 30% of the screen, position the tooltip to the left of the cursor
-    if (e.clientX > viewportWidth * 0.7) {
-      tooltipX = e.clientX - 285; // 275px width + 10px margin
-    }
-
-    // Start tooltip slightly below cursor
-    let tooltipY = e.clientY + 10;
-
-    // If we're in the bottom 30% of the screen, position the tooltip higher
-    if (e.clientY > viewportHeight * 0.7) {
-      tooltipY = e.clientY - 10; // Position slightly above
-      // Ensure it doesn't go off the top of the screen
-      tooltipY = Math.max(10, tooltipY);
-    }
-
-    // Show tooltip at calculated position
-    showTooltip({
-      item: itemDefinitions[itemHash],
-      itemInstanceId: itemInstanceId,
-      characterId,
-      armor,
-      x: tooltipX,
-      y: tooltipY,
-      state: state,
-      drawTransfert: true,
-    });
-    setTooltipVisible(true);
+    closeTooltip();
   };
 
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setContextMenu({ x: e.clientX, y: e.clientY });
-    hideTooltip();
-    setTooltipVisible(false);
+    closeTooltip();
+    if (onContextMenu) onContextMenu();
+    // Subclasses never leave the character: no fast transfer for them
+    else if (!isSubclass) setContextMenu({ x: e.clientX, y: e.clientY });
   };
 
   return (
@@ -148,29 +93,36 @@ const Item = ({
           characterId={characterId}
           onClose={() => setContextMenu(null)}
           position={contextMenu}
+          onEditMods={canEditMods ? () => setEditingMods(true) : undefined}
+        />
+      )}
+      {editingMods && (
+        <ModEditorModal
+          itemHash={itemHash}
+          itemInstanceId={itemInstanceId}
+          onClose={() => setEditingMods(false)}
         />
       )}
       <div
-        ref={itemRef}
+        {...tooltipTrigger}
+        aria-label={itemDefinitions[itemHash]?.displayProperties?.name}
         key={itemHash}
         style={{
-          boxShadow: "0 4px 8px rgba(0, 0, 0, 0.3)",
+          boxShadow: isSubclass ? undefined : "0 4px 8px rgba(0, 0, 0, 0.3)",
           height: size,
           cursor: "pointer",
           width: size,
         }}
         onDoubleClick={() => {
-          hideTooltip();
-          setTooltipVisible(false);
+          closeTooltip();
           if (onDoubleClick) {
             onDoubleClick()
           }
         }}
-        draggable // Make the div draggable
-        onDragStart={handleDragStart}
-        onClick={(e) => toggleTooltip(e)}
+        // Subclasses never leave the character: they can't be dragged (not even as a plain image)
+        draggable={!isSubclass}
+        onDragStart={isSubclass ? (e) => e.preventDefault() : handleDragStart}
         onContextMenu={handleContextMenu}
-      // Remove onMouseLeave which was causing the tooltip to disappear
       >
         <div
           style={{
@@ -185,9 +137,9 @@ const Item = ({
                 height={size}
                 width={size}
                 style={{
-                  border: "2px solid " + (state & 4 && !(state & 8) ? "#FFBB00" : state & 8 ? "red" : "white"),
+                  border,
                 }}
-                alt={ornamentItem.displayProperties.name || "Item"}
+                alt={ornamentItem.displayProperties.name || t.item.item}
               />
               {state & 4 && !(state & 8) ? (
                 <svg className="mw-border-svg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden>
@@ -203,9 +155,9 @@ const Item = ({
                 height={size}
                 width={size}
                 style={{
-                  border: "2px solid " + (state & 4 && !(state & 8) ? "#FFBB00" : state & 8 ? "red" : "white"),
+                  border,
                 }}
-                alt={itemDefinitions[itemHash].displayProperties.name || "Item"}
+                alt={itemDefinitions[itemHash].displayProperties.name || t.item.item}
               />
               {state & 4 && !(state & 8) ? (
                 <svg className="mw-border-svg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden>
@@ -222,7 +174,7 @@ const Item = ({
                 width={size} // Use size prop
                 style={{ position: "absolute", top: -1, left: -1, width: size, height: size, zIndex: 1 }} // Ensure watermark scales with size
                 draggable={false}
-                alt="Watermark"
+                alt={t.item.watermark}
               />
               {itemComponents.instances[itemInstanceId] && itemComponents.instances[itemInstanceId].gearTier && itemConstantsDefinitions["1"] ? (
                 <Image
@@ -231,12 +183,12 @@ const Item = ({
                   width={size * 0.875} // Scale overlay relative to size
                   style={{ position: "absolute", top: size * 0.046875, left: size * 0, zIndex: 1 }} // Scale position relative to size (3/64 = 0.046875)
                   draggable={false}
-                  alt="Gear Tier"
+                  alt={t.item.gearTier}
                 />
               ) : ""}
             </>
           )}
-          <div style={{
+          {!isSubclass && <div style={{
             position: "absolute",
             top: 2,
             left: 2,
@@ -244,7 +196,7 @@ const Item = ({
             height: size - 4,
             boxShadow: `inset 0 0 12px rgba(0,0,0,0.9)`,
             pointerEvents: "none"
-          }} />
+          }} />}
           {/* Display quantity for stackable items */}
           {quantity > 1 && (
             <div style={{

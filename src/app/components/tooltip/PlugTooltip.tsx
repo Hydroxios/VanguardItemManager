@@ -1,8 +1,10 @@
 "use client";
 
 import { useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { getEnergyCost } from "@/lib/helpers/mods";
 import { ItemDefinition, PerksDefinitions } from "@/lib/types";
+import DestinyText from "@/app/components/destiny-ui/DestinyText";
 
 const TOOLTIP_MARGIN = 8;
 const TOOLTIP_OFFSET = 14;
@@ -47,7 +49,10 @@ export const usePlugTooltip = () => {
     return { tooltip, handlers, hideTooltip: () => setTooltip(null) };
 };
 
-/** Small tooltip next to the cursor, flipped to stay in the viewport. */
+/**
+ * Small tooltip next to the cursor, flipped to stay in the viewport. Rendered in the body: inside the item tooltip,
+ * its blur and scrolling would otherwise make it fixed to the item tooltip and clip it.
+ */
 const PlugTooltip = ({ tooltip }: { tooltip: PlugTooltipState | null }) => {
     const ref = useRef<HTMLDivElement>(null);
     const [size, setSize] = useState({ width: TOOLTIP_WIDTH, height: TOOLTIP_FALLBACK_HEIGHT });
@@ -71,7 +76,7 @@ const PlugTooltip = ({ tooltip }: { tooltip: PlugTooltipState | null }) => {
         ? Math.max(TOOLTIP_MARGIN, tooltip.y - height - TOOLTIP_OFFSET)
         : Math.min(preferredTop, window.innerHeight - height - TOOLTIP_MARGIN);
 
-    return (
+    return createPortal(
         <div
             ref={ref}
             className="fixed z-[1010] border border-white/25 bg-[#111318]/95 text-left shadow-[0_12px_30px_rgba(0,0,0,0.55)] pointer-events-none"
@@ -89,7 +94,7 @@ const PlugTooltip = ({ tooltip }: { tooltip: PlugTooltipState | null }) => {
             </div>
             {tooltip.description && (
                 <div className="px-3 py-2 text-xs leading-relaxed text-gray-300">
-                    {tooltip.description}
+                    <DestinyText text={tooltip.description} />
                 </div>
             )}
             {!!tooltip.stats?.length && (
@@ -106,7 +111,8 @@ const PlugTooltip = ({ tooltip }: { tooltip: PlugTooltipState | null }) => {
                     {tooltip.warning}
                 </div>
             )}
-        </div>
+        </div>,
+        document.body
     );
 };
 

@@ -20,12 +20,16 @@ export interface ItemDefinition {
     equippingBlock: {
         equipmentSlotTypeHash: number
         ammoType: number
+        /** Armor set the item belongs to, for its set bonuses */
+        equipableItemSetHash?: number
     }
     flavorText: string
     itemCategoryHashes: number[]
     itemType: number
     itemSubType: number
     defaultDamageType: number
+    /** Subclasses: the element they show in the HUD (a DamageType), kinetic for prismatic */
+    talentGrid?: { hudDamageType?: number }
     /** 0 Titan, 1 Hunter, 2 Warlock, 3 any class */
     classType?: number
     hash: number
@@ -42,6 +46,11 @@ export interface ItemDefinition {
         /** Non-zero when inserting the plug costs materials (crafted weapon perks...) */
         insertionMaterialRequirementHash?: number
     }
+    /** Base stats, and the stat group that says how to show them */
+    stats?: {
+        statGroupHash?: number
+        stats: Record<string, { statHash: number, value: number, displayMaximum?: number }>
+    }
     /** Stats the item (or plug, once inserted) adds */
     investmentStats?: { statTypeHash: number, value: number, isConditionallyActive?: boolean }[]
     sockets?: {
@@ -56,6 +65,29 @@ export interface SocketEntryDefinition {
     reusablePlugSetHash?: number
     randomizedPlugSetHash?: number
     reusablePlugItems?: { plugItemHash: number }[]
+}
+
+/** How a stat's investment value maps to the value the game shows, and how it is drawn */
+export interface ScaledStatDefinition {
+    statHash: number
+    maximumValue: number
+    displayAsNumeric: boolean
+    displayInterpolation: { value: number, weight: number }[]
+}
+
+export interface StatGroupDefinition {
+    maximumValue: number
+    /** In the order the game lists them */
+    scaledStats: ScaledStatDefinition[]
+    hash: number
+}
+
+/** An armor set and the perks it grants with enough pieces equipped */
+export interface EquipableItemSetDefinition {
+    displayProperties: DisplayPropertiesDefinition
+    setItems: number[]
+    setPerks: { requiredSetCount: number, sandboxPerkHash: number }[]
+    hash: number
 }
 
 export interface ClassDefinition {
@@ -163,3 +195,5 @@ export type ItemConstantsDefinitions = Record<string, ItemConstantsDefinition>
 export type SeasonDefinitions = Record<string, SeasonDefinition>
 export type SocketCategoryDefinitions = Record<string, SocketCategoryDefinition>
 export type MaterialRequirementSetDefinitions = Record<string, MaterialRequirementSetDefinition>
+export type StatGroupDefinitions = Record<string, StatGroupDefinition>
+export type EquipableItemSetDefinitions = Record<string, EquipableItemSetDefinition>

@@ -24,6 +24,16 @@ export const getModSockets = (definition: ItemDefinition | undefined, itemDefini
             .map((socketIndex) => ({ socketIndex, categoryHash: category.socketCategoryHash })));
 };
 
+/** Ornament and shader sockets of a weapon or armor piece, in the game's order. Hidden ones are left out. */
+export const getCosmeticSockets = (definition: ItemDefinition | undefined, itemInstanceId: string, itemComponents: ItemComponents): ModSocket[] => {
+    const sockets = itemComponents.sockets[itemInstanceId]?.sockets ?? [];
+    return (definition?.sockets?.socketCategories ?? [])
+        .filter((category) => category.socketCategoryHash === SOCKET_CATEGORIES.WEAPON_COSMETICS || category.socketCategoryHash === SOCKET_CATEGORIES.ARMOR_COSMETICS)
+        .flatMap((category) => category.socketIndexes
+            .filter((socketIndex) => sockets[socketIndex]?.isVisible !== false)
+            .map((socketIndex) => ({ socketIndex, categoryHash: category.socketCategoryHash })));
+};
+
 interface AvailablePlugsContext {
     definition: ItemDefinition
     itemInstanceId: string
@@ -61,6 +71,23 @@ export const getAvailablePlugs = (
     if (current) hashes.add(current);
 
     return [...hashes];
+};
+
+/**
+ * Plugs of a socket the player hasn't unlocked yet (fragments, aspects...): the ones the item, account or character
+ * plug sets list but can't insert, minus those already available. Empty when Bungie doesn't list them.
+ */
+export const getLockedPlugs = (socketIndex: number, available: number[], context: AvailablePlugsContext): number[] => {
+    const { definition, itemInstanceId, characterId, itemComponents, plugSets } = context;
+    const entry = definition.sockets?.socketEntries[socketIndex];
+    if (!entry) return [];
+    const listed = [
+        ...(itemComponents.reusablePlugs[itemInstanceId]?.plugs[socketIndex] ?? []),
+        ...(entry.reusablePlugSetHash ? plugSets.profile[entry.reusablePlugSetHash] ?? [] : []),
+        ...(entry.reusablePlugSetHash ? plugSets.characters[characterId]?.[entry.reusablePlugSetHash] ?? [] : []),
+    ];
+    const unlocked = new Set(available);
+    return [...new Set(listed.map((plug) => plug.plugItemHash))].filter((plugHash) => !unlocked.has(plugHash));
 };
 
 export const getEnergyCost = (plug: ItemDefinition | undefined) => plug?.plug?.energyCost?.energyCost ?? 0;
@@ -111,4 +138,21 @@ export const getPerkSockets = (definition: ItemDefinition | undefined, itemInsta
         .filter((category) => category.socketCategoryHash === SOCKET_CATEGORIES.WEAPON_PERKS)
         .flatMap((category) => category.socketIndexes)
         .filter((socketIndex) => sockets[socketIndex]?.isVisible !== false && getPerkOptions(socketIndex, itemInstanceId, itemComponents).length > 1);
+};
+
+/**
+ * The insertions that give an item's mod, perk and cosmetic sockets their desired plugs, in an order the game accepts:
+ * swaps that free energy go first, so the costly ones always have room.
+ */
+export const planModChanges = (
+    currentPlugs: (number | undefined)[],
+    desired: Record<number, number>,
+    itemDefinitions: ItemDefinitions
+): { socketIndex: number, plugHash: number }[] => {
+    const costOf = (plugHash?: number) => getEnergyCost(plugHash ? itemDefinitions[plugHash] : undefined);
+    const delta = ({ socketIndex, plugHash }: { socketIndex: number, plugHash: number }) => costOf(plugHash) - costOf(currentPlugs[socketIndex]);
+    return Object.entries(desired)
+        .map(([socketIndex, plugHash]) => ({ socketIndex: Number(socketIndex), plugHash }))
+        .filter(({ socketIndex, plugHash }) => currentPlugs[socketIndex] !== plugHash)
+        .sort((a, b) => delta(a) - delta(b));
 };

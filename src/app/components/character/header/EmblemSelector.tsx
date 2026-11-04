@@ -6,6 +6,8 @@ import { equipItem } from "@/lib/bungie";
 import { useNotifications } from "@/app/components/NotificationsProvider";
 import { BUCKETS } from "@/lib/constants";
 import { Item as ProfileItem } from "@/lib/types";
+import useModalKeys from "@/lib/hooks/useModalKeys";
+import { useT } from "@/lib/i18n";
 
 interface EmblemSelectorProps {
     isOpen: boolean;
@@ -18,12 +20,13 @@ const EmblemSelector = ({ isOpen, onClose, characterId }: EmblemSelectorProps) =
     const {
         characterInventories,
         user,
-        changeEmblem
+        equipItemLocally
     } = useProfile();
 
     const { itemDefinitions } = useDefinitions();
 
     const { addNotification } = useNotifications();
+    const t = useT();
 
     const emblems = useMemo(() => {
         const allEmblems: ProfileItem[] = [];
@@ -55,21 +58,23 @@ const EmblemSelector = ({ isOpen, onClose, characterId }: EmblemSelectorProps) =
                 emblem.itemInstanceId
             );
 
-            changeEmblem(characterId, emblem.itemHash);
-            addNotification("Emblem equipped", "The emblem has been successfully equipped.", "success");
+            equipItemLocally(characterId, emblem.itemInstanceId);
+            addNotification(t.notifications.emblemEquipped, t.notifications.emblemEquippedDescription, "success");
             onClose();
 
         } catch (error) {
-            addNotification("Error equipping emblem", error instanceof Error ? error.message : "", "error");
+            addNotification(t.notifications.emblemEquipFailed, error instanceof Error ? error.message : "", "error");
         }
     };
+
+    useModalKeys(onClose, { enabled: isOpen });
 
     if (!isOpen) return null;
 
     return (
         <div className="absolute top-[75px] left-[250px] z-[1002] flex items-start justify-start bg-transparent hover:backdrop-blur-sm hover:bg-gray-300/10 flex-col text-left transition-all duration-150 hover:shadow-lg" onClick={onClose}>
             <div className="flex items-center justify-between w-full">
-                <p className="text-white text-md pl-2 pt-2 uppercase tracking-wider">Emblems</p>
+                <p className="text-white text-md pl-2 pt-2 uppercase tracking-wider">{t.character.emblems}</p>
                 <svg
                     xmlns="http://www.w3.org/2000/svg"
                     width="24"
@@ -97,7 +102,6 @@ const EmblemSelector = ({ isOpen, onClose, characterId }: EmblemSelectorProps) =
                             characterId={characterId}
                             perks={undefined}
                             stats={undefined}
-                            armor={false}
                             tooltipDisabled={true}
                         />
                     </div>

@@ -10,6 +10,11 @@ import useTransferItem from "@/lib/hooks/useTransferItem";
 import Vault from "./Vault";
 import Engrams from "./Engrams";
 import Postmaster from "./Postmaster";
+import SubclassEditorModal from "./SubclassEditorModal";
+import SubclassSelector from "./SubclassSelector";
+import InventoryCleanerModal from "./InventoryCleanerModal";
+import GearEditorModal from "./GearEditorModal";
+import ArmorOptimizerModal from "./ArmorOptimizerModal";
 import { useDefinitions } from "@/lib/hooks/useDefinitions";
 import { useProfile } from "@/lib/hooks/useProfile";
 import DestinyIcon from "../destiny-ui/DestinyIcon";
@@ -18,9 +23,11 @@ import { useItemTooltipActions } from "@/lib/hooks/useItemTooltip";
 import CharacterHeader from "./header/CharacterHeader";
 import { EquipmentItem, EquipmentSection, Item as ProfileItem } from "@/lib/types";
 import { CURRENCIES, EQUIPMENT_SLOTS } from "@/lib/constants";
+import { useT } from "@/lib/i18n";
 
 // The flyout section of each equipment slot type
 const SECTION_BY_SLOT: Record<number, string> = {
+  [EQUIPMENT_SLOTS.SUBCLASS]: "subclass",
   [EQUIPMENT_SLOTS.PRIMARY]: "primary",
   [EQUIPMENT_SLOTS.ENERGETIC]: "energetic",
   [EQUIPMENT_SLOTS.HEAVY]: "heavy",
@@ -46,6 +53,11 @@ const CharacterView: React.FC<CharacterViewProps> = ({
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
   const [isVaultOpen, setIsVaultOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false)
+  const [cleanerOpen, setCleanerOpen] = useState(false)
+  const [gearEditorOpen, setGearEditorOpen] = useState(false)
+  const [optimizerOpen, setOptimizerOpen] = useState(false)
+  // The subclass being edited, equipped or not
+  const [editedSubclass, setEditedSubclass] = useState<EquipmentItem>()
   const { transfer } = useTransferItem();
 
   const {
@@ -63,6 +75,7 @@ const CharacterView: React.FC<CharacterViewProps> = ({
   } = useProfile();
 
   const { hideTooltip } = useItemTooltipActions();
+  const t = useT();
 
   // Toggle equipment section open/closed
   const toggleEquipmentSection = useCallback(
@@ -178,6 +191,19 @@ const CharacterView: React.FC<CharacterViewProps> = ({
         setSearchOpen(true)
         hideTooltip();
       }
+      if (e.key === "c" && !searchOpen && !isVaultOpen) {
+        setCleanerOpen(true)
+        hideTooltip();
+      }
+      // Not while typing: the editors have search fields
+      const typing = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement
+      if (e.key === "e" && !searchOpen && !isVaultOpen && !typing) {
+        setGearEditorOpen(true)
+      }
+      if (e.key === "o" && !searchOpen && !isVaultOpen) {
+        setOptimizerOpen(true)
+        hideTooltip();
+      }
     }
 
     window.addEventListener('keydown', handleKeyDown);
@@ -189,9 +215,17 @@ const CharacterView: React.FC<CharacterViewProps> = ({
     };
   }, [isVaultOpen, searchOpen, hideTooltip, changeCharacter]);
 
+  const closeCleaner = useCallback(() => setCleanerOpen(false), []);
+  const closeOptimizer = useCallback(() => setOptimizerOpen(false), []);
+
+  const editSubclass = useCallback((subclass: EquipmentItem) => {
+    hideTooltip();
+    setEditedSubclass(subclass);
+  }, [hideTooltip]);
+
   // Render equipment section
   const renderEquipmentSection = useCallback(
-    (section: string, isWeapon: boolean, isRightSide: boolean) => {
+    (section: string, isRightSide: boolean) => {
       const { current, inventory } = equipment[section];
       const isOpen = !!openSections[section];
 
@@ -209,7 +243,6 @@ const CharacterView: React.FC<CharacterViewProps> = ({
             items={inventory}
             open={isOpen}
             right={isRightSide}
-            armors={!isWeapon}
             characterId={characterId}
           />
           <Item
@@ -219,7 +252,6 @@ const CharacterView: React.FC<CharacterViewProps> = ({
             state={state}
             perks={perks}
             stats={stats}
-            armor={!isWeapon}
             characterId={characterId}
           />
         </div>
@@ -259,20 +291,28 @@ const CharacterView: React.FC<CharacterViewProps> = ({
 
       <div className="flex justify-center items-center mt-4">
         <div className="flex flex-row gap-10 items-center">
-          {/* Weapons Column */}
-          <div className="flex flex-col gap-5">
-            {renderEquipmentSection("primary", true, false)}
-            {renderEquipmentSection("energetic", true, false)}
-            {renderEquipmentSection("heavy", true, false)}
+          {/* Weapons Column, under the subclass like in game */}
+          <div className="flex flex-col items-center gap-5">
+            {equipment.subclass.current && (
+              <SubclassSelector
+                characterId={characterId}
+                equipped={equipment.subclass.current}
+                others={equipment.subclass.inventory}
+                onEdit={editSubclass}
+              />
+            )}
+            {renderEquipmentSection("primary", false)}
+            {renderEquipmentSection("energetic", false)}
+            {renderEquipmentSection("heavy", false)}
           </div>
 
           {/* Armor Column */}
           <div className="flex flex-col gap-5">
-            {renderEquipmentSection("helmet", false, true)}
-            {renderEquipmentSection("arms", false, true)}
-            {renderEquipmentSection("chest", false, true)}
-            {renderEquipmentSection("legs", false, true)}
-            {renderEquipmentSection("classItem", false, true)}
+            {renderEquipmentSection("helmet", true)}
+            {renderEquipmentSection("arms", true)}
+            {renderEquipmentSection("chest", true)}
+            {renderEquipmentSection("legs", true)}
+            {renderEquipmentSection("classItem", true)}
           </div>
         </div>
       </div>
@@ -311,6 +351,28 @@ const CharacterView: React.FC<CharacterViewProps> = ({
         characterId={characterId}
       />
 
+      {editedSubclass && (
+        <SubclassEditorModal
+          key={editedSubclass.itemInstanceId}
+          itemHash={editedSubclass.hash}
+          itemInstanceId={editedSubclass.itemInstanceId}
+          characterId={characterId}
+          onClose={() => setEditedSubclass(undefined)}
+        />
+      )}
+
+      {gearEditorOpen && (
+        <GearEditorModal characterId={characterId} onClose={() => setGearEditorOpen(false)} />
+      )}
+
+      {cleanerOpen && (
+        <InventoryCleanerModal characterId={characterId} onClose={closeCleaner} />
+      )}
+
+      {optimizerOpen && (
+        <ArmorOptimizerModal characterId={characterId} onClose={closeOptimizer} />
+      )}
+
       <SearchBar open={searchOpen} currentCharacterId={characterId} onClose={() => setSearchOpen(false)} />
 
       {/* Add bottom margin to prevent footer overlap */}
@@ -331,21 +393,48 @@ const CharacterView: React.FC<CharacterViewProps> = ({
             onClick={() => setIsVaultOpen(!isVaultOpen)}
           >
             <DestinyIcon icon="" />
-            Vault
+            {t.character.vault}
           </button>
           <button
             className="flex flex-row items-center gap-2 p-2 hover:shadow-lg hover:bg-gray-300/10 transition-all duration-300"
             onClick={() => setSearchOpen(!searchOpen)}
           >
             <DestinyIcon icon="" />
-            Search
+            {t.character.search}
+          </button>
+          <button
+            className="flex flex-row items-center gap-2 p-2 hover:shadow-lg hover:bg-gray-300/10 transition-all duration-300"
+            onClick={() => {
+              hideTooltip();
+              setCleanerOpen(true);
+            }}
+          >
+            <DestinyIcon icon="" />
+            {t.character.clean}
+          </button>
+          <button
+            className="flex flex-row items-center gap-2 p-2 hover:shadow-lg hover:bg-gray-300/10 transition-all duration-300"
+            onClick={() => {
+              hideTooltip();
+              setGearEditorOpen(true);
+            }}
+          >
+            <DestinyIcon icon="" />
+            {t.character.optimize}
+          </button>
+          <button
+            className="flex flex-row items-center gap-2 p-2 hover:shadow-lg hover:bg-gray-300/10 transition-all duration-300"
+            onClick={() => setOptimizerOpen(true)}
+          >
+            <DestinyIcon icon="" />
+            {t.character.gear}
           </button>
           <button
             className="flex flex-row items-center gap-2 p-2 hover:shadow-lg hover:bg-gray-300/10 transition-all duration-300"
             onClick={() => changeCharacter(undefined)}
           >
             <DestinyIcon icon="" />
-            Back
+            {t.character.back}
           </button>
         </div>
       </footer>

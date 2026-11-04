@@ -2,6 +2,7 @@
 
 import {
   equipItem,
+  equipItems,
   equipLoadout,
   transferItem,
   clearLoadout,
@@ -9,7 +10,7 @@ import {
   LoadoutIdentifiers
 } from "@/lib/bungie";
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { defaultLoadoutIdentifiers, getLoadoutChoices } from "@/lib/helpers/loadouts";
+import { defaultLoadoutIdentifiers, getLoadoutChoices, loadoutEquipChanges } from "@/lib/helpers/loadouts";
 import { useNotifications } from "@/app/components/NotificationsProvider";
 import { useDefinitions } from "@/lib/hooks/useDefinitions";
 import { useProfile } from "@/lib/hooks/useProfile";
@@ -18,9 +19,10 @@ import LoadoutEditorModal from "./LoadoutEditorModal";
 import Image from "next/image";
 import { Item, Loadout } from "@/lib/types";
 import { ARMOR_SLOTS, BUCKETS, EQUIPMENT_SLOTS, WEAPON_SLOTS } from "@/lib/constants";
+import { useT } from "@/lib/i18n";
 
 // The equipment an in-game loadout records
-const LOADOUT_BUCKETS = [EQUIPMENT_SLOTS.SUBCLASS, ...WEAPON_SLOTS, ...ARMOR_SLOTS];
+const LOADOUT_BUCKETS = [EQUIPMENT_SLOTS.SUBCLASS, ...WEAPON_SLOTS, ...ARMOR_SLOTS, EQUIPMENT_SLOTS.ARTIFACT];
 
 // Paths of the context menu icons (24x24 outline)
 const MENU_ICONS = {
@@ -33,7 +35,12 @@ const MENU_ICONS = {
   ],
   clear: ["M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"],
   add: ["M12 4v16m8-8H4"],
+  swap: ["M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"],
 };
+
+const EXOTIC_TIER = 6;
+
+type ConfirmAction = "clear" | "overwrite" | "swap";
 
 interface MenuEntry {
   label: string;
@@ -56,7 +63,15 @@ const Loadouts = ({
   const [contextMenuShift, setContextMenuShift] = useState(0);
   const contextMenuRef = useRef<HTMLDivElement>(null);
   // Clearing a loadout and overwriting it with the equipped gear both ask first
-  const [pendingConfirm, setPendingConfirm] = useState<{ index: number, action: "clear" | "overwrite" } | null>(null);
+  // Swapping asks too; target is the other slot
+  const [pendingConfirm, setPendingConfirm] = useState<{ index: number, action: ConfirmAction, target?: number } | null>(null);
+  // Slot picked with "Swap with...": the next slot clicked is the other one
+  const [swapSource, setSwapSource] = useState<number | null>(null);
+  // Slot dragged onto another one to swap them, and the slot it hovers
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [dropIndex, setDropIndex] = useState<number | null>(null);
+  const t = useT();
+  const [busyStep, setBusyStep] = useState(t.loadouts.equipping);
   const [equipingLoadout, setEquipingLoadout] = useState<Loadout | null>(null)
   const [equipedItemIds, setEquipedItemIds] = useState<string[]>([]);
   const [viewingLoadoutIndex, setViewingLoadoutIndex] = useState<number | null>(null);
@@ -74,6 +89,11 @@ const Loadouts = ({
     profileInventory,
     moveItem,
     equipLoadoutLocally,
+    equipItemLocally,
+    characters,
+    itemComponents,
+    setItemComponentsLocally,
+    setCharacterStatsLocally,
     updateLoadoutLocally
   } = useProfile()
 
@@ -98,10 +118,15 @@ const Loadouts = ({
     name: loadoutNameDefinitions[l.nameHash]?.name,
   })), [characterLoadouts, characterId, loadoutColorDefinitions, loadoutIconDefinitions, loadoutNameDefinitions]);
 
-  const handleEquip = async (index: number) => {
-    setOnCooldown(() => true);
+  const isEmptyLoadout = (l?: Loadout) => !l || !loadoutIconDefinitions[l.iconHash]?.iconImagePath;
+
+  /**
+   * Brings the loadout's items to the character, then equips the loadout in slot `index` in game.
+   * `onCharacter` holds the items earlier steps already brought here (a swap equips several loadouts in a row
+   * and this render's inventories don't know it yet); the items of this loadout are added to it.
+   */
+  const equipLoadoutAt = async (index: number, l: Loadout, onCharacter = new Set<string>()) => {
     setEquipedItemIds([]); // reset à chaque nouveau equip
-    const l = characterLoadouts[characterId].loadouts[index];
     setEquipingLoadout(l);
     // On va stocker {item, characterId} pour chaque item ("vault" pour le coffre)
     type ItemWithChar = { item: Item; characterId: string };
@@ -122,77 +147,191 @@ const Loadouts = ({
         if (item.itemInstanceId) itemMap[item.itemInstanceId] = { item, characterId: charId };
       });
     });
+    onCharacter.forEach(id => {
+      if (itemMap[id]) itemMap[id] = { ...itemMap[id], characterId };
+    });
 
+    // Vault items carry the vault's bucket; on the character an item sits in its own slot's bucket,
+    // which is where equipLoadoutLocally looks for what it replaces
+    const moveToCharacter = (itemHash: number, itemInstanceId: string) =>
+      moveItem(itemHash, itemInstanceId, "vault", characterId, 1, { bucketHash: itemDefinitions[itemHash]?.inventory?.bucketTypeHash ?? BUCKETS.GENERAL });
+
+    for (let i = 0; i < l.items.length; i++) {
+      const loadoutItem = l.items[i];
+      const found = itemMap[loadoutItem.itemInstanceId];
+      // Si on ne trouve pas l'item dans le profil, on ignore
+      if (!found) continue;
+
+      const { item: itemInstance, characterId: itemCharId } = found;
+      if (itemCharId === characterId) {
+        // L'item est déjà sur le bon perso
+        setEquipedItemIds(prev => [...prev, loadoutItem.itemInstanceId]);
+      } else if (itemCharId === "vault") {
+        // L'item est dans le coffre
+        await transferItem(user.membershipType, itemInstance.itemHash, loadoutItem.itemInstanceId, characterId, false);
+        moveToCharacter(itemInstance.itemHash, loadoutItem.itemInstanceId);
+        setEquipedItemIds(prev => [...prev, loadoutItem.itemInstanceId]);
+      } else if (itemInstance.transferStatus & 1) {
+        // Équipé sur un autre perso, il faudra le déséquiper
+        itemToDesequip.push({ item: itemInstance, characterId: itemCharId });
+      } else if (!(itemInstance.transferStatus & 2)) {
+        // Sur un autre perso et transférable
+        await transferItem(user.membershipType, itemInstance.itemHash, loadoutItem.itemInstanceId, itemCharId, true);
+        moveItem(itemInstance.itemHash, loadoutItem.itemInstanceId, itemCharId, "vault", 1);
+        await transferItem(user.membershipType, itemInstance.itemHash, loadoutItem.itemInstanceId, characterId, false);
+        moveToCharacter(itemInstance.itemHash, loadoutItem.itemInstanceId);
+        setEquipedItemIds(prev => [...prev, loadoutItem.itemInstanceId]);
+      }
+    }
+
+    // Déséquipement si besoin
+    for (const { item, characterId: itemCharId } of itemToDesequip) {
+      const itemDef = itemDefinitions[item.itemHash];
+      const validItem = (characterInventories[itemCharId]?.items ?? []).find((i) => {
+        // Les objets du postmaster ne peuvent pas être équipés
+        if (!i.itemInstanceId || i.bucketHash === BUCKETS.POSTMASTER || i.itemHash === item.itemHash) return false;
+        const itemObject = itemDefinitions[i.itemHash];
+        return !!itemObject?.equippingBlock
+          && itemObject.equippingBlock.equipmentSlotTypeHash === itemDef?.equippingBlock?.equipmentSlotTypeHash
+          && itemObject.inventory.tierType < 6;
+      });
+      if (validItem) {
+        await equipItem(user.membershipType, itemCharId, validItem.itemInstanceId);
+        // The item goes back to that character's inventory, where moveItem takes it from
+        equipItemLocally(itemCharId, validItem.itemInstanceId);
+        await transferItem(user.membershipType, item.itemHash, item.itemInstanceId, itemCharId, true);
+        moveItem(item.itemHash, item.itemInstanceId, itemCharId, "vault", 1);
+        await transferItem(user.membershipType, item.itemHash, item.itemInstanceId, characterId, false);
+        moveToCharacter(item.itemHash, item.itemInstanceId);
+        setEquipedItemIds(prev => [...prev, item.itemInstanceId]);
+      }
+    }
+
+    await equipLoadout(user.membershipType, characterId, index);
+
+    // Use the new centralized local equip function
+    const loadoutItems = l.items
+      .map(i => itemMap[i.itemInstanceId]?.item)
+      .filter((item): item is Item => item !== undefined);
+
+    equipLoadoutLocally(characterId, loadoutItems);
+    loadoutItems.forEach(item => onCharacter.add(item.itemInstanceId));
+  };
+
+  /**
+   * Shows what the game did when equipping the loadout: its mods, subclass setup and artifact perks on its items, and
+   * the character's stats with them. Uses the profile as it was before the loadout, which this render still holds.
+   * No refresh: Bungie serves a cached profile for a while after a change, which would undo it.
+   */
+  const applyLoadoutPlugsLocally = (l: Loadout) => {
+    const character = characters[characterId];
+    const { components, statDelta } = loadoutEquipChanges({
+      loadoutItems: l.items,
+      equipped: characterEquipment[characterId]?.items ?? [],
+      itemsById: itemsByInstanceId,
+      itemComponents,
+      itemDefinitions,
+      classType: character?.classType,
+    });
+    Object.entries(components).forEach(([itemInstanceId, changed]) => setItemComponentsLocally(itemInstanceId, changed));
+    if (character) {
+      const stats = { ...character.stats };
+      Object.entries(statDelta).forEach(([statHash, delta]) => {
+        // Armor stats on a character go from 0 to 200
+        if (stats[statHash] !== undefined) stats[statHash] = Math.min(200, Math.max(0, stats[statHash] + delta));
+      });
+      setCharacterStatsLocally(characterId, stats);
+    }
+  };
+
+  const handleEquip = async (index: number) => {
+    setBusyStep(t.loadouts.equipping);
+    setOnCooldown(() => true);
+    const l = characterLoadouts[characterId].loadouts[index];
     try {
-      for (let i = 0; i < l.items.length; i++) {
-        const loadoutItem = l.items[i];
-        const found = itemMap[loadoutItem.itemInstanceId];
-        // Si on ne trouve pas l'item dans le profil, on ignore
-        if (!found) continue;
-
-        const { item: itemInstance, characterId: itemCharId } = found;
-        if (itemCharId === characterId) {
-          // L'item est déjà sur le bon perso
-          setEquipedItemIds(prev => [...prev, loadoutItem.itemInstanceId]);
-        } else if (itemCharId === "vault") {
-          // L'item est dans le coffre
-          await transferItem(user.membershipType, itemInstance.itemHash, loadoutItem.itemInstanceId, characterId, false);
-          moveItem(itemInstance.itemHash, loadoutItem.itemInstanceId, "vault", characterId, 1);
-          setEquipedItemIds(prev => [...prev, loadoutItem.itemInstanceId]);
-        } else if (itemInstance.transferStatus & 1) {
-          // Équipé sur un autre perso, il faudra le déséquiper
-          itemToDesequip.push({ item: itemInstance, characterId: itemCharId });
-        } else if (!(itemInstance.transferStatus & 2)) {
-          // Sur un autre perso et transférable
-          await transferItem(user.membershipType, itemInstance.itemHash, loadoutItem.itemInstanceId, itemCharId, true);
-          moveItem(itemInstance.itemHash, loadoutItem.itemInstanceId, itemCharId, "vault", 1);
-          await transferItem(user.membershipType, itemInstance.itemHash, loadoutItem.itemInstanceId, characterId, false);
-          moveItem(itemInstance.itemHash, loadoutItem.itemInstanceId, "vault", characterId, 1);
-          setEquipedItemIds(prev => [...prev, loadoutItem.itemInstanceId]);
-        }
-      }
-
-      // Déséquipement si besoin
-      for (let index = 0; index < itemToDesequip.length; index++) {
-        const { item, characterId: itemCharId } = itemToDesequip[index];
-        const itemDef = itemDefinitions[item.itemHash];
-        const validItem = (characterInventories[itemCharId]?.items ?? []).find((i) => {
-          // Les objets du postmaster ne peuvent pas être équipés
-          if (!i.itemInstanceId || i.bucketHash === BUCKETS.POSTMASTER || i.itemHash === item.itemHash) return false;
-          const itemObject = itemDefinitions[i.itemHash];
-          return !!itemObject?.equippingBlock
-            && itemObject.equippingBlock.equipmentSlotTypeHash === itemDef?.equippingBlock?.equipmentSlotTypeHash
-            && itemObject.inventory.tierType < 6;
-        });
-        if (validItem) {
-          await equipItem(user.membershipType, itemCharId, validItem.itemInstanceId);
-          await transferItem(user.membershipType, item.itemHash, item.itemInstanceId, itemCharId, true);
-          moveItem(item.itemHash, item.itemInstanceId, itemCharId, "vault", 1);
-          await transferItem(user.membershipType, item.itemHash, item.itemInstanceId, characterId, false);
-          moveItem(item.itemHash, item.itemInstanceId, "vault", characterId, 1);
-          setEquipedItemIds(prev => [...prev, item.itemInstanceId]);
-        }
-      }
-
-      await equipLoadout(user.membershipType, characterId, index);
-
-      // Use the new centralized local equip function
-      const loadoutItems = l.items
-        .map(i => itemMap[i.itemInstanceId]?.item)
-        .filter((item): item is Item => item !== undefined);
-
-      equipLoadoutLocally(characterId, loadoutItems);
-
+      await equipLoadoutAt(index, l);
+      applyLoadoutPlugsLocally(l);
       const icon = loadoutIconDefinitions[l.iconHash];
-      addNotification("Successfully equipped your loadout!", "", "success", icon ? "https://www.bungie.net" + icon.iconImagePath : "", 5000);
+      addNotification(t.loadouts.equipped, "", "success", icon ? "https://www.bungie.net" + icon.iconImagePath : "", 5000);
     } catch (error) {
-      addNotification("Error while equipping loadout", error instanceof Error ? error.message : "Failed to equip loadout", "error", "", 5000);
+      addNotification(t.loadouts.equipFailed, error instanceof Error ? error.message : t.loadouts.equipFailedDescription, "error", "", 5000);
       // Some transfers may have succeeded; resync with the game
       refresh();
     } finally {
       setOnCooldown(() => false);
       setEquipingLoadout(null);
     }
+  };
+
+  /**
+   * Swaps two loadout slots (or moves a loadout to an empty slot). The API can only record equipped gear,
+   * so each loadout is equipped then snapshotted into its new slot, through a free slot that holds one meanwhile.
+   */
+  const handleSwap = async (from: number, to: number) => {
+    const loadouts = characterLoadouts[characterId].loadouts;
+    const source = loadouts[from];
+    const target = loadouts[to];
+    const isMove = isEmptyLoadout(target);
+    const temp = isMove ? -1 : loadouts.findIndex((l, i) => i !== from && i !== to && isEmptyLoadout(l));
+    if (!isMove && temp === -1) {
+      addNotification(t.loadouts.noFreeSlot, t.loadouts.noFreeSlotDescription, "error", "", 5000);
+      return;
+    }
+
+    const previouslyEquipped = (characterEquipment[characterId]?.items ?? [])
+      .filter((item) => LOADOUT_BUCKETS.includes(itemDefinitions[item.itemHash]?.inventory?.bucketTypeHash ?? 0));
+    const identifiersOf = (l: Loadout): LoadoutIdentifiers => ({ colorHash: l.colorHash, iconHash: l.iconHash, nameHash: l.nameHash });
+    // Equips the loadout recorded in slot `at`, then records it in slot `into`
+    const onCharacter = new Set<string>();
+    const transfer = async (at: number, l: Loadout, into: number, step: string) => {
+      setBusyStep(step);
+      await equipLoadoutAt(at, l, onCharacter);
+      await snapshotLoadout(user.membershipType, characterId, into, identifiersOf(l));
+      updateLoadoutLocally(characterId, into, l);
+    };
+    const clearSlot = async (index: number, empty: Loadout) => {
+      await clearLoadout(user.membershipType, characterId, index);
+      updateLoadoutLocally(characterId, index, empty);
+    };
+
+    setOnCooldown(() => true);
+    try {
+      if (isMove) {
+        await transfer(from, source, to, t.loadouts.movingTo(to + 1));
+        await clearSlot(from, target);
+      } else {
+        await transfer(to, target, temp, t.loadouts.savingAside(to + 1));
+        await transfer(from, source, to, t.loadouts.movingSlot(from + 1, to + 1));
+        await transfer(temp, target, from, t.loadouts.movingSlot(to + 1, from + 1));
+        await clearSlot(temp, loadouts[temp]);
+      }
+
+      // Put back what the character wore; exotics last, so the exotic they replace is already gone
+      setBusyStep(t.loadouts.reequipping);
+      setEquipingLoadout(null);
+      const isExotic = (item: Item) => itemDefinitions[item.itemHash]?.inventory?.tierType === EXOTIC_TIER;
+      const ordered = [...previouslyEquipped.filter((item) => !isExotic(item)), ...previouslyEquipped.filter(isExotic)];
+      const results = await equipItems(user.membershipType, characterId, ordered.map((item) => item.itemInstanceId));
+      const icon = loadoutIconDefinitions[source.iconHash]?.iconImagePath;
+      if (results.some((result) => result.equipStatus !== 1)) {
+        addNotification(t.loadouts.swappedPartially, "", "error", "", 5000);
+      } else {
+        addNotification(isMove ? t.loadouts.moved : t.loadouts.swapped, "", "success", icon ? `https://www.bungie.net${icon}` : "", 5000);
+      }
+    } catch (error) {
+      addNotification(t.loadouts.swapFailed, error instanceof Error ? error.message : t.loadouts.swapFailedDescription, "error", "", 5000);
+    } finally {
+      setOnCooldown(() => false);
+      setEquipingLoadout(null);
+      // Items moved and loadouts changed: resync with the game
+      refresh();
+    }
+  };
+
+  /** Asks to swap the two slots; dropping a loadout on its own slot does nothing. */
+  const askSwap = (from: number, to: number) => {
+    setSwapSource(null);
+    if (from !== to) setPendingConfirm({ index: from, action: "swap", target: to });
   };
 
   // Toggle context menu for a loadout
@@ -216,6 +355,16 @@ const Loadouts = ({
     setContextMenuShift(shift);
   }, [isContextMenuOpen]);
 
+  // Escape cancels picking the other slot of a swap
+  useEffect(() => {
+    if (swapSource === null) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSwapSource(null);
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [swapSource]);
+
   const askConfirm = (index: number, action: "clear" | "overwrite") => {
     setPendingConfirm({ index, action });
     setIsContextMenuOpen(null);
@@ -231,7 +380,7 @@ const Loadouts = ({
       ? defaultLoadoutIdentifiers(loadoutChoices)
       : { colorHash: existing.colorHash, iconHash: existing.iconHash, nameHash: existing.nameHash };
     if (!identifiers.colorHash || !identifiers.iconHash || !identifiers.nameHash) {
-      addNotification("Loadout names, colors and icons are still loading", "Try again in a moment.", "error", "", 5000);
+      addNotification(t.loadouts.stillLoading, t.loadouts.tryAgain, "error", "", 5000);
       return;
     }
 
@@ -241,10 +390,10 @@ const Loadouts = ({
       const equipped = (characterEquipment[characterId]?.items ?? [])
         .filter((item) => LOADOUT_BUCKETS.includes(itemDefinitions[item.itemHash]?.inventory?.bucketTypeHash ?? 0));
       updateLoadoutLocally(characterId, index, { ...identifiers, items: equipped.map((item) => ({ itemInstanceId: item.itemInstanceId })) });
-      addNotification("Loadout saved", loadoutNameDefinitions[identifiers.nameHash]?.name ?? "", "success", icon ? `https://www.bungie.net${icon}` : "", 5000);
+      addNotification(t.loadouts.saved, loadoutNameDefinitions[identifiers.nameHash]?.name ?? "", "success", icon ? `https://www.bungie.net${icon}` : "", 5000);
       await refresh();
     } catch (error) {
-      addNotification("Error while saving loadout", error instanceof Error ? error.message : "Failed to save loadout", "error", "", 5000);
+      addNotification(t.loadouts.saveFailed, error instanceof Error ? error.message : t.loadouts.saveFailedDescription, "error", "", 5000);
     }
   };
 
@@ -261,20 +410,20 @@ const Loadouts = ({
       const icon = characterLoadouts[characterId].loadouts[loadoutToDelete].iconHash && loadoutIconDefinitions[characterLoadouts[characterId].loadouts[loadoutToDelete].iconHash] ?
         `https://www.bungie.net${loadoutIconDefinitions[characterLoadouts[characterId].loadouts[loadoutToDelete].iconHash].iconImagePath}` : "";
 
-      addNotification("Loadout cleared", "", "success", icon, 5000);
-
-      // Refresh character data
-      await refresh();
+      // Nothing else changes: no refetch, which could bring the cleared loadout back from Bungie's cache
+      updateLoadoutLocally(characterId, loadoutToDelete, { colorHash: 0, iconHash: 0, nameHash: 0, items: [] });
+      addNotification(t.loadouts.cleared, "", "success", icon, 5000);
     } catch (error) {
-      addNotification("Error", (error instanceof Error && error.message) || "Failed to clear loadout", "error", "", 5000);
+      addNotification(t.loadouts.error, (error instanceof Error && error.message) || t.loadouts.clearFailed, "error", "", 5000);
     }
   };
 
   const handleConfirm = () => {
     if (!pendingConfirm) return;
-    const { index, action } = pendingConfirm;
+    const { index, action, target } = pendingConfirm;
     setPendingConfirm(null);
     if (action === "clear") handleClearLoadout(index);
+    else if (action === "swap") handleSwap(index, target ?? index);
     else handleSaveEquipped(index);
   };
 
@@ -285,16 +434,17 @@ const Loadouts = ({
     };
     if (isEmpty) {
       return [
-        { label: "Create from equipped gear", icon: MENU_ICONS.save, color: "text-white", onClick: () => handleSaveEquipped(index) },
-        { label: "Create in editor", icon: MENU_ICONS.add, color: "text-[#b39ddb]", onClick: closeAnd(() => setEditingLoadoutIndex(index)) },
+        { label: t.loadouts.menu.createFromEquipped, icon: MENU_ICONS.save, color: "text-white", onClick: () => handleSaveEquipped(index) },
+        { label: t.loadouts.menu.createInEditor, icon: MENU_ICONS.add, color: "text-[#b39ddb]", onClick: closeAnd(() => setEditingLoadoutIndex(index)) },
       ];
     }
     return [
-      { label: "Equip", icon: MENU_ICONS.equip, color: "text-white", onClick: () => handleEquip(index) },
-      { label: "Edit", icon: MENU_ICONS.edit, color: "text-[#b39ddb]", onClick: closeAnd(() => setEditingLoadoutIndex(index)) },
-      { label: "Save equipped gear", icon: MENU_ICONS.save, color: "text-[#b39ddb]", onClick: () => askConfirm(index, "overwrite") },
-      { label: "View", icon: MENU_ICONS.view, color: "text-blue-400", onClick: closeAnd(() => setViewingLoadoutIndex(index)) },
-      { label: "Clear", icon: MENU_ICONS.clear, color: "text-red-400", onClick: () => askConfirm(index, "clear") },
+      { label: t.loadouts.menu.equip, icon: MENU_ICONS.equip, color: "text-white", onClick: () => handleEquip(index) },
+      { label: t.loadouts.menu.edit, icon: MENU_ICONS.edit, color: "text-[#b39ddb]", onClick: closeAnd(() => setEditingLoadoutIndex(index)) },
+      { label: t.loadouts.menu.saveEquipped, icon: MENU_ICONS.save, color: "text-[#b39ddb]", onClick: () => askConfirm(index, "overwrite") },
+      { label: t.loadouts.menu.view, icon: MENU_ICONS.view, color: "text-blue-400", onClick: closeAnd(() => setViewingLoadoutIndex(index)) },
+      { label: t.loadouts.menu.swapWith, icon: MENU_ICONS.swap, color: "text-[#b39ddb]", onClick: closeAnd(() => setSwapSource(index)) },
+      { label: t.loadouts.menu.clear, icon: MENU_ICONS.clear, color: "text-red-400", onClick: () => askConfirm(index, "clear") },
     ];
   };
 
@@ -330,7 +480,7 @@ const Loadouts = ({
         {onCooldown && (
           <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-black/30 backdrop-blur-sm">
             <div className="w-12 h-12 border-4 border-gray-300 border-t-white rounded-full animate-spin mb-4"></div>
-            <span className="text-white text-lg font-semibold">Equipping loadout...</span>
+            <span className="text-white text-lg font-semibold">{busyStep}</span>
             {equipingLoadout && (
               <div className="mt-4 flex flex-row flex-wrap items-center gap-4 w-full max-w-xs justify-center">
                 {equipingLoadout.items.map((i, idx) => {
@@ -363,7 +513,7 @@ const Loadouts = ({
             )}
           </div>
         )}
-        <div className={`grid grid-cols-2 grid-rows-6 gap-1 p-4 fixed left-5 top-1/2 transform -translate-y-1/2 ${onCooldown ? 'grayscale' : ''}`}>
+        <div className={`grid grid-cols-4 grid-rows-5 gap-1 p-4 fixed left-5 top-1/2 transform -translate-y-1/2 ${onCooldown ? 'grayscale' : ''}`}>
           {elements.map((element, index) => (
               <div
                 key={index}
@@ -376,14 +526,42 @@ const Loadouts = ({
                     cursor: !onCooldown ? "pointer" : "",
                     position: "relative"
                   }}
-                  title={element.icon ? element.name : "Create a loadout"}
+                  // Highlights the slot picked for a swap and the one a dragged loadout would land on
+                  className={swapSource === index ? "ring-2 ring-[#7e57c2] animate-pulse" : dropIndex === index ? "ring-2 ring-[#b39ddb]" : ""}
+                  title={swapSource !== null
+                    ? swapSource === index ? t.loadouts.cancelSwapHint : t.loadouts.swapWithSlot(swapSource + 1)
+                    : element.icon ? t.loadouts.dragToSwap(element.name) : t.loadouts.create}
                   onClick={() => {
                     if (onCooldown) return;
+                    if (swapSource !== null) return askSwap(swapSource, index);
                     // An empty slot opens the editor to create a loadout there
                     if (element.icon) handleEquip(index);
                     else setEditingLoadoutIndex(index);
                   }}
                   onContextMenu={(e) => (!onCooldown ? toggleContextMenu(index, e) : "")}
+                  draggable={!onCooldown && !!element.icon}
+                  onDragStart={(e) => {
+                    e.dataTransfer.effectAllowed = "move";
+                    setIsContextMenuOpen(null);
+                    setDragIndex(index);
+                  }}
+                  onDragEnd={() => {
+                    setDragIndex(null);
+                    setDropIndex(null);
+                  }}
+                  onDragOver={(e) => {
+                    if (dragIndex === null || dragIndex === index) return;
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = "move";
+                    setDropIndex(index);
+                  }}
+                  onDragLeave={() => setDropIndex((prev) => (prev === index ? null : prev))}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    if (dragIndex !== null) askSwap(dragIndex, index);
+                    setDragIndex(null);
+                    setDropIndex(null);
+                  }}
                 >
                   {onCooldown ? (
                     <div
@@ -396,7 +574,7 @@ const Loadouts = ({
                     <div style={{ position: "relative" }}>
                       {element.color && (
                         <Image
-                          alt="loadout color"
+                          alt={t.loadouts.colorAlt}
                           src={"https://www.bungie.net" + element.color}
                           height={48}
                           width={48}
@@ -405,7 +583,7 @@ const Loadouts = ({
                       {element.icon ? (
                         <>
                           <Image
-                            alt="loadout icon"
+                            alt={t.loadouts.iconAlt}
                             src={"https://www.bungie.net" + element.icon}
                             height={48}
                             width={48}
@@ -420,7 +598,7 @@ const Loadouts = ({
                           className="relative bg-zinc-700/40 hover:bg-zinc-700/70"
                         >
                           <Image
-                            alt="new loadout"
+                            alt={t.loadouts.newAlt}
                             src={"./new_loadout.svg"}
                             height={48}
                             width={48}
@@ -440,7 +618,7 @@ const Loadouts = ({
                           }}
                         >
                           <div className="bg-[#2a2a40] py-2 px-3 border-b border-[#7e57c2] font-medium text-sm whitespace-nowrap">
-                            {element.icon ? "Loadout Options" : "Empty Slot"}
+                            {element.icon ? t.loadouts.options : t.loadouts.emptySlot}
                           </div>
                           <div className="py-1">
                             {menuEntries(index, !element.icon).map((entry, entryIndex) => (
@@ -468,22 +646,34 @@ const Loadouts = ({
         </div>
       </div>
 
-      {/* Confirmation for clearing a loadout or overwriting it with the equipped gear */}
+      {/* Confirmation for clearing a loadout, overwriting it with the equipped gear or swapping two slots */}
       {pendingConfirm && characterLoadouts[characterId].loadouts[pendingConfirm.index] && (() => {
-        const loadout = characterLoadouts[characterId].loadouts[pendingConfirm.index];
-        const colorPath = loadoutColorDefinitions[loadout.colorHash]?.colorImagePath;
-        const iconPath = loadoutIconDefinitions[loadout.iconHash]?.iconImagePath;
-        const isClear = pendingConfirm.action === "clear";
+        const loadouts = characterLoadouts[characterId].loadouts;
+        const { index, action, target = index } = pendingConfirm;
+        const isClear = action === "clear";
+        const isSwap = action === "swap";
+        const isMove = isSwap && isEmptyLoadout(loadouts[target]);
+        // A swap shows both slots, in their new order
+        const shown = isSwap ? [index, target] : [index];
+        const title = isClear ? t.loadouts.confirm.clearTitle : isMove ? t.loadouts.confirm.moveTitle : isSwap ? t.loadouts.confirm.swapTitle : t.loadouts.confirm.saveTitle;
+        const message = isClear
+          ? t.loadouts.confirm.clearMessage
+          : isMove
+            ? t.loadouts.confirm.moveMessage(target + 1)
+            : isSwap
+              ? t.loadouts.confirm.swapMessage(index + 1, target + 1)
+              : t.loadouts.confirm.saveMessage;
         return (
           <div className="fixed inset-0 flex items-center justify-center z-[1003] bg-black/80" onClick={() => setPendingConfirm(null)}>
             <div className="bg-[#1a1a2e] border border-[#7e57c2] shadow-xl p-5 rounded w-[400px] animate-fade-in" onClick={(e) => e.stopPropagation()}>
               <div className="flex justify-between items-center mb-4 border-b border-gray-700 pb-2">
                 <h2 className="text-white text-xl font-semibold">
-                  {isClear ? "Clear Loadout" : "Save Equipped Gear"}
+                  {title}
                 </h2>
                 <button
                   onClick={() => setPendingConfirm(null)}
                   className="text-gray-400 hover:text-white"
+                  aria-label={t.common.close}
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -493,24 +683,39 @@ const Loadouts = ({
 
               <div className="mb-6">
                 <p className="text-gray-300 mb-4">
-                  {isClear
-                    ? "Are you sure you want to clear this loadout? This will remove all items from this loadout."
-                    : "Replace this loadout with the gear, mods and subclass setup you have equipped right now? Its name, color and icon are kept."}
+                  {message}
                 </p>
 
-                <div className="flex items-center justify-center mb-4">
-                  <div className="relative size-[64px]">
-                    {colorPath && <Image src={`https://www.bungie.net${colorPath}`} height={64} width={64} alt="Loadout background" />}
-                    {iconPath && (
-                      <Image
-                        src={`https://www.bungie.net${iconPath}`}
-                        height={64}
-                        width={64}
-                        style={{ position: "absolute", top: 0, left: 0 }}
-                        alt="Loadout icon"
-                      />
-                    )}
-                  </div>
+                <div className="flex items-center justify-center gap-4 mb-4">
+                  {shown.map((slot, position) => {
+                    const loadout = loadouts[slot];
+                    const colorPath = loadoutColorDefinitions[loadout?.colorHash]?.colorImagePath;
+                    const iconPath = loadoutIconDefinitions[loadout?.iconHash]?.iconImagePath;
+                    return (
+                      <Fragment key={slot}>
+                        {position > 0 && (
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-400 rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            {MENU_ICONS.swap.map((d) => <path key={d} strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={d} />)}
+                          </svg>
+                        )}
+                        <div className="flex flex-col items-center gap-1">
+                          <div className="relative size-[64px] border-2 border-white/30">
+                            {colorPath && <Image src={`https://www.bungie.net${colorPath}`} height={64} width={64} alt={t.loadouts.backgroundAlt} />}
+                            {iconPath && (
+                              <Image
+                                src={`https://www.bungie.net${iconPath}`}
+                                height={64}
+                                width={64}
+                                style={{ position: "absolute", top: 0, left: 0 }}
+                                alt={t.loadouts.iconAlt}
+                              />
+                            )}
+                          </div>
+                          {isSwap && <span className="text-xs text-gray-400">{t.loadouts.confirm.slot(slot + 1)}</span>}
+                        </div>
+                      </Fragment>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -519,13 +724,13 @@ const Loadouts = ({
                   onClick={() => setPendingConfirm(null)}
                   className="px-4 py-2 bg-gray-700 text-white rounded hover:bg-gray-600"
                 >
-                  Cancel
+                  {t.common.cancel}
                 </button>
                 <button
                   onClick={handleConfirm}
                   className={`px-4 py-2 text-white rounded ${isClear ? "bg-red-600 hover:bg-red-700" : "bg-[#7e57c2] hover:bg-[#6a46ad]"}`}
                 >
-                  {isClear ? "Clear" : "Save"}
+                  {isClear ? t.loadouts.confirm.clear : isMove ? t.loadouts.confirm.move : isSwap ? t.loadouts.confirm.swap : t.common.save}
                 </button>
               </div>
             </div>

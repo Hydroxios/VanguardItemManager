@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
 import ItemComponent from "./Item";
@@ -11,44 +11,23 @@ import { useItemTooltipActions } from "@/lib/hooks/useItemTooltip";
 import useTransferItem from "@/lib/hooks/useTransferItem";
 import { useNotifications } from "@/app/components/NotificationsProvider";
 import { equipItems, insertSocketPlugFree, LoadoutIdentifiers, snapshotLoadout, updateLoadoutIdentifiers } from "@/lib/bungie";
-import { getEnergyCapacity, getEnergyCost, getModSockets, getPerkSockets, isFreePlug } from "@/lib/helpers/mods";
+import { getCosmeticSockets, getEnergyCapacity, getEnergyCost, getModSockets, getPerkSockets, isFreePlug, planModChanges } from "@/lib/helpers/mods";
 import PerkEditor from "./PerkEditor";
 import { countFragments, getEditableSubclassSockets, getFragmentCapacity, planSubclassChanges } from "@/lib/helpers/subclass";
 import SubclassEditor from "./SubclassEditor";
+import ArtifactEditor from "./ArtifactEditor";
+import { getEditableArtifactSockets, planArtifactChanges } from "@/lib/helpers/artifact";
 import LoadoutStats from "./LoadoutStats";
-import { getLoadoutChoices } from "@/lib/helpers/loadouts";
+import { getLoadoutChoices, LOADOUT_SLOTS, SLOT_GROUPS, SLOT_KEYS } from "@/lib/helpers/loadouts";
 import { armorStatsWithPlugs, plugsStats, sumStats } from "@/lib/helpers/stats";
 import { ARMOR_SLOTS, BUCKETS, EQUIPMENT_SLOTS, SOCKET_CATEGORIES, UNSET_PLUG_HASH, WEAPON_SLOTS } from "@/lib/constants";
 import { Item } from "@/lib/types";
+import useModalKeys from "@/lib/hooks/useModalKeys";
+import { useT } from "@/lib/i18n";
 
 const EXOTIC_TIER = 6;
 const ANY_CLASS = 3;
 // Width of the global item tooltip, to open it on the side of a tile that has room
-const TOOLTIP_WIDTH = 285;
-
-const SLOT_GROUPS = [
-  { label: "Subclass", slots: [{ hash: EQUIPMENT_SLOTS.SUBCLASS, name: "Subclass" }] },
-  {
-    label: "Weapons",
-    slots: [
-      { hash: EQUIPMENT_SLOTS.PRIMARY, name: "Kinetic" },
-      { hash: EQUIPMENT_SLOTS.ENERGETIC, name: "Energy" },
-      { hash: EQUIPMENT_SLOTS.HEAVY, name: "Power" },
-    ],
-  },
-  {
-    label: "Armor",
-    slots: [
-      { hash: EQUIPMENT_SLOTS.HELMET, name: "Helmet" },
-      { hash: EQUIPMENT_SLOTS.ARMS, name: "Gauntlets" },
-      { hash: EQUIPMENT_SLOTS.CHEST, name: "Chest" },
-      { hash: EQUIPMENT_SLOTS.LEGS, name: "Legs" },
-      { hash: EQUIPMENT_SLOTS.CLASS_ITEM, name: "Class item" },
-    ],
-  },
-];
-const LOADOUT_SLOTS = SLOT_GROUPS.flatMap((group) => group.slots.map((slot) => slot.hash));
-const SLOT_NAMES = Object.fromEntries(SLOT_GROUPS.flatMap((group) => group.slots.map((slot) => [slot.hash, slot.name])));
 
 /** An instanced item and where it currently is ("vault" or a character id). */
 interface OwnedItem {
@@ -63,7 +42,6 @@ interface LoadoutEditorModalProps {
   onClose: () => void;
 }
 
-const plural = (count: number, word: string) => `${count} ${word}${count > 1 ? "s" : ""}`;
 
 // Item tiles open their own tooltip and context menu; inside the editor a click only selects
 const blockItemActions = {
@@ -101,7 +79,8 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
   } = useDefinitions();
   const { move } = useTransferItem();
   const { addNotification } = useNotifications();
-  const { showTooltip, hideTooltip } = useItemTooltipActions();
+  const { showTooltip, hideTooltip, scheduleHide } = useItemTooltipActions();
+  const t = useT();
 
   const loadout = characterLoadouts[characterId]?.loadouts[loadoutIndex];
   // Same rule as the loadout grid: a slot without an icon is empty
@@ -159,7 +138,7 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
   const [identifiers, setIdentifiers] = useState(initialIdentifiers);
   const [activeSlot, setActiveSlot] = useState<number | null>(null);
   // "config" is the mod editor for weapons and armor, the subclass editor for the subclass
-  const [panel, setPanel] = useState<"items" | "perks" | "config">("items");
+  const [panel, setPanel] = useState<"items" | "perks" | "config" | "cosmetics">("items");
   const [search, setSearch] = useState("");
   // Plugs (mods, abilities, aspects...) picked in the editor, by item instance id then socket index
   const [plugChanges, setPlugChanges] = useState<Record<string, Record<number, number>>>({});
@@ -168,6 +147,13 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
   const [error, setError] = useState<string>();
 
   const isSubclass = (item: Item) => slotOf(item) === EQUIPMENT_SLOTS.SUBCLASS;
+  const isArtifact = (item: Item) => slotOf(item) === EQUIPMENT_SLOTS.ARTIFACT;
+  const artifactSocketsOf = (item: Item) => getEditableArtifactSockets(itemDefinitions[item.itemHash], {
+    itemInstanceId: item.itemInstanceId,
+    characterId,
+    itemComponents,
+    plugSets,
+  }).tiers.flatMap((tier) => tier.socketIndexes);
   const subclassSocketsOf = (item: Item) => getEditableSubclassSockets(itemDefinitions[item.itemHash], {
     itemInstanceId: item.itemInstanceId,
     characterId,
@@ -177,9 +163,12 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
   });
   const editableSocketsOf = (item: Item) => isSubclass(item)
     ? subclassSocketsOf(item).groups.flatMap((group) => group.socketIndexes)
+    : isArtifact(item)
+    ? artifactSocketsOf(item)
     : [
       ...getModSockets(itemDefinitions[item.itemHash], itemDefinitions).map((socket) => socket.socketIndex),
       ...getPerkSockets(itemDefinitions[item.itemHash], item.itemInstanceId, itemComponents),
+      ...getCosmeticSockets(itemDefinitions[item.itemHash], item.itemInstanceId, itemComponents).map((socket) => socket.socketIndex),
     ];
 
   // Plugs an item gets in this loadout: the ones the loadout records, else the ones it has now
@@ -218,13 +207,11 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
       const { groups } = subclassSocketsOf(item);
       return planSubclassChanges(definition, groups, current.map((socket) => socket.plugHash), desired, getFragmentCapacity(groups, desired, itemDefinitions));
     }
+    if (isArtifact(item) && definition) {
+      return planArtifactChanges(definition, artifactSocketsOf(item), current.map((socket) => socket.plugHash), desired);
+    }
 
-    const costOf = (plugHash?: number) => getEnergyCost(plugHash ? itemDefinitions[plugHash] : undefined);
-    return Object.entries(desired)
-      .map(([socketIndex, plugHash]) => ({ socketIndex: Number(socketIndex), plugHash }))
-      .filter(({ socketIndex, plugHash }) => current[socketIndex]?.plugHash !== plugHash)
-      // Swaps that free energy go first, so the costly ones always have room
-      .sort((a, b) => (costOf(a.plugHash) - costOf(current[a.socketIndex]?.plugHash)) - (costOf(b.plugHash) - costOf(current[b.socketIndex]?.plugHash)));
+    return planModChanges(current.map((socket) => socket.plugHash), desired, itemDefinitions);
   };
 
   const armorEnergyUsed = (instanceId: string) => {
@@ -242,7 +229,7 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
   };
   const colorPath = loadoutColorDefinitions[effective.colorHash]?.colorImagePath;
   const iconPath = loadoutIconDefinitions[effective.iconHash]?.iconImagePath;
-  const loadoutName = loadoutNameDefinitions[effective.nameHash]?.name ?? `Loadout ${loadoutIndex + 1}`;
+  const loadoutName = loadoutNameDefinitions[effective.nameHash]?.name ?? t.editor.defaultName(loadoutIndex + 1);
 
   const chosenIds = LOADOUT_SLOTS.map((slot) => selection[slot]).filter((id): id is string => !!id);
   const itemsChanged = isNew || LOADOUT_SLOTS.some((slot) => selection[slot] !== initialSelection[slot]);
@@ -296,8 +283,8 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
     && profileInventory.filter((item) => item.bucketHash === BUCKETS.GENERAL).length >= vaultCapacity;
 
   const sourceLabel = ({ location }: OwnedItem) => location === "vault"
-    ? "vault"
-    : classDefinitions[characters[location]?.classHash]?.displayProperties.name ?? "another character";
+    ? t.editor.vault
+    : classDefinitions[characters[location]?.classHash]?.displayProperties.name ?? t.editor.anotherCharacter;
 
   // Armor stats of the loadout (with its mods and fragments) next to what the character wears now
   const loadoutStats = sumStats([
@@ -318,14 +305,14 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
   const nameOf = (itemHash?: number) => itemDefinitions[itemHash ?? 0]?.displayProperties.name;
   // The first problem that blocks the save; each message is only built when its check fails
   const validationError = ([
-    [countExotics(WEAPON_SLOTS) > 1, () => "Only one exotic weapon can be equipped at a time."],
-    [countExotics(ARMOR_SLOTS) > 1, () => "Only one exotic armor piece can be equipped at a time."],
-    [!!overEnergyId, () => `Not enough energy for these mods on ${definitionOf(overEnergyId)?.displayProperties.name ?? "an armor piece"}.`],
-    [fragmentOverflow !== undefined, () => `Your aspects only allow ${fragmentOverflow} fragments.`],
-    [!!fullSlot, () => `Your ${SLOT_NAMES[fullSlot ?? 0]} inventory is full on this character: make room first.`],
-    [vaultFull, () => "Your vault is full: items from other characters have to go through it."],
-    [!!paidSwap, () => `${nameOf(paidSwap?.plugHash) ?? "A plug"} costs materials on ${nameOf(paidSwap?.item.itemHash) ?? "an item"}: apply it in game first.`],
-    [!effective.colorHash || !effective.iconHash || !effective.nameHash, () => "Loadout names, colors and icons are still loading."],
+    [countExotics(WEAPON_SLOTS) > 1, () => t.editor.oneExoticWeapon],
+    [countExotics(ARMOR_SLOTS) > 1, () => t.editor.oneExoticArmor],
+    [!!overEnergyId, () => t.editor.notEnoughEnergy(definitionOf(overEnergyId)?.displayProperties.name)],
+    [fragmentOverflow !== undefined, () => t.editor.tooManyFragments(fragmentOverflow ?? 0)],
+    [!!fullSlot, () => t.editor.slotFull(t.editor.slots[SLOT_KEYS[fullSlot ?? 0]])],
+    [vaultFull, () => t.editor.vaultFull],
+    [!!paidSwap, () => t.editor.paidPlug(nameOf(paidSwap?.plugHash) ?? t.editor.aPlug, nameOf(paidSwap?.item.itemHash) ?? t.editor.anItem)],
+    [!effective.colorHash || !effective.iconHash || !effective.nameHash, () => t.editor.stillLoading],
   ] as const).find(([failed]) => failed)?.[1]();
 
   const saving = savingStep !== null;
@@ -347,14 +334,16 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
   };
 
   const activeOwned = activeSlot !== null && selection[activeSlot] ? ownedItems.get(selection[activeSlot]) : undefined;
-  // Subclass: pick it, then its abilities. Weapons: item, perks, mods. Armor: item, mods
+  // Subclass: pick it, then its abilities. Artifact: pick it, then its perks. Weapons: item, perks, mods, cosmetics. Armor: item, mods, cosmetics
   const tabs: { id: typeof panel; label: string }[] = !activeOwned
     ? []
     : activeSlot === EQUIPMENT_SLOTS.SUBCLASS
-      ? [{ id: "items", label: "Subclasses" }, { id: "config", label: "Abilities" }]
+      ? [{ id: "items", label: t.editor.tabs.subclasses }, { id: "config", label: t.editor.tabs.abilities }]
+      : activeSlot === EQUIPMENT_SLOTS.ARTIFACT
+      ? [{ id: "items", label: t.editor.tabs.artifacts }, { id: "config", label: t.editor.tabs.perks }]
       : WEAPON_SLOTS.includes(activeSlot ?? 0)
-        ? [{ id: "items", label: "Items" }, { id: "perks", label: "Perks" }, { id: "config", label: "Mods" }]
-        : [{ id: "items", label: "Items" }, { id: "config", label: "Mods" }];
+        ? [{ id: "items", label: t.editor.tabs.items }, { id: "perks", label: t.editor.tabs.perks }, { id: "config", label: t.editor.tabs.mods }, { id: "cosmetics", label: t.editor.tabs.cosmetics }]
+        : [{ id: "items", label: t.editor.tabs.items }, { id: "config", label: t.editor.tabs.mods }, { id: "cosmetics", label: t.editor.tabs.cosmetics }];
   const shownPanel = tabs.some((tab) => tab.id === panel) ? panel : "items";
 
   const candidates = useMemo(() => {
@@ -365,8 +354,8 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
       .filter(({ item, location }) => {
         const definition = itemDefinitions[item.itemHash];
         if (!definition || definition.inventory?.bucketTypeHash !== activeSlot) return false;
-        // Subclasses never leave their character
-        if (activeSlot === EQUIPMENT_SLOTS.SUBCLASS && location !== characterId) return false;
+        // Subclasses and artifacts never leave their character
+        if ((activeSlot === EQUIPMENT_SLOTS.SUBCLASS || activeSlot === EQUIPMENT_SLOTS.ARTIFACT) && location !== characterId) return false;
         if (definition.classType !== undefined && definition.classType !== ANY_CLASS && definition.classType !== classType) return false;
         return !query || definition.displayProperties.name.toLowerCase().includes(query);
       })
@@ -374,55 +363,27 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
   }, [activeSlot, search, ownedItems, itemDefinitions, itemComponents, characterId, classType]);
 
   // Item tooltips open on hover (a click selects) and stay open while the pointer is on the tile or the tooltip
-  const hoveredTileRef = useRef<HTMLElement | null>(null);
-  const [tooltipOpen, setTooltipOpen] = useState(false);
-
   const openTooltip = (owned: OwnedItem, tile: HTMLElement) => {
     const definition = itemDefinitions[owned.item.itemHash];
     if (!definition || saving) return;
-    const rect = tile.getBoundingClientRect();
-    hoveredTileRef.current = tile;
+    const { left, top, right, bottom } = tile.getBoundingClientRect();
     showTooltip({
       item: definition,
       itemInstanceId: owned.item.itemInstanceId,
       characterId,
-      armor: ARMOR_SLOTS.includes(slotOf(owned.item) ?? 0),
       state: owned.item.state,
       // No transfer buttons: the editor decides where items go
       drawTransfert: false,
-      x: rect.right + TOOLTIP_WIDTH + 8 > window.innerWidth ? rect.left - TOOLTIP_WIDTH - 4 : rect.right + 4,
-      y: rect.top,
+      anchor: { left, top, right, bottom },
+      anchorElement: tile,
     });
-    setTooltipOpen(true);
   };
-
-  useEffect(() => {
-    if (!tooltipOpen) return;
-    const isOver = (element: Element | null, e: MouseEvent) => {
-      if (!element) return false;
-      const rect = element.getBoundingClientRect();
-      return e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom;
-    };
-    const handleMouseMove = (e: MouseEvent) => {
-      if (isOver(hoveredTileRef.current, e) || isOver(document.querySelector(".item-tooltip"), e)) return;
-      hideTooltip();
-      setTooltipOpen(false);
-    };
-    document.addEventListener("mousemove", handleMouseMove);
-    return () => document.removeEventListener("mousemove", handleMouseMove);
-  }, [tooltipOpen, hideTooltip]);
 
   // Never leave a tooltip behind when the editor closes
   useEffect(() => () => hideTooltip(), [hideTooltip]);
 
   // Escape closes the editor, unless a save is running
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !saving) onClose();
-    };
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [saving, onClose]);
+  useModalKeys(onClose, { canClose: !saving });
 
   const equipAll = async (instanceIds: string[]) => {
     // Exotics go last, so whatever exotic they replace is already unequipped
@@ -430,8 +391,8 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
     const results = await equipItems(user.membershipType, characterId, ordered);
     const failed = results.filter((result) => result.equipStatus !== 1);
     if (failed.length > 0) {
-      const failedNames = failed.map((result) => definitionOf(result.itemInstanceId)?.displayProperties.name ?? "an item");
-      throw new Error(`Could not equip ${failedNames.join(", ")}.`);
+      const failedNames = failed.map((result) => definitionOf(result.itemInstanceId)?.displayProperties.name ?? t.editor.anItem);
+      throw new Error(t.editor.couldNotEquip(failedNames.join(", ")));
     }
   };
 
@@ -440,9 +401,9 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
       try {
         await insertSocketPlugFree(user.membershipType, characterId, item.itemInstanceId, socketIndex, plugHash);
       } catch (modError) {
-        const modName = itemDefinitions[plugHash]?.displayProperties.name ?? "a mod";
-        const itemName = itemDefinitions[item.itemHash]?.displayProperties.name ?? "an item";
-        throw new Error(`Could not apply ${modName} on ${itemName}: ${modError instanceof Error ? modError.message : "unknown error"}`);
+        const modName = itemDefinitions[plugHash]?.displayProperties.name ?? t.editor.aMod;
+        const itemName = itemDefinitions[item.itemHash]?.displayProperties.name ?? t.editor.anItem;
+        throw new Error(t.editor.couldNotApply(modName, itemName, modError instanceof Error ? modError.message : t.editor.unknownError));
       }
     }
   };
@@ -452,11 +413,10 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
     setError(undefined);
 
     hideTooltip();
-    setTooltipOpen(false);
 
     try {
       if (!gearChanged) {
-        setSavingStep("Saving loadout...");
+        setSavingStep(t.editor.saving);
         await updateLoadoutIdentifiers(user.membershipType, characterId, loadoutIndex, effective);
         updateLoadoutLocally(characterId, loadoutIndex, { ...loadout, ...effective });
       } else {
@@ -468,23 +428,23 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
           .map((item) => item.itemInstanceId);
 
         // Bungie can only save what the character has equipped: equip the selection, snapshot it, then put the gear back
-        setSavingStep("Moving items to your character...");
+        setSavingStep(t.editor.movingItems);
         for (const { item, location } of chosen) {
           if (location !== characterId) {
             await move({ itemHash: item.itemHash, itemInstanceId: item.itemInstanceId, toId: characterId });
           }
         }
 
-        setSavingStep("Equipping items...");
+        setSavingStep(t.editor.equippingItems);
         await equipAll(chosen.map(({ item }) => item.itemInstanceId));
 
         // Puts the loadout's mods and subclass setup (recorded or picked here) on the items, so the snapshot keeps them
-        setSavingStep("Applying perks, mods and subclass setup...");
+        setSavingStep(t.editor.applyingPlugs);
         for (const { item } of chosen) {
           await applyPlugs(item);
         }
 
-        setSavingStep("Saving loadout...");
+        setSavingStep(t.editor.saving);
         await snapshotLoadout(user.membershipType, characterId, loadoutIndex, effective);
         updateLoadoutLocally(characterId, loadoutIndex, {
           ...effective,
@@ -492,12 +452,12 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
         });
 
         if (restoreGear) {
-          setSavingStep("Re-equipping your gear...");
+          setSavingStep(t.editor.reequipping);
           try {
             await equipAll(previouslyEquipped);
           } catch (restoreError) {
             addNotification(
-              "Loadout saved, but your previous gear could not be re-equipped",
+              t.editor.restoreFailed,
               restoreError instanceof Error ? restoreError.message : "",
               "error",
               "",
@@ -510,11 +470,11 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
         await refresh();
       }
 
-      addNotification("Loadout saved", loadoutName, "success", iconPath ? `https://www.bungie.net${iconPath}` : "", 5000);
+      addNotification(t.editor.saved, loadoutName, "success", iconPath ? `https://www.bungie.net${iconPath}` : "", 5000);
       setSavingStep(null);
       onClose();
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : "Failed to save the loadout.");
+      setError(saveError instanceof Error ? saveError.message : t.editor.saveFailed);
       setSavingStep(null);
       // Some steps may have gone through before the failure
       refresh();
@@ -530,7 +490,6 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
         itemInstanceId={item.itemInstanceId}
         state={item.state}
         characterId={characterId}
-        armor={ARMOR_SLOTS.includes(slotOf(item) ?? 0)}
         ornamentItem={item.overrideStyleItemHash ? itemDefinitions[item.overrideStyleItemHash] : undefined}
         perks={itemComponents.perks[item.itemInstanceId]}
         stats={itemComponents.stats[item.itemInstanceId]}
@@ -554,15 +513,16 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
             {iconPath && <Image src={`https://www.bungie.net${iconPath}`} alt="" fill sizes="40px" />}
           </div>
           <div className="flex flex-col min-w-0">
-            <span className="text-xl text-white font-semibold truncate">{isNew ? "New loadout" : "Edit loadout"}</span>
-            <span className="text-sm text-gray-500 truncate">{loadoutName} · Slot {loadoutIndex + 1}</span>
+            <span className="text-xl text-white font-semibold truncate">{isNew ? t.editor.newLoadout : t.editor.editLoadout}</span>
+            <span className="text-sm text-gray-500 truncate">{loadoutName} · {t.editor.slot(loadoutIndex + 1)}</span>
           </div>
         </div>
         <button
           onClick={onClose}
           disabled={saving}
           className="p-2 text-gray-500 hover:text-white transition-colors rounded-full hover:bg-white/10 disabled:opacity-40"
-          title="Close (Esc)"
+          title={t.common.closeEsc}
+          aria-label={t.common.close}
         >
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18" /><path d="M6 6l12 12" /></svg>
         </button>
@@ -572,7 +532,7 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
       <div className={`flex-1 min-h-0 grid grid-cols-1 grid-rows-[auto_minmax(0,1fr)] lg:grid-rows-1 lg:grid-cols-[minmax(0,480px)_1fr] ${saving ? "pointer-events-none opacity-60" : ""}`}>
         <div className="flex flex-col gap-6 p-6 overflow-y-auto custom-scrollbar lg:border-r border-white/10">
           <label className="flex flex-col gap-2">
-            <span className={sectionLabel}>Name</span>
+            <span className={sectionLabel}>{t.editor.name}</span>
             <select
               value={effective.nameHash}
               onChange={(e) => setIdentifiers((prev) => ({ ...prev, nameHash: Number(e.target.value) }))}
@@ -585,14 +545,14 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
           </label>
 
           <div className="flex flex-col gap-2">
-            <span className={sectionLabel}>Color</span>
+            <span className={sectionLabel}>{t.editor.color}</span>
             <div className="flex flex-wrap gap-1.5">
               {colors.map((color) => (
                 <button
                   key={color.hash}
                   onClick={() => setIdentifiers((prev) => ({ ...prev, colorHash: color.hash }))}
                   className={`relative size-9 border-2 transition-transform hover:scale-110 ${effective.colorHash === color.hash ? "border-white" : "border-transparent"}`}
-                  title={`Color ${color.index + 1}`}
+                  title={t.editor.colorNumber(color.index + 1)}
                 >
                   <Image src={`https://www.bungie.net${color.colorImagePath}`} alt="" fill sizes="36px" />
                 </button>
@@ -601,14 +561,14 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
           </div>
 
           <div className="flex flex-col gap-2">
-            <span className={sectionLabel}>Icon</span>
+            <span className={sectionLabel}>{t.editor.icon}</span>
             <div className="flex flex-wrap gap-1.5">
               {icons.map((icon) => (
                 <button
                   key={icon.hash}
                   onClick={() => setIdentifiers((prev) => ({ ...prev, iconHash: icon.hash }))}
                   className={`relative size-9 border-2 transition-transform hover:scale-110 ${effective.iconHash === icon.hash ? "border-white" : "border-transparent"}`}
-                  title={`Icon ${icon.index + 1}`}
+                  title={t.editor.iconNumber(icon.index + 1)}
                 >
                   {colorPath && <Image src={`https://www.bungie.net${colorPath}`} alt="" fill sizes="36px" />}
                   <Image src={`https://www.bungie.net${icon.iconImagePath}`} alt="" fill sizes="36px" />
@@ -619,8 +579,8 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
 
           <div className="flex flex-wrap gap-x-6 gap-y-4">
             {SLOT_GROUPS.map((group) => (
-              <div key={group.label} className="flex flex-col gap-2">
-                <span className={sectionLabel}>{group.label}</span>
+              <div key={group.id} className="flex flex-col gap-2">
+                <span className={sectionLabel}>{t.editor.groups[group.id]}</span>
                 <div className="flex gap-2">
                   {group.slots.map((slot) => {
                     const owned = selection[slot.hash] ? ownedItems.get(selection[slot.hash]) : undefined;
@@ -634,14 +594,15 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
                           setSearch("");
                         }}
                         onMouseEnter={(e) => owned && openTooltip(owned, e.currentTarget)}
-                        title={owned ? undefined : slot.name}
+                        onMouseLeave={scheduleHide}
+                        title={owned ? undefined : t.editor.slots[slot.key]}
                         className={`relative size-14 ring-offset-2 ring-offset-[#141414] transition-shadow ${isActive ? "ring-2 ring-[#7e57c2]" : "hover:ring-2 hover:ring-white/30"}`}
                       >
                         {owned ? renderItem(owned, 56) : (
-                          <span className="flex size-14 items-center justify-center border-2 border-dashed border-white/20 text-[10px] text-gray-500">{slot.name}</span>
+                          <span className="flex size-14 items-center justify-center border-2 border-dashed border-white/20 text-[10px] text-gray-500">{t.editor.slots[slot.key]}</span>
                         )}
                         {(selection[slot.hash] !== initialSelection[slot.hash] || hasPlugChanges(selection[slot.hash])) && (
-                          <span className="absolute -top-1 -right-1 size-2.5 rounded-full bg-[#7e57c2]" title="Changed" />
+                          <span className="absolute -top-1 -right-1 size-2.5 rounded-full bg-[#7e57c2]" title={t.editor.changed} />
                         )}
                       </button>
                     );
@@ -658,7 +619,7 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
         <div className="flex flex-col min-h-0 p-6 gap-4 border-t lg:border-t-0 border-white/10">
           {activeSlot !== null && (
             <div className="flex items-center gap-4 shrink-0">
-              <span className="text-lg font-medium text-white">{SLOT_NAMES[activeSlot]}</span>
+              <span className="text-lg font-medium text-white">{t.editor.slots[SLOT_KEYS[activeSlot]]}</span>
               {tabs.length > 0 && (
                 <div className="flex rounded-md bg-white/5 p-0.5">
                   {tabs.map((tab) => (
@@ -677,7 +638,7 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
 
           {activeSlot === null ? (
             <div className="flex flex-1 items-center justify-center text-sm text-gray-500 text-center">
-              Select a slot to choose its item, perks, mods or subclass setup.
+              {t.editor.selectSlot}
             </div>
           ) : shownPanel === "perks" && activeOwned ? (
             <PerkEditor
@@ -690,6 +651,25 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
           ) : shownPanel === "config" && activeOwned && isSubclass(activeOwned.item) ? (
             <SubclassEditor
               key={activeOwned.item.itemInstanceId}
+              itemHash={activeOwned.item.itemHash}
+              itemInstanceId={activeOwned.item.itemInstanceId}
+              characterId={characterId}
+              plugs={desiredPlugs(activeOwned.item.itemInstanceId)}
+              onChange={(socketIndex, plugHash) => changePlug(activeOwned.item.itemInstanceId, socketIndex, plugHash)}
+            />
+          ) : shownPanel === "config" && activeOwned && isArtifact(activeOwned.item) ? (
+            <ArtifactEditor
+              key={activeOwned.item.itemInstanceId}
+              itemHash={activeOwned.item.itemHash}
+              itemInstanceId={activeOwned.item.itemInstanceId}
+              characterId={characterId}
+              plugs={desiredPlugs(activeOwned.item.itemInstanceId)}
+              onChange={(socketIndex, plugHash) => changePlug(activeOwned.item.itemInstanceId, socketIndex, plugHash)}
+            />
+          ) : shownPanel === "cosmetics" && activeOwned ? (
+            <ModEditor
+              key={`${activeOwned.item.itemInstanceId}-cosmetics`}
+              kind="cosmetics"
               itemHash={activeOwned.item.itemHash}
               itemInstanceId={activeOwned.item.itemInstanceId}
               characterId={characterId}
@@ -712,15 +692,15 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
                   autoFocus
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search by name..."
+                  placeholder={t.editor.searchPlaceholder}
                   className="grow max-w-md bg-[#2a2a2a] border border-white/10 rounded-md px-3 py-1.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[#7e57c2]"
                 />
-                <span className="ml-auto text-xs text-gray-500 shrink-0">{candidates.length} items</span>
+                <span className="ml-auto text-xs text-gray-500 shrink-0">{t.editor.itemCount(candidates.length)}</span>
               </div>
               {candidates.length === 0 ? (
-                <div className="flex flex-1 items-center justify-center text-sm text-gray-500">No item available for this slot.</div>
+                <div className="flex flex-1 items-center justify-center text-sm text-gray-500">{t.editor.noItem}</div>
               ) : (
-                <div className="grid grid-cols-[repeat(auto-fill,minmax(64px,1fr))] content-start gap-2 flex-1 min-h-0 overflow-y-auto custom-scrollbar pr-1">
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(64px,1fr))] content-start gap-2 flex-1 min-h-0 overflow-y-auto custom-scrollbar p-1">
                   {candidates.map((owned) => {
                     const id = owned.item.itemInstanceId;
                     const isSelected = selection[activeSlot] === id;
@@ -730,6 +710,7 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
                         {...blockItemActions}
                         onClick={() => setSelection((prev) => ({ ...prev, [activeSlot]: id }))}
                         onMouseEnter={(e) => openTooltip(owned, e.currentTarget)}
+                        onMouseLeave={scheduleHide}
                         className={`flex items-center justify-center rounded-md p-1 transition-colors ${isSelected ? "bg-[#7e57c2]/30 ring-1 ring-[#7e57c2]" : "hover:bg-white/10"}`}
                       >
                         {renderItem(owned, 56)}
@@ -750,19 +731,21 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
             <>
               {/* Bungie only saves equipped gear, so the save equips the loadout first */}
               <div className="flex flex-col gap-1 text-xs text-gray-400">
-                <span className="uppercase tracking-wider text-gray-500">On save</span>
+                <span className="uppercase tracking-wider text-gray-500">{t.editor.onSave}</span>
                 <ul className="list-disc pl-4 space-y-0.5">
                   {incoming.length > 0 && (
                     <li>
-                      Move {plural(incoming.length, "item")} to this character:{" "}
-                      {incoming.map((owned) => `${itemDefinitions[owned.item.itemHash]?.displayProperties.name ?? "item"} (${sourceLabel(owned)})`).join(", ")}
+                      {t.editor.moveItems(
+                        incoming.length,
+                        incoming.map((owned) => `${itemDefinitions[owned.item.itemHash]?.displayProperties.name ?? t.notifications.item} (${sourceLabel(owned)})`).join(", ")
+                      )}
                     </li>
                   )}
-                  {toEquip.length > 0 && <li>Equip {plural(toEquip.length, "item")}</li>}
+                  {toEquip.length > 0 && <li>{t.editor.equipItems(toEquip.length)}</li>}
                   {plannedSwaps.length > 0 && (
-                    <li>Apply {plural(plannedSwaps.length, "perk, mod or subclass change")}: they stay on the items</li>
+                    <li>{t.editor.applyChanges(plannedSwaps.length)}</li>
                   )}
-                  <li>Record the loadout{restoreGear && toEquip.length > 0 ? ", then re-equip your current gear" : ""}</li>
+                  <li>{restoreGear && toEquip.length > 0 ? t.editor.recordLoadoutAndRestore : t.editor.recordLoadout}</li>
                 </ul>
               </div>
               {toEquip.length > 0 && (
@@ -774,7 +757,7 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
                     disabled={saving}
                     className="accent-[#7e57c2]"
                   />
-                  Re-equip my current gear afterwards
+                  {t.editor.restoreGear}
                 </label>
               )}
             </>
@@ -794,16 +777,16 @@ const LoadoutEditorModal = ({ characterId, loadoutIndex, onClose }: LoadoutEdito
             onClick={handleReset}
             disabled={saving || !hasEdits}
             className="px-4 py-2 bg-gray-700 text-white rounded hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed"
-            title="Undo every change made in the editor"
+            title={t.editor.resetTitle}
           >
-            Reset
+            {t.common.reset}
           </button>
           <button
             onClick={handleSave}
             disabled={!canSave}
             className="px-5 py-2 bg-[#7e57c2] text-white rounded hover:bg-[#6a46ad] disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            Save
+            {t.common.save}
           </button>
         </div>
       </footer>

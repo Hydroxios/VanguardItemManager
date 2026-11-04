@@ -1,6 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+    // The root layout reads the changelog files; ship them with any page rendered on the server at request time
+    outputFileTracingIncludes: {
+        "/*": ["./CHANGELOG*.md"],
+    },
     images: {
         remotePatterns: [
             {
