@@ -199,6 +199,7 @@ const CharacterView: React.FC<CharacterViewProps> = ({
       const typing = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement
       if (e.key === "e" && !searchOpen && !isVaultOpen && !typing) {
         setGearEditorOpen(true)
+      }
       if (e.key === "o" && !searchOpen && !isVaultOpen) {
         setOptimizerOpen(true)
         hideTooltip();
@@ -418,13 +419,15 @@ const CharacterView: React.FC<CharacterViewProps> = ({
               setGearEditorOpen(true);
             }}
           >
-            <DestinyIcon icon="" />
-            {t.character.gear}
-              setOptimizerOpen(true);
-            }}
-          >
             <DestinyIcon icon="" />
             {t.character.optimize}
+          </button>
+          <button
+            className="flex flex-row items-center gap-2 p-2 hover:shadow-lg hover:bg-gray-300/10 transition-all duration-300"
+            onClick={() => setOptimizerOpen(true)}
+          >
+            <DestinyIcon icon="" />
+            {t.character.gear}
           </button>
           <button
             className="flex flex-row items-center gap-2 p-2 hover:shadow-lg hover:bg-gray-300/10 transition-all duration-300"
