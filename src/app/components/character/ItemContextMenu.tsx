@@ -14,6 +14,8 @@ interface ItemContextMenuProps {
     characterId: string;
     onClose: () => void;
     position: { x: number; y: number };
+    /** Shown as an "Edit mods" entry for weapons and armor */
+    onEditMods?: () => void;
 }
 
 const ItemContextMenu = ({
@@ -22,6 +24,7 @@ const ItemContextMenu = ({
     characterId,
     onClose,
     position,
+    onEditMods,
 }: ItemContextMenuProps) => {
     const menuRef = useRef<HTMLDivElement>(null);
     const { characters } = useProfile();
@@ -64,6 +67,23 @@ const ItemContextMenu = ({
                 {t.item.fastTransfer}
             </div>
             <div className="py-1">
+                {onEditMods && (
+                    <>
+                        <button
+                            className="flex items-center w-full text-left px-3 py-2 text-sm text-white hover:bg-[#3a3a50] transition-colors"
+                            onClick={() => {
+                                onClose();
+                                onEditMods();
+                            }}
+                        >
+                            <svg className="h-5 w-5 mr-2 text-[#b39ddb]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                                <path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                            </svg>
+                            {t.item.editMods}
+                        </button>
+                        <div className="border-t border-gray-700 my-1"></div>
+                    </>
+                )}
                 {Object.values(characters)
                     .filter((c) => c.characterId !== location)
                     .map((c) => (

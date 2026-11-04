@@ -139,3 +139,20 @@ export const getPerkSockets = (definition: ItemDefinition | undefined, itemInsta
         .flatMap((category) => category.socketIndexes)
         .filter((socketIndex) => sockets[socketIndex]?.isVisible !== false && getPerkOptions(socketIndex, itemInstanceId, itemComponents).length > 1);
 };
+
+/**
+ * The insertions that give an item's mod, perk and cosmetic sockets their desired plugs, in an order the game accepts:
+ * swaps that free energy go first, so the costly ones always have room.
+ */
+export const planModChanges = (
+    currentPlugs: (number | undefined)[],
+    desired: Record<number, number>,
+    itemDefinitions: ItemDefinitions
+): { socketIndex: number, plugHash: number }[] => {
+    const costOf = (plugHash?: number) => getEnergyCost(plugHash ? itemDefinitions[plugHash] : undefined);
+    const delta = ({ socketIndex, plugHash }: { socketIndex: number, plugHash: number }) => costOf(plugHash) - costOf(currentPlugs[socketIndex]);
+    return Object.entries(desired)
+        .map(([socketIndex, plugHash]) => ({ socketIndex: Number(socketIndex), plugHash }))
+        .filter(({ socketIndex, plugHash }) => currentPlugs[socketIndex] !== plugHash)
+        .sort((a, b) => delta(a) - delta(b));
+};

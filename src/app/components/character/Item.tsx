@@ -5,6 +5,7 @@ import { useItemTooltipActions, useItemTooltipTrigger } from "@/lib/hooks/useIte
 import { useDefinitions } from "@/lib/hooks/useDefinitions";
 import { useProfile } from "@/lib/hooks/useProfile";
 import ItemContextMenu from "./ItemContextMenu";
+import ModEditorModal from "./ModEditorModal";
 import Image from "next/image";
 import { ItemDefinition, ItemPerks, ItemStats } from "@/lib/types";
 import { ITEM_TYPES } from "@/lib/constants";
@@ -41,6 +42,7 @@ const Item = ({
 
   const { closeTooltip } = useItemTooltipActions();
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+  const [editingMods, setEditingMods] = useState(false);
   const t = useT();
 
   const { itemComponents } = useProfile()
@@ -48,6 +50,8 @@ const Item = ({
 
   // Subclass icons are diamonds: no square frame around them
   const isSubclass = itemDefinitions[itemHash]?.itemType === ITEM_TYPES.SUBCLASS;
+  const itemType = itemDefinitions[itemHash]?.itemType;
+  const canEditMods = !!itemInstanceId && (itemType === ITEM_TYPES.WEAPON || itemType === ITEM_TYPES.ARMOR);
   const border = isSubclass ? "none" : "2px solid " + (state & 4 && !(state & 8) ? "#FFBB00" : state & 8 ? "red" : "white");
 
   const tooltipTrigger = useItemTooltipTrigger(() => ({
@@ -89,6 +93,14 @@ const Item = ({
           characterId={characterId}
           onClose={() => setContextMenu(null)}
           position={contextMenu}
+          onEditMods={canEditMods ? () => setEditingMods(true) : undefined}
+        />
+      )}
+      {editingMods && (
+        <ModEditorModal
+          itemHash={itemHash}
+          itemInstanceId={itemInstanceId}
+          onClose={() => setEditingMods(false)}
         />
       )}
       <div

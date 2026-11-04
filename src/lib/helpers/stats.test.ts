@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ARMOR_STATS } from "@/lib/constants";
 import { components, definition, definitions } from "@/test/fixtures";
-import { armorStatsWithPlugs, plugStatBonus, plugsStats, statsWithSubclassChange, subclassPlugStats, sumStats } from "./stats";
+import { armorStatsWithPlugs, plugStatBonus, plugsStats, statsWithChange, statsWithSubclassChange, subclassPlugStats, sumStats } from "./stats";
 
 const { MOBILITY, RESILIENCE, RECOVERY, DISCIPLINE } = ARMOR_STATS;
 const TITAN = 0, HUNTER = 1;
@@ -103,5 +103,13 @@ describe("statsWithSubclassChange", () => {
     it("leaves the other stats alone, and doesn't add armor stats the character didn't have", () => {
         const stats = { [POWER]: 2010, [DISCIPLINE]: 60 };
         expect(statsWithSubclassChange(stats, [], [3], defs, TITAN)).toEqual({ [POWER]: 2010, [DISCIPLINE]: 60 });
+    });
+});
+
+describe("statsWithChange", () => {
+    it("swaps the old part of the stats for the new one, within 0-200, and keeps other stats", () => {
+        const stats = { [MOBILITY]: 100, [RESILIENCE]: 195, [RECOVERY]: 5, 42: 7 };
+        const updated = statsWithChange(stats, { [MOBILITY]: 10, [RECOVERY]: 10 }, { [MOBILITY]: 30, [RESILIENCE]: 20 });
+        expect(updated).toEqual({ [MOBILITY]: 120, [RESILIENCE]: 200, [RECOVERY]: 0, 42: 7 });
     });
 });
