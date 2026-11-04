@@ -14,6 +14,7 @@ import SubclassEditorModal from "./SubclassEditorModal";
 import SubclassSelector from "./SubclassSelector";
 import InventoryCleanerModal from "./InventoryCleanerModal";
 import GearEditorModal from "./GearEditorModal";
+import ArmorOptimizerModal from "./ArmorOptimizerModal";
 import { useDefinitions } from "@/lib/hooks/useDefinitions";
 import { useProfile } from "@/lib/hooks/useProfile";
 import DestinyIcon from "../destiny-ui/DestinyIcon";
@@ -54,6 +55,7 @@ const CharacterView: React.FC<CharacterViewProps> = ({
   const [searchOpen, setSearchOpen] = useState(false)
   const [cleanerOpen, setCleanerOpen] = useState(false)
   const [gearEditorOpen, setGearEditorOpen] = useState(false)
+  const [optimizerOpen, setOptimizerOpen] = useState(false)
   // The subclass being edited, equipped or not
   const [editedSubclass, setEditedSubclass] = useState<EquipmentItem>()
   const { transfer } = useTransferItem();
@@ -197,6 +199,8 @@ const CharacterView: React.FC<CharacterViewProps> = ({
       const typing = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement
       if (e.key === "e" && !searchOpen && !isVaultOpen && !typing) {
         setGearEditorOpen(true)
+      if (e.key === "o" && !searchOpen && !isVaultOpen) {
+        setOptimizerOpen(true)
         hideTooltip();
       }
     }
@@ -211,6 +215,7 @@ const CharacterView: React.FC<CharacterViewProps> = ({
   }, [isVaultOpen, searchOpen, hideTooltip, changeCharacter]);
 
   const closeCleaner = useCallback(() => setCleanerOpen(false), []);
+  const closeOptimizer = useCallback(() => setOptimizerOpen(false), []);
 
   const editSubclass = useCallback((subclass: EquipmentItem) => {
     hideTooltip();
@@ -363,6 +368,10 @@ const CharacterView: React.FC<CharacterViewProps> = ({
         <InventoryCleanerModal characterId={characterId} onClose={closeCleaner} />
       )}
 
+      {optimizerOpen && (
+        <ArmorOptimizerModal characterId={characterId} onClose={closeOptimizer} />
+      )}
+
       <SearchBar open={searchOpen} currentCharacterId={characterId} onClose={() => setSearchOpen(false)} />
 
       {/* Add bottom margin to prevent footer overlap */}
@@ -411,6 +420,11 @@ const CharacterView: React.FC<CharacterViewProps> = ({
           >
             <DestinyIcon icon="" />
             {t.character.gear}
+              setOptimizerOpen(true);
+            }}
+          >
+            <DestinyIcon icon="" />
+            {t.character.optimize}
           </button>
           <button
             className="flex flex-row items-center gap-2 p-2 hover:shadow-lg hover:bg-gray-300/10 transition-all duration-300"
