@@ -16,6 +16,7 @@ Vanguard Item Manager is a custom inventory management application for Destiny 2
 - **Secure Bungie Login**: OAuth with a CSRF-protected `state`; the refresh token is kept in an `httpOnly` cookie and never exposed to client scripts.
 - **Manifest Caching**: Destiny manifest files are cached in the browser between visits and refreshed only when Bungie publishes a new version.
 - **Localization**: The Destiny data can be displayed in English, French, Spanish, German, Italian, Japanese, Russian, Polish or Korean. The interface follows the same choice; it is translated in English and French so far (other languages show it in English), from the dictionaries in `src/lib/i18n`.
+- **What's New**: After an update, a window lists what changed since the last visit. The full history is on the `/changelog` page, linked from the settings (see [Releasing](#-releasing)).
 - **Debug Mode**: Optional debug information, toggled from the settings.
 
 ---
@@ -108,6 +109,17 @@ The CI workflow (`.github/workflows/ci.yml`) runs lint, typecheck, tests and bui
 - Right-click an item to move it to another character or to the vault.
 - Create, edit and equip loadouts for your characters.
 - Open the settings to change the language, toggle debug mode or log out.
+
+---
+
+## 📦 Releasing
+
+The changelog lives in [CHANGELOG.md](CHANGELOG.md), translated in [CHANGELOG.fr.md](CHANGELOG.fr.md). The app reads both files when it is built, so what it shows always matches the deployed code. For each release:
+
+1. Add a `## MAJOR.MINOR.PATCH - YYYY-MM-DD` section at the top of both files, with its changes as `-` items under `### New`, `### Improved` or `### Fixed` (`### Nouveau`, `### Amélioré`, `### Corrigé` in French).
+2. Set the same version in `package.json` (`npm version <version> --no-git-tag-version`).
+
+`npm test` checks that the newest release matches `package.json` and that the French file has the same releases and changes. Players see the new release in the "What's new" window on their next visit.
 
 ---
 

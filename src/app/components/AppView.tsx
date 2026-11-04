@@ -11,6 +11,7 @@ import { useItemTooltip } from "@/lib/hooks/useItemTooltip";
 import { useSettings } from "@/lib/hooks/useSettings";
 import LoadingStatus from "./LoadingStatus";
 import SettingsModal from "./SettingsModal";
+import WhatsNewModal from "./changelog/WhatsNewModal";
 import Image from "next/image";
 import { Alert } from "@/lib/types";
 import { useT } from "@/lib/i18n";
@@ -98,7 +99,8 @@ const AppView = () => {
           </>
         )}
       </div>
-      {/* SettingsModal (new, see implementation) */}
+      {/* The releases since the last visit, once everything is loaded */}
+      <WhatsNewModal enabled={!loadingDefinitions && !loadingProfile && !settingsOpen} />
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} debugMode={debugMode} handleDebugModeChange={handleDebugModeChange} keepOpen={keepOpen} setKeepOpen={setKeepOpen} />
       {alerts.length > 0 && (
         <footer className="p-2 bg-black/50 backdrop-blur-lg text-white w-full text-center mt-2 border-t-2 border-red-500 absolute bottom-10 right-0 shadow-lg" style={{ backdropFilter: 'blur(12px)' }}>

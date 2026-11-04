@@ -7,6 +7,8 @@ import { DebugProvider } from "@/app/components/debug/DebugProvider";
 import { AuthProvider } from "@/lib/hooks/useAuth";
 import MotionPreference from "./components/MotionPreference";
 import DocumentLanguage from "./components/DocumentLanguage";
+import { ChangelogProvider } from "./components/changelog/ChangelogProvider";
+import { readChangelogs } from "@/lib/changelog-files";
 
 
 import { Analytics } from "@vercel/analytics/next"
@@ -38,7 +40,10 @@ export default function RootLayout({
         <NotificationsProvider>
           <AuthProvider>
             <DebugProvider>
-              {children}
+              {/* The changelog files, read while the app is built */}
+              <ChangelogProvider changelogs={readChangelogs()}>
+                {children}
+              </ChangelogProvider>
             </DebugProvider>
           </AuthProvider>
         </NotificationsProvider>
