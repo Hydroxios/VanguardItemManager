@@ -14,7 +14,7 @@ import { useNotifications } from "@/app/components/NotificationsProvider";
 import { collectGear } from "@/lib/helpers/inventory-cleaner";
 import {
     assignMods, Build, collectArmor, ExoticChoice, findStatModPlug, freeEnergyWithoutStatMods, MAX_STAT, MAX_STAT_MODS,
-    optimizeArmor, OptimizerOptions, StatVector,
+    MAX_SETS, optimizeArmor, OptimizerOptions, StatVector,
 } from "@/lib/helpers/armor-optimizer";
 import { ARMOR_STAT_ORDER } from "@/lib/helpers/item-stats";
 import { plugsStats } from "@/lib/helpers/stats";
@@ -28,11 +28,17 @@ interface ArmorOptimizerModalProps {
     onClose: () => void;
 }
 
+interface SetChoice {
+    hash: number
+    count: number
+}
+
 interface SavedOptions {
     minimums: StatVector
     weights: number[]
     exotic: ExoticChoice
-    set?: { hash: number, count: number }
+    /** The set picked in each set field, null when empty */
+    sets: (SetChoice | null)[]
     statMods: number
     applyMods: boolean
 }
@@ -43,12 +49,16 @@ const DEFAULT_OPTIONS: SavedOptions = {
     minimums: new Array(STAT_COUNT).fill(0),
     weights: new Array(STAT_COUNT).fill(1),
     exotic: "any",
+    sets: new Array(MAX_SETS).fill(null),
     statMods: MAX_STAT_MODS,
     applyMods: true,
 };
 
 const sectionLabel = "text-xs uppercase tracking-wider text-gray-400";
 const selectClass = "w-full bg-[#2a2a2a] border border-white/10 rounded-md px-3 py-2 text-sm text-white focus:outline-none focus:border-[#7e57c2]";
+
+const isSetChoice = (value: unknown): value is SetChoice =>
+    typeof (value as SetChoice)?.hash === "number" && typeof (value as SetChoice)?.count === "number";
 
 const isVector = (value: unknown): value is number[] =>
     Array.isArray(value) && value.length === STAT_COUNT && value.every((entry) => typeof entry === "number");
@@ -61,7 +71,11 @@ const loadOptions = (): SavedOptions => {
             minimums: isVector(saved.minimums) ? saved.minimums : DEFAULT_OPTIONS.minimums,
             weights: isVector(saved.weights) ? saved.weights : DEFAULT_OPTIONS.weights,
             exotic: saved.exotic === "none" || typeof saved.exotic === "number" ? saved.exotic : "any",
-            set: typeof saved.set?.hash === "number" && typeof saved.set?.count === "number" ? saved.set : undefined,
+            // Earlier saves held a single set
+            sets: Array.from({ length: MAX_SETS }, (_, i) => {
+                const choice = Array.isArray(saved.sets) ? saved.sets[i] : i === 0 ? saved.set : undefined;
+                return isSetChoice(choice) ? choice : null;
+            }),
             statMods: typeof saved.statMods === "number" ? Math.min(Math.max(saved.statMods, 0), MAX_STAT_MODS) : DEFAULT_OPTIONS.statMods,
             applyMods: saved.applyMods !== false,
         };
@@ -149,11 +163,18 @@ const ArmorOptimizerModal = ({ characterId, onClose }: ArmorOptimizerModalProps)
 
     // Choices of an earlier visit the player no longer has fall back to none
     const exotic = typeof options.exotic === "number" && !exotics.includes(options.exotic) ? "any" : options.exotic;
-    const set = options.set && sets.some((s) => s.hash === options.set!.hash && s.counts.includes(options.set!.count)) ? options.set : undefined;
+    const chosenSets = useMemo(() => options.sets.map((choice) =>
+        choice && sets.some((s) => s.hash === choice.hash && s.counts.includes(choice.count)) ? choice : null), [options.sets, sets]);
 
     const searchOptions: OptimizerOptions = useMemo(
-        () => ({ minimums: options.minimums, weights: options.weights, exotic, set, statMods: options.statMods }),
-        [options.minimums, options.weights, exotic, set, options.statMods]
+        () => ({
+            minimums: options.minimums,
+            weights: options.weights,
+            exotic,
+            sets: chosenSets.filter((choice): choice is SetChoice => choice !== null),
+            statMods: options.statMods,
+        }),
+        [options.minimums, options.weights, exotic, chosenSets, options.statMods]
     );
     // Typing a minimum stays smooth: the search follows once React has time
     const deferredOptions = useDeferredValue(searchOptions);
@@ -418,22 +439,36 @@ const ArmorOptimizerModal = ({ characterId, onClose }: ArmorOptimizerModalProps)
                         </select>
                     </label>
 
-                    <label className="flex flex-col gap-2">
-                        <span className={sectionLabel}>{t.optimizer.armorSet}</span>
-                        <select
-                            value={set ? `${set.hash}:${set.count}` : ""}
-                            onChange={(e) => {
-                                const [hash, count] = e.target.value.split(":").map(Number);
-                                setOptions((prev) => ({ ...prev, set: e.target.value ? { hash, count } : undefined }));
-                            }}
-                            className={selectClass}
-                        >
-                            <option value="">{t.optimizer.noSet}</option>
-                            {sets.flatMap((s) => s.counts.map((count) => (
-                                <option key={`${s.hash}:${count}`} value={`${s.hash}:${count}`}>{s.name} · {t.optimizer.pieces(count)}</option>
-                            )))}
-                        </select>
-                    </label>
+                    <div className="flex flex-col gap-2">
+                        <span className={sectionLabel}>{t.optimizer.armorSets}</span>
+                        {chosenSets.map((choice, index) => {
+                            // The other field's set can't be picked twice, and both sets must fit in the five slots
+                            const others = chosenSets.filter((other, i) => i !== index && other !== null) as SetChoice[];
+                            const slotsLeft = ARMOR_SLOTS.length - others.reduce((total, other) => total + other.count, 0);
+                            return (
+                                <select
+                                    key={index}
+                                    value={choice ? `${choice.hash}:${choice.count}` : ""}
+                                    aria-label={t.optimizer.armorSetNumber(index + 1)}
+                                    onChange={(e) => {
+                                        const [hash, count] = e.target.value.split(":").map(Number);
+                                        setOptions((prev) => ({
+                                            ...prev,
+                                            sets: prev.sets.map((entry, i) => i === index ? (e.target.value ? { hash, count } : null) : entry),
+                                        }));
+                                    }}
+                                    className={selectClass}
+                                >
+                                    <option value="">{t.optimizer.noSet}</option>
+                                    {sets
+                                        .filter((s) => !others.some((other) => other.hash === s.hash))
+                                        .flatMap((s) => s.counts.filter((count) => count <= slotsLeft).map((count) => (
+                                            <option key={`${s.hash}:${count}`} value={`${s.hash}:${count}`}>{s.name} · {t.optimizer.pieces(count)}</option>
+                                        )))}
+                                </select>
+                            );
+                        })}
+                    </div>
 
                     <div className="flex flex-col gap-3">
                         <label className="flex items-center justify-between gap-4">

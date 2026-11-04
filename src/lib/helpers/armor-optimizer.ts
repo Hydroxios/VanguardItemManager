@@ -13,6 +13,8 @@ export const MAX_STAT = 200;
 export const STAT_MOD_VALUE = 10;
 /** One stat mod per armor piece */
 export const MAX_STAT_MODS = ARMOR_SLOTS.length;
+/** Armor set bonuses that can be asked for at once */
+export const MAX_SETS = 2;
 /** Builds kept, the best first */
 export const MAX_BUILDS = 50;
 /** Combinations looked at before giving up, so a huge vault can't freeze the page */
@@ -38,8 +40,8 @@ export interface OptimizerOptions {
     /** How much each stat weighs in the score, 0 to leave it out */
     weights: number[]
     exotic: ExoticChoice
-    /** Armor set whose bonus is wanted, with how many pieces of it */
-    set?: { hash: number, count: number }
+    /** Armor sets whose bonus is wanted (up to two), with how many pieces of each */
+    sets: { hash: number, count: number }[]
     /** Stat mods the optimizer may add to reach the minimums */
     statMods: number
 }
@@ -105,10 +107,11 @@ const dominates = (a: StatVector, b: StatVector) => a.every((value, index) => va
 
 /**
  * Leaves out the pieces another one beats on every stat, as they can't make a better build. Pieces only compete
- * with those that weigh the same on the exotic and set rules.
+ * with those that weigh the same on the exotic and set rules: the same exotic, and the same wanted set (or none).
  */
-export const pruneDominated = (pieces: OptimizerPiece[], setHash?: number): OptimizerPiece[] => {
-    const group = (piece: OptimizerPiece) => `${piece.isExotic ? piece.item.itemHash : "legendary"}:${setHash !== undefined && piece.setHash === setHash}`;
+export const pruneDominated = (pieces: OptimizerPiece[], setHashes: number[] = []): OptimizerPiece[] => {
+    const group = (piece: OptimizerPiece) =>
+        `${piece.isExotic ? piece.item.itemHash : "legendary"}:${piece.setHash !== undefined && setHashes.includes(piece.setHash) ? piece.setHash : "none"}`;
     return pieces.filter((piece, index) => !pieces.some((other, otherIndex) =>
         otherIndex !== index
         && group(other) === group(piece)
@@ -135,7 +138,10 @@ const sum = (values: number[]) => values.reduce((total, value) => total + value,
  * `baseline` is what the character gets without armor (subclass fragments...).
  */
 export const optimizeArmor = (pieces: OptimizerPiece[], baseline: StatVector, options: OptimizerOptions): OptimizerResult => {
-    const { minimums, weights, exotic, set, statMods } = options;
+    const { minimums, weights, exotic, sets, statMods } = options;
+    // A piece belongs to one set at most, so the sets must fit in the five slots together
+    if (sets.reduce((total, set) => total + set.count, 0) > ARMOR_SLOTS.length) return { builds: [], truncated: false };
+    const setHashes = sets.map((set) => set.hash);
     const weigh = (stats: StatVector) => stats.reduce((total, value, s) => total + weights[s] * value, 0);
 
     const allowed = pieces.filter((piece) => {
@@ -145,7 +151,7 @@ export const optimizeArmor = (pieces: OptimizerPiece[], baseline: StatVector, op
     });
 
     // The best pieces first, so good builds come early and raise the bar for the others
-    const slots = ARMOR_SLOTS.map((slot) => pruneDominated(allowed.filter((piece) => piece.slot === slot), set?.hash)
+    const slots = ARMOR_SLOTS.map((slot) => pruneDominated(allowed.filter((piece) => piece.slot === slot), setHashes)
         .sort((a, b) => weigh(b.stats) - weigh(a.stats)));
     if (slots.some((candidates) => candidates.length === 0)) return { builds: [], truncated: false };
     // Fewest candidates first, for the pruning to cut early
@@ -154,12 +160,13 @@ export const optimizeArmor = (pieces: OptimizerPiece[], baseline: StatVector, op
     // The most each stat (and the score) can still gain, and how many set pieces and exotics can still come, from slot i on
     const suffixMax: StatVector[] = new Array(slots.length + 1).fill(null).map(zeros);
     const suffixScore = new Array<number>(slots.length + 1).fill(0);
-    const suffixSet = new Array<number>(slots.length + 1).fill(0);
+    // Per wanted set: how many of the remaining slots have a piece of it
+    const suffixSet: number[][] = new Array(slots.length + 1).fill(null).map(() => sets.map(() => 0));
     const suffixExotic = new Array<boolean>(slots.length + 1).fill(false);
     for (let i = slots.length - 1; i >= 0; i--) {
         for (let s = 0; s < STAT_COUNT; s++) suffixMax[i][s] = suffixMax[i + 1][s] + Math.max(...slots[i].map((piece) => piece.stats[s]));
         suffixScore[i] = suffixScore[i + 1] + Math.max(...slots[i].map((piece) => weigh(piece.stats)));
-        suffixSet[i] = suffixSet[i + 1] + (set && slots[i].some((piece) => piece.setHash === set.hash) ? 1 : 0);
+        suffixSet[i] = sets.map((set, k) => suffixSet[i + 1][k] + (slots[i].some((piece) => piece.setHash === set.hash) ? 1 : 0));
         suffixExotic[i] = suffixExotic[i + 1] || slots[i].some((piece) => piece.isExotic);
     }
     const mustHaveExotic = typeof exotic === "number";
@@ -183,7 +190,10 @@ export const optimizeArmor = (pieces: OptimizerPiece[], baseline: StatVector, op
         if (builds.length > MAX_BUILDS) builds.pop();
     };
 
-    const search = (depth: number, exotics: number, setPieces: number) => {
+    // How many pieces of each wanted set the chosen pieces hold
+    const setPieces = sets.map(() => 0);
+
+    const search = (depth: number, exotics: number) => {
         if (truncated) return;
         if (++visits > MAX_VISITS) {
             truncated = true;
@@ -193,7 +203,14 @@ export const optimizeArmor = (pieces: OptimizerPiece[], baseline: StatVector, op
         // Prune: the minimums out of reach even with every remaining best roll and all the mods
         const best = totals.map((value, s) => value + suffixMax[depth][s]);
         if (sum(modsNeeded(best, minimums)) > statMods) return;
-        if (set && setPieces + suffixSet[depth] < set.count) return;
+        // Prune: a set can't get its pieces, or the sets together need more slots than are left
+        let slotsNeeded = 0;
+        for (let k = 0; k < sets.length; k++) {
+            const missing = sets[k].count - setPieces[k];
+            if (missing > suffixSet[depth][k]) return;
+            slotsNeeded += Math.max(0, missing);
+        }
+        if (slotsNeeded > slots.length - depth) return;
         if (mustHaveExotic && exotics === 0 && !suffixExotic[depth]) return;
         // Prune: can't beat the worst build kept, even with the best rolls (a tie with fewer mods is still worth it).
         // Each slot's best piece for the score bounds it, and so does each stat's best roll under its cap
@@ -218,14 +235,17 @@ export const optimizeArmor = (pieces: OptimizerPiece[], baseline: StatVector, op
             if (piece.isExotic && exotics > 0) continue;
             chosen.push(piece);
             for (let s = 0; s < STAT_COUNT; s++) totals[s] += piece.stats[s];
-            search(depth + 1, exotics + (piece.isExotic ? 1 : 0), setPieces + (set && piece.setHash === set.hash ? 1 : 0));
+            const setIndex = piece.setHash === undefined ? -1 : setHashes.indexOf(piece.setHash);
+            if (setIndex !== -1) setPieces[setIndex]++;
+            search(depth + 1, exotics + (piece.isExotic ? 1 : 0));
+            if (setIndex !== -1) setPieces[setIndex]--;
             for (let s = 0; s < STAT_COUNT; s++) totals[s] -= piece.stats[s];
             chosen.pop();
             if (truncated) return;
         }
     };
 
-    search(0, 0, 0);
+    search(0, 0);
     // Pieces back in the game's slot order
     builds.forEach((build) => build.pieces.sort((a, b) => ARMOR_SLOTS.indexOf(a.slot) - ARMOR_SLOTS.indexOf(b.slot)));
     return { builds, truncated };

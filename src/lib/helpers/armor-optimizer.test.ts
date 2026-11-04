@@ -16,6 +16,7 @@ const options = (fields: Partial<OptimizerOptions> = {}): OptimizerOptions => ({
     minimums: [0, 0, 0, 0, 0, 0],
     weights: [1, 1, 1, 1, 1, 1],
     exotic: "any",
+    sets: [],
     statMods: 0,
     ...fields,
 });
@@ -43,7 +44,7 @@ describe("pruneDominated", () => {
         const legendary = piece(HELMET, [20, 20, 0, 0, 0, 0]);
         const exotic = piece(HELMET, [10, 10, 0, 0, 0, 0], { isExotic: true });
         const setPiece = piece(HELMET, [10, 10, 0, 0, 0, 0], { setHash: 7 });
-        expect(pruneDominated([legendary, exotic, setPiece], 7)).toEqual([legendary, exotic, setPiece]);
+        expect(pruneDominated([legendary, exotic, setPiece], [7])).toEqual([legendary, exotic, setPiece]);
     });
 });
 
@@ -114,10 +115,30 @@ describe("optimizeArmor", () => {
         const setHelmet = piece(HELMET, [0, 0, 0, 0, 0, 0], { setHash: 7 });
         const setArms = piece(ARMS, [0, 0, 0, 0, 0, 0], { setHash: 7 });
         const chest = piece(CHEST, [0, 0, 0, 0, 0, 0]);
-        const { builds } = optimizeArmor([helmet, setHelmet, setArms, chest, legs, classItem], baseline, options({ set: { hash: 7, count: 2 } }));
+        const { builds } = optimizeArmor([helmet, setHelmet, setArms, chest, legs, classItem], baseline, options({ sets: [{ hash: 7, count: 2 }] }));
         expect(builds.map((build) => build.pieces.map((p) => p.item.itemInstanceId))).toEqual([
             [setHelmet, setArms, chest, legs, classItem].map((p) => p.item.itemInstanceId),
         ]);
+    });
+
+    it("can ask for two sets at once", () => {
+        const helmet = piece(HELMET, [30, 0, 0, 0, 0, 0]);
+        const setA = [piece(HELMET, [0, 0, 0, 0, 0, 0], { setHash: 7 }), piece(ARMS, [0, 0, 0, 0, 0, 0], { setHash: 7 })];
+        const setB = [piece(CHEST, [0, 0, 0, 0, 0, 0], { setHash: 8 }), piece(LEGS, [0, 0, 0, 0, 0, 0], { setHash: 8 })];
+        const arms = piece(ARMS, [30, 0, 0, 0, 0, 0]);
+        const chest = piece(CHEST, [30, 0, 0, 0, 0, 0]);
+        const classItem = piece(CLASS_ITEM, [0, 0, 0, 0, 0, 0]);
+        const pieces = [helmet, ...setA, ...setB, arms, chest, classItem];
+        const { builds } = optimizeArmor(pieces, baseline, options({ sets: [{ hash: 7, count: 2 }, { hash: 8, count: 2 }] }));
+        expect(builds.map((build) => build.pieces.map((p) => p.item.itemInstanceId))).toEqual([
+            [...setA, ...setB, classItem].map((p) => p.item.itemInstanceId),
+        ]);
+    });
+
+    it("finds nothing when the sets need more than five pieces", () => {
+        const pieces = ARMOR_SLOTS.flatMap((slot) => [piece(slot, [0, 0, 0, 0, 0, 0], { setHash: 7 }), piece(slot, [0, 0, 0, 0, 0, 0], { setHash: 8 })]);
+        expect(optimizeArmor(pieces, baseline, options({ sets: [{ hash: 7, count: 4 }, { hash: 8, count: 2 }] })).builds).toEqual([]);
+        expect(optimizeArmor(pieces, baseline, options({ sets: [{ hash: 7, count: 2 }, { hash: 8, count: 2 }] })).builds.length).toBeGreaterThan(0);
     });
 
     it("needs a piece for every slot", () => {
