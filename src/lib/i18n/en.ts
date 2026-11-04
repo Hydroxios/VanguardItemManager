@@ -458,6 +458,8 @@ export const en = {
     debugMode: "Debug mode",
     debugModeDescription: "Shows the raw API data of items in their tooltip.",
     logout: "Logout",
+    logoutConfirmTitle: "Log out?",
+    logoutConfirmMessage: "You will need to sign in with Bungie again to access your characters and vault.",
     resetTitle: "Back to the default settings (the language stays)",
   },
 };
