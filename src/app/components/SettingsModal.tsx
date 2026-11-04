@@ -1,4 +1,4 @@
-import React, { ReactNode, useState } from "react";
+import React, { ReactNode, useCallback, useState } from "react";
 import { createPortal } from "react-dom";
 import DestinyCheckBox from "./destiny-ui/DestinyCheckbox";
 import { DEFAULT_SETTINGS, Settings, updateSettings, useSettings } from "@/lib/hooks/useSettings";
@@ -103,15 +103,20 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose, debugMode,
   const [selectedLocale, setSelectedLocale] = useState(getLocale);
   const [section, setSection] = useState<SectionId>("general");
   const { settings, setSetting } = useSettings();
+  const [confirmingLogout, setConfirmingLogout] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
 
-  // Escape closes the settings, and no key reaches the page's shortcuts behind them
-  useModalKeys(onClose, { enabled: open });
+  const cancelLogout = useCallback(() => setConfirmingLogout(false), []);
+
+  // Escape closes the logout confirmation first, then the settings, and no key reaches the page's shortcuts behind them
+  useModalKeys(confirmingLogout ? cancelLogout : onClose, { enabled: open, canClose: !loggingOut });
 
   if (!open) return null;
 
   const currentLanguage = LANGUAGES.find(l => l.code === selectedLocale) ?? LANGUAGES[0];
 
   const handleLogout = async () => {
+    setLoggingOut(true);
     await fetch("/api/token", { method: "DELETE" }).catch(() => undefined);
     window.location.reload();
   };
@@ -274,7 +279,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose, debugMode,
       <footer className="flex items-center justify-end gap-3 px-6 py-4 border-t border-white/10 shrink-0">
         <button
           type="button"
-          onClick={handleLogout}
+          onClick={() => setConfirmingLogout(true)}
           className="mr-auto px-4 py-2 text-sm text-red-400 rounded-md hover:text-red-300 hover:bg-red-500/10 transition-colors"
         >
           {t.settings.logout}
@@ -295,6 +300,54 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose, debugMode,
           {t.common.done}
         </button>
       </footer>
+
+      {confirmingLogout && (
+        <div className="fixed inset-0 flex items-center justify-center z-[1004] bg-black/80" onClick={() => !loggingOut && cancelLogout()}>
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="logout-confirm-title"
+            aria-describedby="logout-confirm-message"
+            className="bg-[#1a1a2e] border border-[#7e57c2] shadow-xl p-5 rounded w-[400px] max-w-[calc(100vw-2rem)] animate-fade-in"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center mb-4 border-b border-gray-700 pb-2">
+              <h2 id="logout-confirm-title" className="text-white text-xl font-semibold">{t.settings.logoutConfirmTitle}</h2>
+              <button
+                type="button"
+                onClick={cancelLogout}
+                disabled={loggingOut}
+                className="text-gray-400 hover:text-white disabled:opacity-50"
+                aria-label={t.common.close}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <p id="logout-confirm-message" className="text-gray-300 mb-6">{t.settings.logoutConfirmMessage}</p>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={cancelLogout}
+                disabled={loggingOut}
+                autoFocus
+                className="px-4 py-2 bg-gray-700 text-white rounded hover:bg-gray-600 disabled:opacity-50"
+              >
+                {t.common.cancel}
+              </button>
+              <button
+                type="button"
+                onClick={handleLogout}
+                disabled={loggingOut}
+                className="px-4 py-2 text-white rounded bg-red-600 hover:bg-red-700 disabled:opacity-50"
+              >
+                {t.settings.logout}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>,
     document.body
   );

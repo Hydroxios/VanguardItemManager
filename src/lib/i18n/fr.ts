@@ -461,6 +461,8 @@ export const fr: Dictionary = {
     debugMode: "Mode débogage",
     debugModeDescription: "Affiche les données brutes de l'API dans l'infobulle des objets.",
     logout: "Se déconnecter",
+    logoutConfirmTitle: "Se déconnecter ?",
+    logoutConfirmMessage: "Vous devrez vous reconnecter avec Bungie pour accéder à vos personnages et à votre coffre.",
     resetTitle: "Revenir aux paramètres par défaut (la langue est conservée)",
   },
 };
