@@ -77,7 +77,9 @@ export const getWeaponSockets = (
         const reusable = (itemComponents.reusablePlugs[itemInstanceId ?? ""]?.plugs[socketIndex] ?? [])
             .filter((plug) => plug.canInsert !== false && plug.enabled !== false)
             .map((plug) => itemDefinitions[plug.plugItemHash])
-            .filter((plug): plug is ItemDefinition => !!plug);
+            .filter((plug): plug is ItemDefinition => !!plug)
+            // The API can list the same plug more than once in a socket
+            .filter((plug, index, plugs) => plugs.findIndex((other) => other.hash === plug.hash) === index);
         const options = reusable.some((plug) => plug.hash === current.hash) ? reusable : [current, ...reusable];
         return [{ socketIndex, current, options, origin: plugCategory(current) === ORIGIN_PLUG_CATEGORY }];
     });
